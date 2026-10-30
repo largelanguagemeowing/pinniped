@@ -38,7 +38,7 @@ describe('messageShield', () => {
       info(EventShieldColour.GREY, EventShieldReason.AUTHENTICITY_NOT_GUARANTEED)
     );
     expect(shield?.colour).toBe('grey');
-    expect(shield?.text).toContain('Another device or your backup supplied it');
+    expect(shield?.text).toContain('one of your devices or your encrypted backup');
     expect(shield?.text).not.toMatch(/forward/i);
   });
 
