@@ -55,12 +55,10 @@ function ResetPasswordComplete({ email }: { email?: string }) {
         <FocusTrap>
           <Dialog>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text>
-                Password has been reset successfully. Please login with your new password.
-              </Text>
+              <Text>Password has been reset successfully. Sign in with your new password.</Text>
               <Button variant="Primary" onClick={handleClick}>
                 <Text size="B400" as="span">
-                  Login
+                  Sign in
                 </Text>
               </Button>
             </Box>
@@ -207,7 +205,7 @@ export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
             </Box>
             <Box direction="Column" gap="100">
               <Text as="label" size="L400" priority="300">
-                Confirm Password
+                Confirm password
               </Text>
               <PasswordInput
                 ref={confPassRef}
@@ -233,7 +231,7 @@ export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
       <span data-spacing-node />
       <Button type="submit" variant="Primary" size="500">
         <Text as="span" size="B500">
-          Reset Password
+          Reset password
         </Text>
       </Button>
 

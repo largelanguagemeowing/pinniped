@@ -315,7 +315,7 @@ export function PasswordRegisterForm({
               </Box>
               <Box direction="Column" gap="100">
                 <Text as="label" size="L400" priority="300">
-                  Confirm Password
+                  Confirm password
                 </Text>
                 <PasswordInput
                   ref={confPassRef}
@@ -335,8 +335,8 @@ export function PasswordRegisterForm({
           <Box direction="Column" gap="100">
             <Text as="label" size="L400" priority="300">
               {requiredStageInFlows(uiaFlows, AuthType.RegistrationToken)
-                ? 'Registration Token'
-                : 'Registration Token (Optional)'}
+                ? 'Registration token'
+                : 'Registration token (optional)'}
             </Text>
             <Input
               variant="Background"
@@ -392,7 +392,7 @@ export function PasswordRegisterForm({
         <span data-spacing-node />
         <Button variant="Primary" size="500" type="submit">
           <Text as="span" size="B500">
-            Register
+            Create account
           </Text>
         </Button>
       </Box>

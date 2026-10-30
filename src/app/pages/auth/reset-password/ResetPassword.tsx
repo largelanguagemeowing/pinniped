@@ -24,13 +24,13 @@ export function ResetPassword() {
   return (
     <Box direction="Column" gap="500">
       <Text size="H2" priority="400">
-        Reset Password
+        Reset your password
       </Text>
       <PasswordResetForm defaultEmail={resetPasswordSearchParams.email} />
       <span data-spacing-node />
 
-      <Text align="Center">
-        Remember your password? <Link to={getLoginPath(server)}>Login</Link>
+      <Text>
+        Remember your password? <Link to={getLoginPath(server)}>Sign in</Link>
       </Text>
     </Box>
   );

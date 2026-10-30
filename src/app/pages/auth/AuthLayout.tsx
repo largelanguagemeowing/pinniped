@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { Box, Header, Scroll, Spinner, Text, color } from 'folds';
+import { Box, Scroll, Spinner, Text, color } from 'folds';
 import {
   Outlet,
   generatePath,
@@ -8,11 +8,9 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import classNames from 'classnames';
 
 import { AuthFooter } from './AuthFooter';
 import * as css from './styles.css';
-import * as PatternsCss from '../../styles/Patterns.css';
 import {
   clientAllowedServer,
   clientDefaultServer,
@@ -21,7 +19,8 @@ import {
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '../paths';
 import PinnipedSVG from '../../../../public/res/svg/pinniped.svg';
-import { ServerPicker } from './ServerPicker';
+import { HomeserverRow } from './HomeserverRow';
+import { AuthAside } from './AuthAside';
 import { AutoDiscoveryAction, autoDiscovery } from '../../cs-api';
 import { SpecVersionsLoader } from '../../components/SpecVersionsLoader';
 import { SpecVersionsProvider } from '../../hooks/useSpecVersions';
@@ -120,34 +119,18 @@ export function AuthLayout() {
   const [autoDiscoveryError, autoDiscoveryInfo] =
     discoveryState.status === AsyncStatus.Success ? discoveryState.data.response : [];
 
+  const discoveryFailed = discoveryState.status === AsyncStatus.Error || !!autoDiscoveryError;
+  const authPath = currentAuthPath(location.pathname);
+
   return (
     <Scroll variant="Background" visibility="Hover" size="300" hideTrack>
-      <Box
-        className={classNames(css.AuthLayout, PatternsCss.BackgroundDotPattern)}
-        direction="Column"
-        alignItems="Center"
-        justifyContent="SpaceBetween"
-        gap="400"
-      >
-        <Box direction="Column" className={css.AuthCard}>
-          <Header className={css.AuthHeader} size="600" variant="Surface">
-            <Box grow="Yes" direction="Row" gap="300" alignItems="Center">
-              <img className={css.AuthLogo} src={PinnipedSVG} alt="Pinniped Logo" />
-              <Text size="H3">Pinniped</Text>
-            </Box>
-          </Header>
-          <Box className={css.AuthCardContent} direction="Column">
-            <Box direction="Column" gap="100">
-              <Text as="label" size="L400" priority="300">
-                Homeserver
-              </Text>
-              <ServerPicker
-                server={server}
-                serverList={clientConfig.homeserverList ?? []}
-                allowCustomServer={clientConfig.allowCustomHomeservers}
-                onServerChange={selectServer}
-              />
-            </Box>
+      <Box className={css.AuthLayout}>
+        <Box className={css.AuthMain} direction="Column">
+          <Box className={css.AuthBrand} direction="Row">
+            <img className={css.AuthLogo} src={PinnipedSVG} alt="" />
+            <Text size="H4">Pinniped</Text>
+          </Box>
+          <Box className={css.AuthContent} direction="Column">
             {discoveryState.status === AsyncStatus.Loading && (
               <AuthLayoutLoading message="Looking for homeserver..." />
             )}
@@ -198,9 +181,17 @@ export function AuthLayout() {
                 </AutoDiscoveryInfoProvider>
               </AuthServerProvider>
             )}
+            <HomeserverRow
+              server={server}
+              serverList={clientConfig.homeserverList ?? []}
+              allowCustomServer={clientConfig.allowCustomHomeservers}
+              forceOpen={discoveryFailed}
+              onServerChange={selectServer}
+            />
           </Box>
+          <AuthFooter />
         </Box>
-        <AuthFooter />
+        <AuthAside authPath={authPath} />
       </Box>
     </Scroll>
   );

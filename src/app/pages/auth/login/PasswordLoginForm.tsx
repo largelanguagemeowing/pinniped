@@ -233,7 +233,7 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
           {loginState.status === AsyncStatus.Error && (
             <>
               {loginState.error.errcode === LoginError.Forbidden && (
-                <FieldError message="Invalid Username or Password." />
+                <FieldError message="Wrong username or password. Check both and try again." />
               )}
               {loginState.error.errcode === LoginError.UserDeactivated && (
                 <FieldError message="This account has been deactivated." />
@@ -251,14 +251,14 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
           )}
           <Box grow="Yes" shrink="No" justifyContent="End">
             <Text as="span" size="T200" priority="400" align="Right">
-              <Link to={getResetPasswordPath(server)}>Forget Password?</Link>
+              <Link to={getResetPasswordPath(server)}>Forgot password?</Link>
             </Text>
           </Box>
         </Box>
       </Box>
       <Button type="submit" variant="Primary" size="500">
         <Text as="span" size="B500">
-          Login
+          Sign in
         </Text>
       </Button>
 

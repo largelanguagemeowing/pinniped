@@ -57,7 +57,7 @@ export function Login() {
   return (
     <Box direction="Column" gap="500">
       <Text size="H2" priority="400">
-        Login
+        Sign in
       </Text>
       {parsedFlows.token && loginSearchParams.loginToken && (
         <TokenLogin token={loginSearchParams.loginToken} />
@@ -91,8 +91,8 @@ export function Login() {
           <span data-spacing-node />
         </>
       )}
-      <Text align="Center">
-        Do not have an account? <Link to={getRegisterPath(server)}>Register</Link>
+      <Text>
+        New here? <Link to={getRegisterPath(server)}>Create an account</Link>
       </Text>
     </Box>
   );

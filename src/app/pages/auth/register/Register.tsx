@@ -36,7 +36,7 @@ export function Register() {
   return (
     <Box direction="Column" gap="500">
       <Text size="H2" priority="400">
-        Register
+        Create an account
       </Text>
       {registerFlows.status === RegisterFlowStatus.RegistrationDisabled && !sso && (
         <Text style={{ color: color.Critical.Main }} size="T300">
@@ -90,8 +90,8 @@ export function Register() {
           <span data-spacing-node />
         </>
       )}
-      <Text align="Center">
-        Already have an account? <Link to={getLoginPath(server)}>Login</Link>
+      <Text>
+        Already have an account? <Link to={getLoginPath(server)}>Sign in</Link>
       </Text>
     </Box>
   );
