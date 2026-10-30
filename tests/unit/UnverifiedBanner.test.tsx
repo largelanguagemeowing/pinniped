@@ -9,13 +9,17 @@ import {
 } from '../../src/app/features/device-verification-gate/deviceVerificationGate';
 import { VerificationStatus } from '../../src/app/hooks/useDeviceVerificationStatus';
 
-const state = vi.hoisted(() => ({ crossSigningActive: true, status: 1 as number }));
+const state = vi.hoisted(() => ({
+  crossSigningActive: true,
+  status: 1 as number, // VerificationStatus.Unverified
+  keysOnServer: true,
+}));
 
 vi.mock('../../src/app/hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({
     getSafeUserId: () => '@me:x',
     getDeviceId: () => 'DEV1',
-    getCrypto: () => ({}),
+    getCrypto: () => ({ userHasCrossSigningKeys: () => Promise.resolve(state.keysOnServer) }),
   }),
 }));
 vi.mock('../../src/app/hooks/useCrossSigning', () => ({
@@ -34,11 +38,13 @@ const textOf = (node: ReactTestInstance | string): string =>
 
 describe('UnverifiedBanner', () => {
   let r: ReactTestRenderer;
-  const mount = () => {
-    act(() => {
+  const mount = async () => {
+    await act(async () => {
       r = create(<UnverifiedBanner />);
     });
   };
+  const button = (label: string) =>
+    r.root.findAll((n) => n.type === 'button' && textOf(n).includes(label))[0];
 
   beforeEach(() => {
     const store = new Map<string, string>();
@@ -47,49 +53,73 @@ describe('UnverifiedBanner', () => {
       setItem: (k: string, v: string) => store.set(k, v),
       removeItem: (k: string) => store.delete(k),
     });
-    reopenGate('@me:x', 'DEV1');
+    reopenGate('verify', '@me:x', 'DEV1');
+    reopenGate('setup', '@me:x', 'DEV1');
     state.crossSigningActive = true;
     state.status = VerificationStatus.Unverified;
+    state.keysOnServer = true;
   });
   afterEach(() => act(() => r.unmount()));
 
-  it('shows after the gate was skipped on a still-unverified device', () => {
-    dismissGate('@me:x', 'DEV1');
-    mount();
-    expect(textOf(r.root)).toContain('This device is unverified.');
-  });
+  describe('after skipping verification', () => {
+    it('shows on a still-unverified device', async () => {
+      dismissGate('verify', '@me:x', 'DEV1');
+      await mount();
+      expect(textOf(r.root)).toContain('This device is unverified.');
+    });
 
-  it('stays hidden while the gate itself is open', () => {
-    mount();
-    expect(r.toJSON()).toBeNull();
-  });
-
-  it.each([VerificationStatus.Verified, VerificationStatus.Unknown])(
-    'stays hidden when the status is %s',
-    (status) => {
-      dismissGate('@me:x', 'DEV1');
-      state.status = status;
-      mount();
+    it('stays hidden while the gate itself is open', async () => {
+      await mount();
       expect(r.toJSON()).toBeNull();
-    }
-  );
+    });
 
-  it('stays hidden when the account has no encryption identity', () => {
-    dismissGate('@me:x', 'DEV1');
-    state.crossSigningActive = false;
-    mount();
-    expect(r.toJSON()).toBeNull();
+    it.each([VerificationStatus.Verified, VerificationStatus.Unknown])(
+      'stays hidden when the status is %s',
+      async (status) => {
+        dismissGate('verify', '@me:x', 'DEV1');
+        state.status = status;
+        await mount();
+        expect(r.toJSON()).toBeNull();
+      }
+    );
+
+    it('brings the gate back with Verify now, and hides itself', async () => {
+      dismissGate('verify', '@me:x', 'DEV1');
+      await mount();
+      await act(async () => button('Verify now').props.onClick());
+
+      expect(isGateDismissed('verify', '@me:x', 'DEV1')).toBe(false);
+      expect(r.toJSON()).toBeNull();
+    });
   });
 
-  it('brings the gate back with Verify now, and hides itself', () => {
-    dismissGate('@me:x', 'DEV1');
-    mount();
-    const button = r.root.findAll(
-      (n) => n.type === 'button' && textOf(n).includes('Verify now')
-    )[0];
-    act(() => button.props.onClick());
+  describe('after skipping setup', () => {
+    beforeEach(() => {
+      state.crossSigningActive = false;
+      state.keysOnServer = false;
+    });
 
-    expect(isGateDismissed('@me:x', 'DEV1')).toBe(false);
-    expect(r.toJSON()).toBeNull();
+    it('says recovery is not set up, with its own action', async () => {
+      dismissGate('setup', '@me:x', 'DEV1');
+      await mount();
+      expect(textOf(r.root)).toContain('Recovery is not set up.');
+      expect(textOf(r.root)).toContain('cannot be restored');
+      expect(button('Set up now')).toBeDefined();
+    });
+
+    it('does not show for a skipped verification, which is a different question', async () => {
+      dismissGate('verify', '@me:x', 'DEV1');
+      await mount();
+      expect(r.toJSON()).toBeNull();
+    });
+
+    it('brings the setup gate back with Set up now', async () => {
+      dismissGate('setup', '@me:x', 'DEV1');
+      await mount();
+      await act(async () => button('Set up now').props.onClick());
+
+      expect(isGateDismissed('setup', '@me:x', 'DEV1')).toBe(false);
+      expect(r.toJSON()).toBeNull();
+    });
   });
 });

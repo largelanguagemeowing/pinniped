@@ -5,6 +5,7 @@ import { AuthShell } from '../../pages/auth/AuthShell';
 import { AuthAside, AsideCopy } from '../../pages/auth/AuthAside';
 import * as css from '../../pages/auth/styles.css';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
+import { VerificationStatus } from '../../hooks/useDeviceVerificationStatus';
 import {
   useSecretStorageDefaultKeyId,
   useSecretStorageKeyContent,
@@ -15,7 +16,11 @@ import {
   cancelVerificationRequest,
   DeviceVerificationFlow,
 } from '../../components/DeviceVerification';
-import { DeviceVerificationResetOverlay } from '../../components/DeviceVerificationSetup';
+import {
+  DeviceVerificationResetOverlay,
+  RecoveryKeyDisplay,
+  SetupVerification,
+} from '../../components/DeviceVerificationSetup';
 import {
   ManualVerificationMethod,
   ManualVerificationMethodSwitcher,
@@ -27,7 +32,8 @@ import {
 import { SecretStorageKeyContent } from '../../../types/matrix/accountData';
 import {
   dismissGate,
-  gateNeedsVerification,
+  GateKind,
+  gateKind,
   justVerified,
   shouldShowGate,
 } from './deviceVerificationGate';
@@ -35,7 +41,7 @@ import { useVerificationGateState } from './useVerificationGateState';
 
 type View = 'choose' | 'device' | 'key' | 'skip';
 
-const ASIDE: Record<View | 'done', AsideCopy> = {
+const ASIDE: Record<View | 'done' | 'setup' | 'skipSetup', AsideCopy> = {
   choose: {
     heading: 'Why this step matters',
     paragraphs: [
@@ -61,6 +67,19 @@ const ASIDE: Record<View | 'done', AsideCopy> = {
     heading: 'You can verify any time',
     paragraphs: [
       'A banner stays in the app until this device is verified. Verifying later takes the same steps.',
+    ],
+  },
+  setup: {
+    heading: 'Why set up recovery',
+    paragraphs: [
+      'Your messages are end-to-end encrypted, so the keys that read them live on your devices. Without a recovery key, signing out or losing this device locks them for good.',
+      'Your homeserver cannot read your messages and cannot restore them for you. The key is yours alone.',
+    ],
+  },
+  skipSetup: {
+    heading: 'You can set this up later',
+    paragraphs: [
+      'A banner stays in the app until recovery is set up. You can also do it from Settings at any time.',
     ],
   },
   done: {
@@ -312,28 +331,85 @@ function KeyView({
   );
 }
 
-function SkipView({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
+function SkipView({
+  kind,
+  onBack,
+  onContinue,
+}: {
+  kind: GateKind;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  const setup = kind === 'setup';
   return (
     <Box direction="Column" gap="500">
-      <Heading title="Continue without verifying?">
-        You can still use Pinniped, but until you verify:
+      <Heading title={setup ? 'Continue without recovery?' : 'Continue without verifying?'}>
+        {setup
+          ? 'You can still use Pinniped, but without a recovery key:'
+          : 'You can still use Pinniped, but until you verify:'}
       </Heading>
       <Text as="div" size="T300">
         <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'grid', gap: '0.5rem' }}>
-          <li>Older encrypted messages stay unreadable on this device.</li>
-          <li>People you chat with see this device as unverified.</li>
-          <li>You cannot tell this device apart from one an intruder added.</li>
+          {setup ? (
+            <>
+              <li>
+                If you sign out or lose this device, your encrypted messages cannot be restored.
+              </li>
+              <li>People you chat with see this device as unverified.</li>
+            </>
+          ) : (
+            <>
+              <li>Older encrypted messages stay unreadable on this device.</li>
+              <li>People you chat with see this device as unverified.</li>
+              <li>You cannot tell this device apart from one an intruder added.</li>
+            </>
+          )}
         </ul>
       </Text>
       <Box direction="Column" gap="200">
         <Button variant="Primary" size="500" onClick={onBack}>
           <Text as="span" size="B500">
-            Go back and verify
+            {setup ? 'Go back and set up' : 'Go back and verify'}
           </Text>
         </Button>
         <Button variant="Secondary" fill="Soft" size="500" onClick={onContinue}>
           <Text as="span" size="B500">
-            Continue unverified
+            {setup ? 'Continue without recovery' : 'Continue unverified'}
+          </Text>
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+function SetupView({
+  recoveryKey,
+  onCreated,
+  onSaved,
+  onSkip,
+}: {
+  recoveryKey: string | undefined;
+  onCreated: (recoveryKey: string) => void;
+  onSaved: () => void;
+  onSkip: () => void;
+}) {
+  if (recoveryKey) {
+    return (
+      <Box direction="Column" gap="500">
+        <Heading title="Save your recovery key" />
+        <RecoveryKeyDisplay recoveryKey={recoveryKey} onDone={onSaved} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box direction="Column" gap="500">
+      <Heading title="Secure your messages" />
+      <SetupVerification onComplete={onCreated} />
+      <Box>
+        <Button variant="Secondary" fill="None" size="400" onClick={onSkip}>
+          <Text as="span" size="B400">
+            Continue without recovery
           </Text>
         </Button>
       </Box>
@@ -358,11 +434,12 @@ function DoneView({ onContinue }: { onContinue: () => void }) {
 }
 
 /**
- * Asks a signed-in but unverified device to verify before the app opens. It can be skipped,
- * and the choice is remembered per device so it does not return on every launch.
+ * Asks a signed-in but unverified device to verify before the app opens, or, when the account
+ * has no encryption identity yet, to set up recovery. Either can be skipped, and the choice is
+ * remembered per device so it does not return on every launch.
  */
 export function DeviceVerificationGate() {
-  const { userId, deviceId, crossSigningActive, status, dismissed } = useVerificationGateState();
+  const { userId, deviceId, identity, status, dismissed } = useVerificationGateState();
 
   const keyId = useSecretStorageDefaultKeyId();
   const keyContent = useSecretStorageKeyContent(keyId ?? '');
@@ -370,54 +447,103 @@ export function DeviceVerificationGate() {
 
   const [finished, setFinished] = useState(false);
   const [view, setView] = useState<View>('choose');
-  const wasNeeded = useRef(false);
+  // Creating the keys makes the account look verified, or briefly half-verified, long before the
+  // person has saved the key. Once setup was asked it stays in charge until the key is saved or
+  // skipped, so the screen cannot flip to verification part-way through.
+  const [setupActive, setSetupActive] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState<string>();
+  const wasVerifying = useRef(false);
+
+  const asked = gateKind({ identity, status, dismissed });
 
   useEffect(() => {
-    const state = { crossSigningActive, status, dismissed };
-    if (gateNeedsVerification(state)) {
-      wasNeeded.current = true;
-    } else if (justVerified(wasNeeded.current, state)) {
-      wasNeeded.current = false;
+    // One line per change, so a missing prompt can be diagnosed from the console.
+    console.info('[verify-gate]', {
+      identity,
+      status: VerificationStatus[status],
+      asked,
+      dismissed,
+    });
+  }, [identity, status, asked, dismissed.verify, dismissed.setup]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (asked === 'setup') setSetupActive(true);
+  }, [asked]);
+
+  const settingUp = setupActive || recoveryKey !== undefined;
+
+  useEffect(() => {
+    if (settingUp) return;
+    if (asked === 'verify') {
+      wasVerifying.current = true;
+    } else if (justVerified(wasVerifying.current, { identity, status, dismissed })) {
+      wasVerifying.current = false;
       setFinished(true);
     }
-  }, [crossSigningActive, status, dismissed]);
+  }, [settingUp, asked, identity, status, dismissed]);
 
-  if (!shouldShowGate({ crossSigningActive, status, dismissed, finished })) return null;
+  const kind: GateKind = settingUp ? 'setup' : (asked ?? 'verify');
 
-  const handleContinueUnverified = () => {
+  if (!settingUp && !shouldShowGate({ identity, status, dismissed, finished })) return null;
+
+  const handleSkip = () => {
     setView('choose');
-    if (deviceId) dismissGate(userId, deviceId);
+    setSetupActive(false);
+    if (deviceId) dismissGate(kind, userId, deviceId);
+  };
+
+  const handleKeySaved = () => {
+    setRecoveryKey(undefined);
+    setSetupActive(false);
   };
 
   let content: React.ReactNode;
-  if (finished) {
-    content = <DoneView onContinue={() => setFinished(false)} />;
-  } else if (view === 'device') {
-    content = (
-      <DeviceView
-        canUseKey={canUseKey}
-        onBack={() => setView('choose')}
-        onKey={() => setView('key')}
-      />
-    );
-  } else if (view === 'key' && keyId && keyContent) {
-    content = <KeyView keyId={keyId} keyContent={keyContent} onBack={() => setView('choose')} />;
-  } else if (view === 'skip') {
-    content = <SkipView onBack={() => setView('choose')} onContinue={handleContinueUnverified} />;
-  } else {
-    content = (
-      <ChooseView
-        canUseKey={canUseKey}
-        onDevice={() => setView('device')}
-        onKey={() => setView('key')}
+  let aside: AsideCopy;
+  if (kind === 'setup') {
+    const skipping = view === 'skip' && recoveryKey === undefined;
+    content = skipping ? (
+      <SkipView kind="setup" onBack={() => setView('choose')} onContinue={handleSkip} />
+    ) : (
+      <SetupView
+        recoveryKey={recoveryKey}
+        onCreated={setRecoveryKey}
+        onSaved={handleKeySaved}
         onSkip={() => setView('skip')}
       />
     );
+    aside = ASIDE[skipping ? 'skipSetup' : 'setup'];
+  } else if (finished) {
+    content = <DoneView onContinue={() => setFinished(false)} />;
+    aside = ASIDE.done;
+  } else {
+    if (view === 'device') {
+      content = (
+        <DeviceView
+          canUseKey={canUseKey}
+          onBack={() => setView('choose')}
+          onKey={() => setView('key')}
+        />
+      );
+    } else if (view === 'key' && keyId && keyContent) {
+      content = <KeyView keyId={keyId} keyContent={keyContent} onBack={() => setView('choose')} />;
+    } else if (view === 'skip') {
+      content = <SkipView kind="verify" onBack={() => setView('choose')} onContinue={handleSkip} />;
+    } else {
+      content = (
+        <ChooseView
+          canUseKey={canUseKey}
+          onDevice={() => setView('device')}
+          onKey={() => setView('key')}
+          onSkip={() => setView('skip')}
+        />
+      );
+    }
+    aside = ASIDE[view === 'key' && !(keyId && keyContent) ? 'choose' : view];
   }
 
   return (
     <Box className={css.AuthGate} direction="Column">
-      <AuthShell aside={<AuthAside {...ASIDE[finished ? 'done' : view]} />}>{content}</AuthShell>
+      <AuthShell aside={<AuthAside {...aside} />}>{content}</AuthShell>
     </Box>
   );
 }

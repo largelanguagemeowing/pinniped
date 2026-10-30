@@ -1,38 +1,49 @@
 import React from 'react';
 import { Box, Button, Icon, Icons, Text } from 'folds';
 import * as css from './UnverifiedBanner.css';
-import { gateNeedsVerification, reopenGate } from './deviceVerificationGate';
+import { GateKind, pendingKind, reopenGate } from './deviceVerificationGate';
 import { useVerificationGateState } from './useVerificationGateState';
 
+const COPY: Record<GateKind, { lead: string; rest: string; action: string }> = {
+  verify: {
+    lead: 'This device is unverified.',
+    rest: 'Older messages stay locked and people you chat with see a warning.',
+    action: 'Verify now',
+  },
+  setup: {
+    lead: 'Recovery is not set up.',
+    rest: 'If you sign out or lose this device, your encrypted messages cannot be restored.',
+    action: 'Set up now',
+  },
+};
+
 /**
- * Stays visible after "Continue without verifying" so the choice is never silent, and puts
- * the verification step one click away.
+ * Stays visible after a skip so the choice is never silent, and puts the step one click away.
  */
 export function UnverifiedBanner() {
-  const { userId, deviceId, crossSigningActive, status, dismissed } = useVerificationGateState();
+  const { userId, deviceId, identity, status, dismissed } = useVerificationGateState();
 
   // While the gate is open it already says this, so the banner only covers the skipped case.
-  const skipped =
-    dismissed && gateNeedsVerification({ crossSigningActive, status, dismissed: false });
-  if (!skipped) return null;
+  const kind = pendingKind({ identity, status });
+  if (!kind || !dismissed[kind]) return null;
 
+  const { lead, rest, action } = COPY[kind];
   return (
     <Box className={css.UnverifiedBanner} role="status">
       <Icon size="200" src={Icons.ShieldUser} />
       <Box grow="Yes">
         <Text size="T300">
-          <b>This device is unverified.</b> Older messages stay locked and people you chat with see
-          a warning.
+          <b>{lead}</b> {rest}
         </Text>
       </Box>
       <Button
         variant="Warning"
         size="300"
         radii="300"
-        onClick={() => deviceId && reopenGate(userId, deviceId)}
+        onClick={() => deviceId && reopenGate(kind, userId, deviceId)}
       >
         <Text as="span" size="B300">
-          Verify now
+          {action}
         </Text>
       </Button>
     </Box>

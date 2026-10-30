@@ -1,35 +1,53 @@
 import { VerificationStatus } from '../../hooks/useDeviceVerificationStatus';
 
+/**
+ * `verify`: the account has an encryption identity and this device is not trusted by it yet.
+ * `setup`: the account has no encryption identity at all, so there is nothing to verify against.
+ */
+export type GateKind = 'verify' | 'setup';
+
+/** Whether the account has an encryption identity (cross-signing keys), once that is known. */
+export type IdentityState = 'present' | 'absent' | 'unknown';
+
 export type GateState = {
-  crossSigningActive: boolean;
+  identity: IdentityState;
   status: VerificationStatus;
-  /** The person chose "Continue without verifying" on this device. */
-  dismissed: boolean;
+  /** Which kinds of prompt the person chose to skip on this device. */
+  dismissed: Record<GateKind, boolean>;
   /** The gate was showing and verification just completed, so show the confirmation. */
   finished: boolean;
 };
 
 /**
- * The gate asks for verification only when the account has an encryption identity to verify
- * against and this device is not yet trusted. Once dismissed it stays out of the way and the
- * banner takes over, so it never reappears on every launch.
+ * What the gate should ask for, if anything. It only ever offers setup when the identity is
+ * known to be absent, so setup can never replace an identity the account already has. A kind
+ * that was dismissed stays out of the way and the banner takes over, so it does not return on
+ * every launch.
  */
-export const gateNeedsVerification = ({
-  crossSigningActive,
+export const gateKind = ({
+  identity,
   status,
   dismissed,
-}: Omit<GateState, 'finished'>): boolean =>
-  crossSigningActive && status === VerificationStatus.Unverified && !dismissed;
+}: Omit<GateState, 'finished'>): GateKind | null => {
+  if (status !== VerificationStatus.Unverified) return null;
+  if (identity === 'present') return dismissed.verify ? null : 'verify';
+  if (identity === 'absent') return dismissed.setup ? null : 'setup';
+  return null;
+};
+
+/** Like `gateKind`, but ignoring dismissal: what the banner reminds about after a skip. */
+export const pendingKind = (state: Omit<GateState, 'finished' | 'dismissed'>): GateKind | null =>
+  gateKind({ ...state, dismissed: { verify: false, setup: false } });
 
 export const shouldShowGate = (state: GateState): boolean =>
-  state.finished || gateNeedsVerification(state);
+  state.finished || gateKind(state) !== null;
 
-/** True when the gate was open for verification and the device has now become verified. */
-export const justVerified = (wasNeeded: boolean, state: Omit<GateState, 'finished'>): boolean =>
-  wasNeeded && !state.dismissed && state.status === VerificationStatus.Verified;
+/** True when the gate was asking for verification and the device has now become verified. */
+export const justVerified = (wasVerifying: boolean, state: Omit<GateState, 'finished'>): boolean =>
+  wasVerifying && !state.dismissed.verify && state.status === VerificationStatus.Verified;
 
-const dismissalKey = (userId: string, deviceId: string): string =>
-  `verification_gate_dismissed:${userId}:${deviceId}`;
+const dismissalKey = (kind: GateKind, userId: string, deviceId: string): string =>
+  `verification_gate_dismissed:${kind}:${userId}:${deviceId}`;
 
 // The gate and the banner both read this, so it lives outside React. The in-memory copy keeps
 // the choice for the session when storage is blocked.
@@ -42,8 +60,8 @@ export const subscribeGateDismissal = (listener: () => void): (() => void) => {
   return () => listeners.delete(listener);
 };
 
-export const isGateDismissed = (userId: string, deviceId: string): boolean => {
-  const key = dismissalKey(userId, deviceId);
+export const isGateDismissed = (kind: GateKind, userId: string, deviceId: string): boolean => {
+  const key = dismissalKey(kind, userId, deviceId);
   if (dismissed.has(key)) return true;
   try {
     return localStorage.getItem(key) === '1';
@@ -52,8 +70,8 @@ export const isGateDismissed = (userId: string, deviceId: string): boolean => {
   }
 };
 
-export const dismissGate = (userId: string, deviceId: string): void => {
-  const key = dismissalKey(userId, deviceId);
+export const dismissGate = (kind: GateKind, userId: string, deviceId: string): void => {
+  const key = dismissalKey(kind, userId, deviceId);
   dismissed.add(key);
   try {
     localStorage.setItem(key, '1');
@@ -63,9 +81,9 @@ export const dismissGate = (userId: string, deviceId: string): void => {
   notify();
 };
 
-/** Brings the gate back, for the banner's "Verify now". */
-export const reopenGate = (userId: string, deviceId: string): void => {
-  const key = dismissalKey(userId, deviceId);
+/** Brings the gate back, for the banner's action. */
+export const reopenGate = (kind: GateKind, userId: string, deviceId: string): void => {
+  const key = dismissalKey(kind, userId, deviceId);
   dismissed.delete(key);
   try {
     localStorage.removeItem(key);

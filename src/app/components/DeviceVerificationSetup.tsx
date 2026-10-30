@@ -75,7 +75,7 @@ function makeUIAAction<T>(
 type SetupVerificationProps = {
   onComplete: (recoveryKey: string) => void;
 };
-function SetupVerification({ onComplete }: SetupVerificationProps) {
+export function SetupVerification({ onComplete }: SetupVerificationProps) {
   const mx = useMatrixClient();
   const alive = useAlive();
 
