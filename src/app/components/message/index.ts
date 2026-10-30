@@ -8,3 +8,4 @@ export * from './Time';
 export * from './MsgTypeRenderers';
 export * from './FileHeader';
 export * from './RenderBody';
+export * from './MessageShield';

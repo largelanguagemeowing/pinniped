@@ -42,6 +42,7 @@ import {
   BubbleLayout,
   CompactLayout,
   MessageBase,
+  MessageShieldIcon,
   ModernLayout,
   Time,
   Username,
@@ -56,6 +57,7 @@ import {
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../../utils/matrix';
 import { MessageLayout, MessageSpacing } from '../../../state/settings';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
+import { useMessageShield } from '../../../hooks/useMessageShield';
 import { useRecentEmoji } from '../../../hooks/useRecentEmoji';
 import * as css from './styles.css';
 import { EventReaders } from '../../../components/event-readers';
@@ -783,6 +785,10 @@ export const Message = as<'div', MessageProps>(
 
     const usernameColor = legacyUsernameColor ? colorMXID(senderId) : tagColor;
 
+    // A warned message always gets its header, so it cannot hide inside a run from one sender.
+    const shield = useMessageShield(mEvent);
+    const collapsed = collapse && !shield;
+
     const eventStatus = mEvent.status;
     const isSending =
       eventStatus === EventStatus.SENDING ||
@@ -797,7 +803,7 @@ export const Message = as<'div', MessageProps>(
       mx.cancelPendingEvent(mEvent);
     }, [mx, mEvent]);
 
-    const headerJSX = !collapse && (
+    const headerJSX = !collapsed && (
       <Box
         gap="300"
         direction={messageLayout === MessageLayout.Compact ? 'RowReverse' : 'Row'}
@@ -840,12 +846,13 @@ export const Message = as<'div', MessageProps>(
             hour24Clock={hour24Clock}
             dateFormatString={dateFormatString}
           />
+          {shield && <MessageShieldIcon shield={shield} />}
           {isSending && <Icon className={css.MessageStatusSending} size="100" src={Icons.Clock} />}
         </Box>
       </Box>
     );
 
-    const avatarJSX = !collapse && messageLayout !== MessageLayout.Compact && (
+    const avatarJSX = !collapsed && messageLayout !== MessageLayout.Compact && (
       <AvatarBase
         className={messageLayout === MessageLayout.Bubble ? css.BubbleAvatarBase : undefined}
       >
@@ -993,11 +1000,11 @@ export const Message = as<'div', MessageProps>(
     return (
       <MessageBase
         className={classNames(css.MessageBase, className, {
-          [css.MessageBaseBubbleCollapsed]: messageLayout === MessageLayout.Bubble && collapse,
+          [css.MessageBaseBubbleCollapsed]: messageLayout === MessageLayout.Bubble && collapsed,
         })}
         tabIndex={0}
         space={messageSpacing}
-        collapse={collapse}
+        collapse={collapsed}
         highlight={highlight}
         selected={!!menuAnchor || !!emojiBoardAnchor}
         data-event-id={mEvent.getId()}
