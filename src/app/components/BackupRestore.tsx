@@ -8,10 +8,16 @@ import {
   Chip,
   color,
   config,
+  Dialog,
+  Header,
   Icon,
   IconButton,
   Icons,
   Menu,
+  MenuItem,
+  Overlay,
+  OverlayBackdrop,
+  OverlayCenter,
   percent,
   PopOut,
   ProgressBar,
@@ -23,7 +29,11 @@ import FocusTrap from 'focus-trap-react';
 import { BackupProgressStatus, backupRestoreProgressAtom } from '../state/backupRestore';
 import { InfoCard } from './info-card';
 import { AsyncStatus, useAsyncCallback } from '../hooks/useAsyncCallback';
-import { useKeyBackupStatus, useKeyBackupSync } from '../hooks/useKeyBackup';
+import {
+  notifyKeyBackupInfoChanged,
+  useKeyBackupStatus,
+  useKeyBackupSync,
+} from '../hooks/useKeyBackup';
 import { useBackupAdvice } from '../hooks/useBackupAdvice';
 import { stopPropagation } from '../utils/keyboard';
 import { useMatrixClient } from '../hooks/useMatrixClient';
@@ -206,6 +216,138 @@ function BackupAdviceSection({ advice, busy, onRestore }: BackupAdviceSectionPro
   return null;
 }
 
+/** Confirms deleting the server backup, since it is account-wide and cannot be undone. */
+function TurnOffBackupDialog({
+  crypto,
+  version,
+  onClose,
+}: {
+  crypto: CryptoApi;
+  version: string;
+  onClose: () => void;
+}) {
+  const [state, turnOff] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      await crypto.deleteKeyBackupVersion(version);
+      notifyKeyBackupInfoChanged();
+      onClose();
+    }, [crypto, version, onClose])
+  );
+  const busy = state.status === AsyncStatus.Loading;
+
+  return (
+    <Overlay open backdrop={<OverlayBackdrop />}>
+      <OverlayCenter>
+        <FocusTrap
+          focusTrapOptions={{
+            initialFocus: false,
+            clickOutsideDeactivates: false,
+            escapeDeactivates: false,
+          }}
+        >
+          <Dialog variant="Surface">
+            <Header
+              style={{
+                padding: `0 ${config.space.S400}`,
+                borderBottomWidth: config.borderWidth.B300,
+              }}
+              variant="Surface"
+              size="500"
+            >
+              <Box grow="Yes">
+                <Text size="H4">Turn off server backup?</Text>
+              </Box>
+            </Header>
+            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+              <Box direction="Column" gap="200">
+                <Text size="T300">
+                  This deletes your key backup from your homeserver, for all your devices. They stop
+                  backing up, and the backed up keys cannot be brought back.
+                </Text>
+                <Text size="T300">
+                  Messages whose keys are only on a device you sign out of or lose become
+                  unreadable. Your recovery key and verified devices are not affected.
+                </Text>
+                <Text size="T300" priority="300">
+                  Export message keys first if you want a copy you keep yourself. You can turn the
+                  backup on again later; it will hold the keys on the device you do it from.
+                </Text>
+              </Box>
+              {state.status === AsyncStatus.Error && (
+                <Text size="T300" style={{ color: color.Critical.Main }}>
+                  <b>{state.error.message}</b>
+                </Text>
+              )}
+              <Box direction="Column" gap="200">
+                <Button
+                  variant="Critical"
+                  disabled={busy}
+                  before={busy && <Spinner size="200" variant="Critical" fill="Solid" />}
+                  onClick={() => {
+                    // The failure is shown above, so the rethrown rejection would only add noise.
+                    turnOff().catch(() => undefined);
+                  }}
+                >
+                  <Text as="span" size="B400">
+                    Turn off backup
+                  </Text>
+                </Button>
+                <Button variant="Secondary" fill="Soft" disabled={busy} onClick={onClose}>
+                  <Text as="span" size="B400">
+                    Cancel
+                  </Text>
+                </Button>
+              </Box>
+            </Box>
+          </Dialog>
+        </FocusTrap>
+      </OverlayCenter>
+    </Overlay>
+  );
+}
+
+/** Creates a new backup and uploads this device's keys to it. */
+function TurnOnBackup({ crypto }: { crypto: CryptoApi }) {
+  const [state, turnOn] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      await crypto.resetKeyBackup();
+      notifyKeyBackupInfoChanged();
+    }, [crypto])
+  );
+  const busy = state.status === AsyncStatus.Loading;
+
+  return (
+    <Box direction="Column" gap="200">
+      <Text size="T200">
+        A backup lets you read your messages after signing in on another device. It is stored on
+        your homeserver, so its admin could add keys to it.
+      </Text>
+      <Box>
+        <Button
+          size="300"
+          variant="Secondary"
+          fill="Soft"
+          radii="300"
+          disabled={busy}
+          before={busy && <Spinner size="100" variant="Secondary" fill="Soft" />}
+          onClick={() => {
+            turnOn().catch(() => undefined);
+          }}
+        >
+          <Text as="span" size="B300">
+            Turn on backup
+          </Text>
+        </Button>
+      </Box>
+      {state.status === AsyncStatus.Error && (
+        <Text size="T200" style={{ color: color.Critical.Main }}>
+          <b>{state.error.message}</b>
+        </Text>
+      )}
+    </Box>
+  );
+}
+
 const restoreSummary = ({ imported }: KeyBackupRestoreResult): string =>
   imported === 0
     ? 'Nothing new to restore: this device already had every key in the backup.'
@@ -226,6 +368,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
   const [remainingSession, syncFailure] = useKeyBackupSync();
 
   const [menuCords, setMenuCords] = useState<RectCords>();
+  const [turnOffOpen, setTurnOffOpen] = useState(false);
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
@@ -293,17 +436,35 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
                     padding: config.space.S100,
                   }}
                 >
-                  <InfoCard
-                    variant="SurfaceVariant"
-                    title="Backup details"
-                    description={
-                      <>
-                        <span>Version: {backupInfo?.version ?? '-'}</span>
-                        <br />
-                        <span>Keys: {backupInfo?.count ?? '-'}</span>
-                      </>
-                    }
-                  />
+                  <Box direction="Column" gap="100">
+                    <InfoCard
+                      variant="SurfaceVariant"
+                      title="Backup details"
+                      description={
+                        <>
+                          <span>Version: {backupInfo?.version ?? '-'}</span>
+                          <br />
+                          <span>Keys: {backupInfo?.count ?? '-'}</span>
+                        </>
+                      }
+                    />
+                    {backupInfo && (
+                      <MenuItem
+                        variant="Critical"
+                        size="300"
+                        radii="300"
+                        fill="None"
+                        onClick={() => {
+                          setMenuCords(undefined);
+                          setTurnOffOpen(true);
+                        }}
+                      >
+                        <Text as="span" size="T300" truncate>
+                          Turn off backup...
+                        </Text>
+                      </MenuItem>
+                    )}
+                  </Box>
                 </Menu>
               </FocusTrap>
             }
@@ -317,9 +478,19 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
         </Text>
       )}
       {backupInfo === null && (
-        <Text size="T200">
-          There is no backup on the server, so your messages are only on your devices.
-        </Text>
+        <>
+          <Text size="T200">
+            There is no backup on the server, so your messages are only on your devices.
+          </Text>
+          <TurnOnBackup crypto={crypto} />
+        </>
+      )}
+      {turnOffOpen && backupInfo && (
+        <TurnOffBackupDialog
+          crypto={crypto}
+          version={backupInfo.version}
+          onClose={() => setTurnOffOpen(false)}
+        />
       )}
       {backupInfo && (
         <BackupAdviceSection

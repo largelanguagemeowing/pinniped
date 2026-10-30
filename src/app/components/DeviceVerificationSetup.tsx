@@ -81,6 +81,7 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
   const alive = useAlive();
 
   const [uiaAction, setUIAAction] = useState<UIAAction<void>>();
+  const [backUp, setBackUp] = useState(true);
   const [nextAuthData, setNextAuthData] = useState<IAuthData | null>(); // null means no next action.
 
   const handleAction = useCallback(
@@ -139,9 +140,9 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
     [alive, resetUIA]
   );
 
-  const [setupState, setup] = useAsyncCallback<void, Error, [string | undefined]>(
+  const [setupState, setup] = useAsyncCallback<void, Error, [string | undefined, boolean]>(
     useCallback(
-      async (passphrase) => {
+      async (passphrase, withBackup) => {
         const crypto = mx.getCrypto();
         if (!crypto) throw new Error('Unexpected Error! Crypto module not found!');
 
@@ -161,7 +162,14 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
           setupNewCrossSigning: true,
         });
 
-        await crypto.resetKeyBackup();
+        if (withBackup) {
+          await crypto.resetKeyBackup();
+        } else {
+          // A backup left from before cannot be opened with the new key, so remove it rather
+          // than leave one that shows as locked forever.
+          const existing = await crypto.getKeyBackupInfo();
+          if (existing?.version) await crypto.deleteKeyBackupVersion(existing.version);
+        }
 
         onComplete(recoveryKeyData.encodedPrivateKey);
       },
@@ -182,7 +190,7 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
       passphrase = passphraseInput.value;
     }
 
-    setup(passphrase);
+    setup(passphrase, backUp);
   };
 
   return (
@@ -197,6 +205,31 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
         <Text size="T200" priority="300">
           A passphrase is a memorable way to produce the same key. It is not your login password.
         </Text>
+      </Box>
+      <Box
+        alignItems="Start"
+        gap="200"
+        role="checkbox"
+        aria-checked={backUp}
+        tabIndex={0}
+        style={{ cursor: 'pointer' }}
+        onClick={() => !loading && setBackUp((v) => !v)}
+        onKeyDown={(evt: React.KeyboardEvent) => {
+          if (evt.key === ' ') {
+            evt.preventDefault();
+            if (!loading) setBackUp((v) => !v);
+          }
+        }}
+      >
+        <Checkbox size="300" variant="Primary" checked={backUp} readOnly tabIndex={-1} />
+        <Box direction="Column" gap="100">
+          <Text size="T300">Back up my message keys to my homeserver</Text>
+          <Text size="T200" priority="300">
+            Lets you read older messages after signing in on a new device. The backup is stored on
+            your homeserver, so its admin could add keys to it. Without it, signing out or losing
+            your devices can lose messages, unless you export a key file.
+          </Text>
+        </Box>
       </Box>
       <Button
         type="submit"
