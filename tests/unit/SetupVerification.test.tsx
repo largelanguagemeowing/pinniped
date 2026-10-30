@@ -68,7 +68,8 @@ describe('SetupVerification backup choice', () => {
     expect(checkbox().props['aria-checked']).toBe(true);
     const text = textOf(r.root);
     expect(text).toContain('Back up my message keys to my homeserver');
-    expect(text).toContain('its admin could add keys to it');
+    expect(text).toContain('Its admin cannot read your messages from it, but could add keys to it');
+    expect(text).toContain('forged messages could appear');
     expect(text).toContain('unless you export a key file');
   });
 

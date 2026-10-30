@@ -73,8 +73,9 @@ function Prompt({ crypto }: { crypto: CryptoApi }) {
                   lets you read them on this device.
                 </Text>
                 <Text size="T300">
-                  The backup is stored on your homeserver, so its admin could have added keys to it.
-                  Messages restored from it cannot be checked, and show a grey shield.
+                  The backup is stored on your homeserver. Its admin cannot read it, but could have
+                  added keys to it, so forged messages could appear. Messages restored from it
+                  cannot be checked, and show a grey shield.
                 </Text>
                 <Text size="T300" priority="300">
                   Prefer to trust only a file you saved yourself? Choose Not now, then import it

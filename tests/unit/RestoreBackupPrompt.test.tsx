@@ -74,7 +74,8 @@ describe('RestoreBackupPrompt', () => {
   it('asks, and says plainly that the backup cannot be checked', async () => {
     await mount();
     expect(all()).toContain('Restore older messages?');
-    expect(all()).toContain('its admin could have added keys to it');
+    expect(all()).toContain('Its admin cannot read it, but could have added keys to it');
+    expect(all()).toContain('forged messages could appear');
     expect(all()).toContain('grey shield');
     expect(button('Restore from backup')).toBeDefined();
     expect(button('Not now')).toBeDefined();

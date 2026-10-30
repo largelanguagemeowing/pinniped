@@ -320,7 +320,8 @@ function TurnOnBackup({ crypto }: { crypto: CryptoApi }) {
     <Box direction="Column" gap="200">
       <Text size="T200">
         A backup lets you read your messages after signing in on another device. It is stored on
-        your homeserver, so its admin could add keys to it.
+        your homeserver. Its admin cannot read it, but could add keys to it, so forged messages
+        could appear.
       </Text>
       <Box>
         <Button

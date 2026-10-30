@@ -226,8 +226,9 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
           <Text size="T300">Back up my message keys to my homeserver</Text>
           <Text size="T200" priority="300">
             Lets you read older messages after signing in on a new device. The backup is stored on
-            your homeserver, so its admin could add keys to it. Without it, signing out or losing
-            your devices can lose messages, unless you export a key file.
+            your homeserver. Its admin cannot read your messages from it, but could add keys to it,
+            so forged messages could appear in your history. Without it, signing out or losing your
+            devices can lose messages, unless you export a key file.
           </Text>
         </Box>
       </Box>

@@ -237,7 +237,8 @@ describe('BackupRestoreTile', () => {
       await mount();
       expect(button('Turn off backup...')).toBeUndefined();
       expect(button('Turn on backup')).toBeDefined();
-      expect(all()).toContain('its admin could add keys to it');
+      expect(all()).toContain('Its admin cannot read it, but could add keys to it');
+      expect(all()).toContain('forged messages could appear');
     });
 
     it('creates a new backup when Turn on is pressed', async () => {
