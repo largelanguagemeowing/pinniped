@@ -8,6 +8,7 @@ import { PasswordInput } from '../../../components/password-input';
 import { ConfirmPasswordMatch } from '../../../components/ConfirmPasswordMatch';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
+import { ExportIdentityKeysTile, ImportIdentityKeysTile } from './IdentityKeyFile';
 import { messageKeysFilename } from '../../../utils/recoveryKeyFile';
 import { decryptMegolmKeyFile, encryptMegolmKeyFile } from '../../../../util/cryptE2ERoomKeys';
 import { useAlive } from '../../../hooks/useAlive';
@@ -320,6 +321,22 @@ export function LocalBackup() {
         gap="400"
       >
         <ImportKeysTile />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <ExportIdentityKeysTile />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <ImportIdentityKeysTile />
       </SequenceCard>
     </Box>
   );
