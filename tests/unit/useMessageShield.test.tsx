@@ -58,7 +58,7 @@ describe('useMessageShield', () => {
     state.mx = mx;
     await mount(makeEvent());
     expect(seen?.colour).toBe('red');
-    expect(seen?.text).toContain('device its owner has not verified');
+    expect(seen?.text).toContain('This device is not trusted');
   });
 
   it('shows nothing when the SDK has no concern', async () => {

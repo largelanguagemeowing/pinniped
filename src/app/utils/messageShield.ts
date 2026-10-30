@@ -12,7 +12,7 @@ export type MessageShield = {
 
 const REASON_TEXT: Partial<Record<EventShieldReason, string>> = {
   [EventShieldReason.UNSIGNED_DEVICE]:
-    'Sent from a device its owner has not verified. If you do not recognize it, this may not be them.',
+    'This device is not trusted: its owner has not verified it. Do not treat this message as private or end-to-end encrypted. Ask them to verify their devices, and turn on Only verified devices in Settings.',
   [EventShieldReason.UNKNOWN_DEVICE]:
     'Sent from an unknown or deleted device, so it cannot be checked.',
   [EventShieldReason.VERIFICATION_VIOLATION]:

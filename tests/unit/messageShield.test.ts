@@ -20,7 +20,10 @@ describe('messageShield', () => {
   it('flags a device its owner has not verified, in red', () => {
     const shield = messageShield(info(EventShieldColour.RED, EventShieldReason.UNSIGNED_DEVICE));
     expect(shield?.colour).toBe('red');
-    expect(shield?.text).toContain('device its owner has not verified');
+    expect(shield?.text).toContain('This device is not trusted');
+    expect(shield?.text).toContain('Do not treat this message as private');
+    expect(shield?.text).toContain('Ask them to verify their devices');
+    expect(shield?.text).toContain('Only verified devices');
   });
 
   it.each([
