@@ -38,6 +38,7 @@ import {
   shouldShowGate,
 } from './deviceVerificationGate';
 import { useVerificationGateState } from './useVerificationGateState';
+import { useOtherVerifiedDevices } from './otherVerifiedDevices';
 
 type View = 'choose' | 'device' | 'key' | 'skip';
 
@@ -156,28 +157,70 @@ function ChooseView({
   onKey: () => void;
   onSkip: () => void;
 }) {
-  return (
-    <Box direction="Column" gap="500">
-      <Heading title="Verify this device">
-        You are signed in, but this device is not trusted yet. Verify it to read your encrypted
-        messages and show other people it is really you.
-      </Heading>
+  const devices = useOtherVerifiedDevices();
+  const [resetOpen, setResetOpen] = useState(false);
+  // Nothing can approve this device and there is no key to unlock the account with.
+  const stuck = devices === 'none' && !canUseKey;
+
+  let methods: React.ReactNode;
+  if (devices === 'checking') {
+    methods = (
+      <Box alignItems="Center" gap="200">
+        <Spinner size="100" variant="Secondary" />
+        <Text size="T300">Looking for your other devices...</Text>
+      </Box>
+    );
+  } else if (stuck) {
+    methods = (
+      <Box direction="Column" gap="300">
+        <Text size="T300">
+          You can start over with a new encryption identity. Your older encrypted messages stay
+          locked, and anyone who verified you will see a security warning.
+        </Text>
+        <Box>
+          <Button variant="Secondary" fill="Soft" size="400" onClick={() => setResetOpen(true)}>
+            <Text as="span" size="B400">
+              Reset encryption identity
+            </Text>
+          </Button>
+        </Box>
+      </Box>
+    );
+  } else {
+    methods = (
       <Box direction="Column" gap="400">
-        <ActionWithHint
-          label="Verify with another device"
-          hint="Fastest. Approve on a device that is already signed in."
-          variant="Primary"
-          onClick={onDevice}
-        />
+        {devices === 'available' && (
+          <ActionWithHint
+            label="Verify with another device"
+            hint="Fastest. Approve on a device that is already signed in."
+            variant="Primary"
+            onClick={onDevice}
+          />
+        )}
         {canUseKey && (
           <ActionWithHint
             label="Use recovery key or passphrase"
-            hint="No other device? Use the key or passphrase you saved."
-            variant="Secondary"
+            hint={
+              devices === 'available'
+                ? 'No other device? Use the key or passphrase you saved.'
+                : 'None of your other devices can approve this one. Use the key or passphrase you saved.'
+            }
+            variant={devices === 'available' ? 'Secondary' : 'Primary'}
             onClick={onKey}
           />
         )}
       </Box>
+    );
+  }
+
+  return (
+    <Box direction="Column" gap="500">
+      <Heading title="Verify this device">
+        {stuck
+          ? 'You are signed in, but nothing can verify this device: you have no other verified device and no recovery key on this account.'
+          : 'You are signed in, but this device is not trusted yet. Verify it to read your encrypted messages and show other people it is really you.'}
+      </Heading>
+      {methods}
       <Box>
         <Button variant="Secondary" fill="None" size="400" onClick={onSkip}>
           <Text as="span" size="B400">
@@ -185,6 +228,7 @@ function ChooseView({
           </Text>
         </Button>
       </Box>
+      {resetOpen && <DeviceVerificationResetOverlay onCancel={() => setResetOpen(false)} />}
     </Box>
   );
 }

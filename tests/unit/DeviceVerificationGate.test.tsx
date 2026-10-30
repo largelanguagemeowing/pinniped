@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
   keysOnServer: true as boolean | 'fail',
   keyId: 'KEY' as string | undefined,
   keyContent: {} as object | undefined,
+  devices: 'available' as 'checking' | 'available' | 'none',
 }));
 
 vi.mock('../../src/app/hooks/useMatrixClient', () => ({
@@ -35,6 +36,9 @@ vi.mock('../../src/app/hooks/useCrossSigning', () => ({
 vi.mock('../../src/app/hooks/useDeviceVerificationStatus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/app/hooks/useDeviceVerificationStatus')>()),
   useDeviceVerificationStatus: () => state.status,
+}));
+vi.mock('../../src/app/features/device-verification-gate/otherVerifiedDevices', () => ({
+  useOtherVerifiedDevices: () => state.devices,
 }));
 vi.mock('../../src/app/hooks/useSecretStorage', () => ({
   useSecretStorageDefaultKeyId: () => state.keyId,
@@ -131,6 +135,7 @@ describe('DeviceVerificationGate', () => {
     state.keysOnServer = true;
     state.keyId = 'KEY';
     state.keyContent = {};
+    state.devices = 'available';
   });
   afterEach(() => {
     act(() => r.unmount());
@@ -161,6 +166,64 @@ describe('DeviceVerificationGate', () => {
       expect(rendered(r)).toContain('Verify this device');
       expect(rendered(r)).toContain('Verify with another device');
       expect(rendered(r)).not.toContain('Use recovery key or passphrase');
+    });
+
+    describe('depending on whether another device can approve', () => {
+      it('shows a short wait, and no method yet, while it checks', async () => {
+        state.devices = 'checking';
+        await mount();
+        expect(rendered(r)).toContain('Looking for your other devices');
+        expect(rendered(r)).not.toContain('Verify with another device');
+        expect(rendered(r)).not.toContain('Use recovery key or passphrase');
+        expect(rendered(r)).toContain('Continue without verifying');
+      });
+
+      it('offers both methods when another verified device exists', async () => {
+        state.devices = 'available';
+        await mount();
+        expect(rendered(r)).toContain('Verify with another device');
+        expect(rendered(r)).toContain('No other device? Use the key or passphrase you saved.');
+      });
+
+      it('hides the device option and says why when none can approve', async () => {
+        state.devices = 'none';
+        await mount();
+        expect(rendered(r)).not.toContain('Verify with another device');
+        expect(rendered(r)).toContain('Use recovery key or passphrase');
+        expect(rendered(r)).toContain('None of your other devices can approve this one');
+      });
+
+      it('explains the dead end and offers reset when there is no device and no key', async () => {
+        state.devices = 'none';
+        state.keyId = undefined;
+        state.keyContent = undefined;
+        await mount();
+        expect(rendered(r)).toContain('nothing can verify this device');
+        expect(rendered(r)).not.toContain('Verify with another device');
+        expect(rendered(r)).not.toContain('Use recovery key or passphrase');
+        expect(rendered(r)).not.toContain('reset-dialog');
+
+        click(r, 'Reset encryption identity');
+        expect(rendered(r)).toContain('reset-dialog');
+        click(r, 'reset-dialog');
+        expect(rendered(r)).not.toContain('reset-dialog');
+      });
+
+      it('does not offer reset when a method exists', async () => {
+        state.devices = 'none';
+        await mount();
+        expect(rendered(r)).not.toContain('Reset encryption identity');
+      });
+
+      it('still lets the person skip in every state', async () => {
+        for (const devices of ['checking', 'available', 'none'] as const) {
+          state.devices = devices;
+          await mount();
+          expect(rendered(r)).toContain('Continue without verifying');
+          act(() => r.unmount());
+        }
+        await mount();
+      });
     });
 
     it('renders nothing while the device status is unknown', async () => {
