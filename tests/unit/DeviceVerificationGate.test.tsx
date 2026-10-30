@@ -45,6 +45,13 @@ vi.mock('../../src/app/components/ManualVerification', () => ({
   ManualVerificationMethod: { RecoveryPassphrase: 'passphrase', RecoveryKey: 'key' },
   ManualVerificationMethodSwitcher: () => null,
 }));
+vi.mock('../../src/app/components/DeviceVerificationSetup', () => ({
+  DeviceVerificationResetOverlay: ({ onCancel }: { onCancel: () => void }) => (
+    <button type="button" onClick={onCancel}>
+      reset-dialog
+    </button>
+  ),
+}));
 vi.mock('../../src/app/components/SecretStorage', () => ({
   SecretStorageRecoveryKey: () => null,
   SecretStorageRecoveryPassphrase: () => null,
@@ -134,6 +141,20 @@ describe('DeviceVerificationGate', () => {
     act(() => r.unmount());
     mount();
     expect(r.toJSON()).toBeNull();
+  });
+
+  it('offers a way out when the recovery key is lost, and returns from it', () => {
+    mount();
+    click(r, 'Use recovery key or passphrase');
+    expect(rendered(r)).toContain('Enter your recovery key');
+    expect(rendered(r)).not.toContain('reset-dialog');
+
+    click(r, 'Lost your recovery key?');
+    expect(rendered(r)).toContain('reset-dialog');
+
+    click(r, 'reset-dialog');
+    expect(rendered(r)).not.toContain('reset-dialog');
+    expect(rendered(r)).toContain('Enter your recovery key');
   });
 
   it('goes back from the skip screen to verification', () => {

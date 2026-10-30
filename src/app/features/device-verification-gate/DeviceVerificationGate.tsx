@@ -15,6 +15,7 @@ import {
   cancelVerificationRequest,
   DeviceVerificationFlow,
 } from '../../components/DeviceVerification';
+import { DeviceVerificationResetOverlay } from '../../components/DeviceVerificationSetup';
 import {
   ManualVerificationMethod,
   ManualVerificationMethodSwitcher,
@@ -266,6 +267,7 @@ function KeyView({
       : ManualVerificationMethod.RecoveryKey
   );
   const { verifyState, verify, verifying } = useVerifyWithRecoveryKey(keyId);
+  const [resetOpen, setResetOpen] = useState(false);
 
   return (
     <Box direction="Column" gap="500">
@@ -297,9 +299,15 @@ function KeyView({
           <b>{verifyState.error.message}</b>
         </Text>
       )}
-      <Box>
+      <Box gap="200" wrap="Wrap">
         <BackButton onClick={onBack} />
+        <Button variant="Secondary" fill="None" size="400" onClick={() => setResetOpen(true)}>
+          <Text as="span" size="B400">
+            Lost your recovery key?
+          </Text>
+        </Button>
       </Box>
+      {resetOpen && <DeviceVerificationResetOverlay onCancel={() => setResetOpen(false)} />}
     </Box>
   );
 }
