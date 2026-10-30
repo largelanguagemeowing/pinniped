@@ -94,8 +94,8 @@ export function Devices({ requestClose }: DevicesProps) {
                   gap="400"
                 >
                   <SettingTile
-                    title="Device Verification"
-                    description="To verify device identity and grant access to encrypted messages."
+                    title="Recovery and verification"
+                    description="Set up a recovery key, and verify your devices so they can read your encrypted messages."
                     after={
                       <>
                         <EnableVerification visible={!crossSigningActive} />

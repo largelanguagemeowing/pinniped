@@ -38,8 +38,8 @@ export function OnlyVerifiedDevicesTile() {
 
   return (
     <SettingTile
-      title="Only Verified Sessions"
-      description="Only share message encryption keys with cross-signed sessions. Messages from unverified sessions won't decrypt. Sending will fail if any participant has an unverified session."
+      title="Only verified devices"
+      description="Only share message keys with devices you have verified. Messages from unverified devices won't open, and sending fails if anyone in a room has an unverified device."
       after={<Switch variant="Primary" value={onlySignedDevices} onChange={handleChange} />}
     />
   );

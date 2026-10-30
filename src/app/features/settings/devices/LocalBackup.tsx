@@ -66,7 +66,7 @@ function ExportKeys() {
             {(match, doMatch, passRef, confPassRef) => (
               <>
                 <Box grow="Yes" direction="Column" gap="100">
-                  <Text size="L400">New Password</Text>
+                  <Text size="L400">New password</Text>
                   <PasswordInput
                     ref={passRef}
                     name="passwordInput"
@@ -80,7 +80,7 @@ function ExportKeys() {
                   />
                 </Box>
                 <Box grow="Yes" direction="Column" gap="100">
-                  <Text size="L400">Confirm Password</Text>
+                  <Text size="L400">Confirm password</Text>
                   <PasswordInput
                     ref={confPassRef}
                     style={{ color: match ? undefined : color.Critical.Main }}
@@ -127,8 +127,8 @@ function ExportKeysTile() {
   return (
     <>
       <SettingTile
-        title="Export Messages Data"
-        description="Save password protected copy of encryption data on your device to decrypt messages later."
+        title="Export message keys"
+        description="Save a password-protected file with your message keys, as a backup you keep yourself."
         after={
           <Box>
             <Button
@@ -256,8 +256,8 @@ function ImportKeysTile() {
   return (
     <>
       <SettingTile
-        title="Import Messages Data"
-        description="Load password protected copy of encryption data from device to decrypt your messages."
+        title="Import message keys"
+        description="Load a password-protected file of message keys to read your messages."
         after={
           <Box>
             {file ? (
@@ -303,7 +303,7 @@ function ImportKeysTile() {
 export function LocalBackup() {
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Local Backup</Text>
+      <Text size="L400">Local backup</Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"

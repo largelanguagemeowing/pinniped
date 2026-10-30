@@ -76,7 +76,7 @@ export function VerificationStatusBadge({
 function LearnStartVerificationFromOtherDevice() {
   return (
     <Box direction="Column">
-      <Text size="T200">Steps to verify from other device.</Text>
+      <Text size="T200">To verify from another device:</Text>
       <Text as="div" size="T200">
         <ul style={{ margin: `${config.space.S100} 0` }}>
           <li>Open your other verified device.</li>
@@ -84,14 +84,14 @@ function LearnStartVerificationFromOtherDevice() {
             Open <i>Settings</i>.
           </li>
           <li>
-            Find this device in <i>Devices/Sessions</i> section.
+            Find this device under <i>Devices</i>.
           </li>
-          <li>Initiate verification.</li>
+          <li>
+            Press <i>Verify</i>.
+          </li>
         </ul>
       </Text>
-      <Text size="T200">
-        If you do not have any verified device press the <i>&quot;Verify Manually&quot;</i> button.
-      </Text>
+      <Text size="T200">No other verified device? Use your recovery key instead.</Text>
     </Box>
   );
 }
@@ -113,12 +113,12 @@ export function VerifyCurrentDeviceTile({
     <>
       <InfoCard
         variant="Critical"
-        title="Unverified"
+        title="This device is unverified"
         description={
           <>
-            Start verification from other device or verify manually.{' '}
+            Verify from another signed-in device, or use your recovery key.{' '}
             <Text as="a" size="T200" onClick={() => setLearnMore(!learnMore)}>
-              <b>{learnMore ? 'View Less' : 'Learn More'}</b>
+              <b>{learnMore ? 'View less' : 'Learn more'}</b>
             </Text>
           </>
         }
@@ -133,7 +133,7 @@ export function VerifyCurrentDeviceTile({
               onClick={() => setManualVerification(true)}
             >
               <Text as="span" size="B300">
-                Verify Manually
+                Use recovery key
               </Text>
             </Button>
           )
@@ -191,7 +191,7 @@ export function VerifyOtherDeviceTile({ crypto, deviceId }: VerifyOtherDeviceTil
     <InfoCard
       variant="Warning"
       title="Unverified"
-      description="Verify device identity and grant access to encrypted messages."
+      description="Verify it so it can read your encrypted messages and others can trust it."
       after={
         <Button
           size="300"
@@ -230,7 +230,7 @@ export function EnableVerification({ visible }: EnableVerificationProps) {
       {visible && (
         <Button size="300" radii="300" onClick={() => setOpen(true)}>
           <Text as="span" size="B300">
-            Enable
+            Set up recovery
           </Text>
         </Button>
       )}
@@ -324,7 +324,7 @@ export function DeviceVerificationOptions() {
                   fill="None"
                 >
                   <Text as="span" size="T300" truncate>
-                    Reset
+                    Reset encryption identity
                   </Text>
                 </MenuItem>
               </Box>

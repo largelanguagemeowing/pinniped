@@ -264,7 +264,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
   return (
     <InfoCard
       variant="Surface"
-      title="Encryption Backup"
+      title="Key backup"
       after={
         <Box alignItems="Center" gap="200">
           {remainingSession === 0 ? (
@@ -306,7 +306,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
                 >
                   <InfoCard
                     variant="SurfaceVariant"
-                    title="Backup Details"
+                    title="Backup details"
                     description={
                       <>
                         <span>Version: {backupInfo?.version ?? '-'}</span>

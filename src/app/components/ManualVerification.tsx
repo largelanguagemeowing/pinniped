@@ -121,9 +121,9 @@ export function ManualVerificationTile({
   secretStorageKeyId,
   secretStorageKeyContent,
   options,
-  title = 'Verify Manually',
+  title = 'Use recovery key',
   description,
-  successMessage = 'Device verified!',
+  successMessage = 'This device is verified.',
 }: ManualVerificationTileProps) {
   const hasPassphrase = !!secretStorageKeyContent.passphrase;
   const [method, setMethod] = useState(
@@ -143,7 +143,8 @@ export function ManualVerificationTile({
       <SettingTile
         title={title}
         description={
-          description ?? (hasPassphrase ? 'Select a verification method.' : 'Provide recovery key.')
+          description ??
+          (hasPassphrase ? 'Enter your recovery key or passphrase.' : 'Enter your recovery key.')
         }
         after={
           <Box alignItems="Center" gap="200">

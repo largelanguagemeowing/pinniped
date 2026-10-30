@@ -299,7 +299,7 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
           <Dialog variant="Surface">
             <Header style={DialogHeaderStyles} variant="Surface" size="500">
               <Box grow="Yes">
-                <Text size="H4">Device Verification</Text>
+                <Text size="H4">Verify device</Text>
               </Box>
               <IconButton size="300" radii="300" onClick={handleCancel}>
                 <Icon src={Icons.Cross} />
