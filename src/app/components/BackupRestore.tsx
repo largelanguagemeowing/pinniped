@@ -290,6 +290,9 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
               <FocusTrap
                 focusTrapOptions={{
                   initialFocus: false,
+                  // The menu only shows details, so nothing in it can take focus. Without a
+                  // fallback the trap throws as soon as it opens.
+                  fallbackFocus: '[data-backup-details-menu]',
                   onDeactivate: () => setMenuCords(undefined),
                   clickOutsideDeactivates: true,
                   isKeyForward: (evt: KeyboardEvent) =>
@@ -300,6 +303,8 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
                 }}
               >
                 <Menu
+                  data-backup-details-menu
+                  tabIndex={-1}
                   style={{
                     padding: config.space.S100,
                   }}
