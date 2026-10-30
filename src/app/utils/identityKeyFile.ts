@@ -1,5 +1,4 @@
 import { CryptoApi } from 'matrix-js-sdk/lib/crypto-api';
-import { decryptMegolmKeyFile, encryptMegolmKeyFile } from '../../util/cryptE2ERoomKeys';
 
 type IdentityBundle = {
   cross_signing: { master_key: string; self_signing_key: string; user_signing_key: string };
@@ -17,13 +16,11 @@ const isIdentityBundle = (value: unknown): value is IdentityBundle => {
 };
 
 /**
- * The account's cross-signing keys (and the message backup key, if this device has it) as a
- * password-protected file. Anyone holding the file and its password can act as this account.
+ * The SDK's secrets bundle as JSON: the account's cross-signing keys, and the message backup key if
+ * this device has it. It is NOT encrypted, because the SDK does not encrypt it and the person chose a
+ * plain file. Anyone who gets it can act as this account.
  */
-export const exportIdentityKeyFile = async (
-  crypto: CryptoApi,
-  password: string
-): Promise<ArrayBuffer> => {
+export const exportIdentityKeyFile = async (crypto: CryptoApi): Promise<string> => {
   if (!crypto.exportSecretsBundle) {
     throw new Error('This version of the encryption library cannot export identity keys.');
   }
@@ -31,20 +28,20 @@ export const exportIdentityKeyFile = async (
   if (!(held.masterKey && held.selfSigningKey && held.userSigningKey)) {
     throw new Error('This device does not hold your identity keys, so it cannot export them.');
   }
-  const bundle = await crypto.exportSecretsBundle();
-  return encryptMegolmKeyFile(JSON.stringify(bundle), password);
+  return JSON.stringify(await crypto.exportSecretsBundle(), null, 2);
 };
 
 /** Imports a file made by exportIdentityKeyFile, then signs this device with the identity. */
-export const importIdentityKeyFile = async (
-  crypto: CryptoApi,
-  data: ArrayBuffer,
-  password: string
-): Promise<void> => {
+export const importIdentityKeyFile = async (crypto: CryptoApi, text: string): Promise<void> => {
   if (!crypto.importSecretsBundle) {
     throw new Error('This version of the encryption library cannot import identity keys.');
   }
-  const bundle: unknown = JSON.parse(await decryptMegolmKeyFile(data, password));
+  let bundle: unknown;
+  try {
+    bundle = JSON.parse(text);
+  } catch {
+    throw new Error('This file does not contain identity keys.');
+  }
   if (!isIdentityBundle(bundle)) {
     throw new Error('This file does not contain identity keys. Is it a message key file?');
   }

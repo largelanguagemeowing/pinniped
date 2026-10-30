@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { messageKeysFilename, recoveryKeyFilename } from '../../src/app/utils/recoveryKeyFile';
+import {
+  identityKeysFilename,
+  messageKeysFilename,
+  recoveryKeyFilename,
+} from '../../src/app/utils/recoveryKeyFile';
 
 describe('recoveryKeyFilename', () => {
   it('names the file after the account', () => {
@@ -50,5 +54,12 @@ describe('recoveryKeyFilename', () => {
       'pinniped-message-keys-alice-matrix.org.txt'
     );
     expect(messageKeysFilename('')).toBe('pinniped-message-keys.txt');
+  });
+
+  it('gives the identity key file its own extension, so it is not mistaken for text', () => {
+    expect(identityKeysFilename('@alice:matrix.org')).toBe(
+      'pinniped-identity-keys-alice-matrix.org.json'
+    );
+    expect(identityKeysFilename('')).toBe('pinniped-identity-keys.json');
   });
 });
