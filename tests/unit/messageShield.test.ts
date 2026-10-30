@@ -13,7 +13,7 @@ describe('messageShield', () => {
     [
       EventShieldColour.RED,
       EventShieldReason.UNKNOWN_DEVICE,
-      'added a device, sent this, and removed it',
+      'sent a forged message, and removed it',
     ],
     [EventShieldColour.RED, EventShieldReason.VERIFICATION_VIOLATION, 'could have reset it'],
     [EventShieldColour.RED, EventShieldReason.MISMATCHED_SENDER, 'could have forged it'],
@@ -26,6 +26,7 @@ describe('messageShield', () => {
     const text = messageShield(info(colour, reason))?.text ?? '';
     expect(text).toMatch(/homeserver(’s)? admin/);
     expect(text).toContain(how);
+    expect(text).toMatch(/forged/);
   });
 
   it('shows nothing when the SDK has no concern', () => {

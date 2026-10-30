@@ -18,14 +18,14 @@ const NOT_PRIVATE =
   'Do not treat this message as private or end-to-end encrypted. Ask them to verify their devices, and turn on Only verified devices in Settings.';
 
 const REASON_TEXT: Partial<Record<EventShieldReason, string>> = {
-  [EventShieldReason.UNSIGNED_DEVICE]: `This device is not trusted: its owner has not verified it. A homeserver admin could have added it. ${NOT_PRIVATE}`,
-  [EventShieldReason.UNKNOWN_DEVICE]: `Sent from an unknown or deleted device. A homeserver admin could have added a device, sent this, and removed it. ${NOT_PRIVATE}`,
+  [EventShieldReason.UNSIGNED_DEVICE]: `This device is not trusted: its owner has not verified it. A homeserver admin could have added it, so this message could be forged. ${NOT_PRIVATE}`,
+  [EventShieldReason.UNKNOWN_DEVICE]: `Sent from an unknown or deleted device. A homeserver admin could have added a device, sent a forged message, and removed it. ${NOT_PRIVATE}`,
   [EventShieldReason.VERIFICATION_VIOLATION]:
-    'This person was verified before but their identity has changed. A homeserver admin could have reset it. Verify them again before trusting this message, and do not treat it as private.',
+    'This person was verified before but their identity has changed. A homeserver admin could have reset it, so this message could be forged. Verify them again before trusting this message, and do not treat it as private.',
   [EventShieldReason.MISMATCHED_SENDER]:
     'The sender of this message does not match the device that encrypted it. A homeserver admin could have forged it. Do not trust it.',
   [EventShieldReason.AUTHENTICITY_NOT_GUARANTEED]:
-    'Its key came from one of your devices or your encrypted backup, not from the sender, so it is only as trustworthy as those. Your homeserver’s admin could have added keys to your backup.',
+    'Its key came from one of your devices or your encrypted backup, not from the sender, so it is only as trustworthy as those. Your homeserver’s admin could have added keys to your backup, so this message could be forged.',
   [EventShieldReason.UNVERIFIED_IDENTITY]: 'Sent by someone you have not verified.',
 };
 
