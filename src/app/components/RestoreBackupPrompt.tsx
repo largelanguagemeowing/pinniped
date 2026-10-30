@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useSetAtom } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { CryptoApi, KeyBackupRestoreResult } from 'matrix-js-sdk/lib/crypto-api';
@@ -19,7 +19,12 @@ import { useMatrixClient } from '../hooks/useMatrixClient';
 import { useBackupAdvice } from '../hooks/useBackupAdvice';
 import { AsyncStatus, useAsyncCallback } from '../hooks/useAsyncCallback';
 import { backupRestoreProgressAtom } from '../state/backupRestore';
-import { declineBackupRestore, useBackupRestoreDeclined } from '../state/backupRestored';
+import {
+  declineBackupRestore,
+  settleBackupBaseline,
+  useBackupBaselineSettled,
+  useBackupRestoreDeclined,
+} from '../state/backupRestored';
 import { restoreKeyBackupAndRecord } from '../utils/backupRestore';
 
 function Prompt({ crypto }: { crypto: CryptoApi }) {
@@ -29,6 +34,7 @@ function Prompt({ crypto }: { crypto: CryptoApi }) {
 
   const { info, advice } = useBackupAdvice(crypto);
   const declined = useBackupRestoreDeclined(userId, deviceId, info?.version);
+  const settled = useBackupBaselineSettled(userId, deviceId);
   const setRestoreProgress = useSetAtom(backupRestoreProgressAtom);
 
   const [restoreState, restore] = useAsyncCallback<KeyBackupRestoreResult, Error, []>(
@@ -38,8 +44,14 @@ function Prompt({ crypto }: { crypto: CryptoApi }) {
     )
   );
 
+  // An existing device that already has the key is not asked; see settleBackupBaseline.
+  useEffect(() => {
+    if (deviceId) settleBackupBaseline(userId, deviceId, advice.kind, info?.version);
+  }, [userId, deviceId, advice.kind, info?.version]);
+
   // Once restored the advice becomes 'ok', so the question closes itself.
-  if (advice.kind !== 'restore' || declined || !info || !deviceId) return null;
+  // Nothing is asked before the baseline is settled, so an existing device never sees a flash.
+  if (!settled || advice.kind !== 'restore' || declined || !info || !deviceId) return null;
 
   const busy = restoreState.status === AsyncStatus.Loading;
 
