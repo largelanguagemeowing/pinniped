@@ -226,17 +226,23 @@ function VerificationCanceled({ onClose }: VerificationCanceledProps) {
   );
 }
 
+const cancelRequest = (request: VerificationRequest) => {
+  if (request.phase !== VerificationPhase.Done && request.phase !== VerificationPhase.Cancelled) {
+    request.cancel();
+  }
+};
+
 type DeviceVerificationProps = {
   request: VerificationRequest;
   onExit: () => void;
 };
-export function DeviceVerification({ request, onExit }: DeviceVerificationProps) {
+
+/** The verification steps without any surrounding chrome, so a page or a dialog can host it. */
+export function DeviceVerificationFlow({ request, onExit }: DeviceVerificationProps) {
   const phase = useVerificationRequestPhase(request);
 
   const handleCancel = useCallback(() => {
-    if (request.phase !== VerificationPhase.Done && request.phase !== VerificationPhase.Cancelled) {
-      request.cancel();
-    }
+    cancelRequest(request);
     onExit();
   }, [request, onExit]);
 
@@ -244,6 +250,41 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
   const handleStart = useCallback(async () => {
     await request.startVerification(VerificationMethod.Sas);
   }, [request]);
+
+  return (
+    <>
+      {phase === VerificationPhase.Requested &&
+        (request.initiatedByMe ? (
+          <VerificationWaitAccept />
+        ) : (
+          <VerificationAccept onAccept={handleAccept} />
+        ))}
+      {phase === VerificationPhase.Ready &&
+        (request.initiatedByMe ? (
+          <AutoVerificationStart onStart={handleStart} />
+        ) : (
+          <VerificationWaitStart />
+        ))}
+      {phase === VerificationPhase.Started &&
+        (request.verifier ? (
+          <SasVerification verifier={request.verifier} onCancel={handleCancel} />
+        ) : (
+          <VerificationUnexpected
+            message="Unexpected Error! Verification is started but verifier is missing."
+            onClose={handleCancel}
+          />
+        ))}
+      {phase === VerificationPhase.Done && <VerificationDone onExit={onExit} />}
+      {phase === VerificationPhase.Cancelled && <VerificationCanceled onClose={handleCancel} />}
+    </>
+  );
+}
+
+export function DeviceVerification({ request, onExit }: DeviceVerificationProps) {
+  const handleCancel = useCallback(() => {
+    cancelRequest(request);
+    onExit();
+  }, [request, onExit]);
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
@@ -265,31 +306,7 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              {phase === VerificationPhase.Requested &&
-                (request.initiatedByMe ? (
-                  <VerificationWaitAccept />
-                ) : (
-                  <VerificationAccept onAccept={handleAccept} />
-                ))}
-              {phase === VerificationPhase.Ready &&
-                (request.initiatedByMe ? (
-                  <AutoVerificationStart onStart={handleStart} />
-                ) : (
-                  <VerificationWaitStart />
-                ))}
-              {phase === VerificationPhase.Started &&
-                (request.verifier ? (
-                  <SasVerification verifier={request.verifier} onCancel={handleCancel} />
-                ) : (
-                  <VerificationUnexpected
-                    message="Unexpected Error! Verification is started but verifier is missing."
-                    onClose={handleCancel}
-                  />
-                ))}
-              {phase === VerificationPhase.Done && <VerificationDone onExit={onExit} />}
-              {phase === VerificationPhase.Cancelled && (
-                <VerificationCanceled onClose={handleCancel} />
-              )}
+              <DeviceVerificationFlow request={request} onExit={onExit} />
             </Box>
           </Dialog>
         </FocusTrap>
