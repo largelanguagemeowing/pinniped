@@ -15,7 +15,7 @@ import {
  * mistaken for none. A failed lookup stays unknown, so the gate asks for nothing it cannot
  * be sure about.
  */
-const useIdentityState = (): IdentityState => {
+export const useIdentityState = (): IdentityState => {
   const mx = useMatrixClient();
   const inSecretStorage = useCrossSigningActive();
   const [onServer, setOnServer] = useState<boolean>();

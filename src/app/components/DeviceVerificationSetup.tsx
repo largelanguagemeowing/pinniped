@@ -75,8 +75,10 @@ function makeUIAAction<T>(
 
 type SetupVerificationProps = {
   onComplete: (recoveryKey: string) => void;
+  /** Turn recovery back on around the identity the account already has, instead of creating one. */
+  keepIdentity?: boolean;
 };
-export function SetupVerification({ onComplete }: SetupVerificationProps) {
+export function SetupVerification({ onComplete, keepIdentity = false }: SetupVerificationProps) {
   const mx = useMatrixClient();
   const alive = useAlive();
 
@@ -146,6 +148,17 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
         const crypto = mx.getCrypto();
         if (!crypto) throw new Error('Unexpected Error! Crypto module not found!');
 
+        if (keepIdentity) {
+          // Only the identity keys this device holds can be stored, and creating new ones here
+          // would unverify every device, so check before changing anything.
+          const { privateKeysCachedLocally: held } = await crypto.getCrossSigningStatus();
+          if (!(held.masterKey && held.selfSigningKey && held.userSigningKey)) {
+            throw new Error(
+              'This device does not hold your identity keys. Turn recovery on from a device that does.'
+            );
+          }
+        }
+
         const recoveryKeyData = await crypto.createRecoveryKeyFromPassphrase(passphrase);
         if (!recoveryKeyData.encodedPrivateKey) {
           throw new Error('Unexpected Error! Failed to create recovery key.');
@@ -157,10 +170,12 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
           setupNewSecretStorage: true,
         });
 
-        await crypto.bootstrapCrossSigning({
-          authUploadDeviceSigningKeys,
-          setupNewCrossSigning: true,
-        });
+        if (!keepIdentity) {
+          await crypto.bootstrapCrossSigning({
+            authUploadDeviceSigningKeys,
+            setupNewCrossSigning: true,
+          });
+        }
 
         if (withBackup) {
           await crypto.resetKeyBackup();
@@ -173,7 +188,7 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
 
         onComplete(recoveryKeyData.encodedPrivateKey);
       },
-      [mx, onComplete, authUploadDeviceSigningKeys]
+      [mx, onComplete, authUploadDeviceSigningKeys, keepIdentity]
     )
   );
 
@@ -190,20 +205,37 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
       passphrase = passphraseInput.value;
     }
 
-    setup(passphrase, backUp);
+    // The failure is shown below, so the rethrown rejection would only add console noise.
+    setup(passphrase, backUp).catch(() => undefined);
   };
 
   return (
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="400">
       <Text size="T300">
-        A <b>recovery key</b> lets you verify this account when no other device is signed in. It is
-        the only way back into your encrypted messages if you lose every device.
+        {keepIdentity ? (
+          <>
+            Recovery is off. Turning it on makes a new <b>recovery key</b> and stores a copy of your
+            existing identity keys on your homeserver. Your identity and verified devices stay as
+            they are.
+          </>
+        ) : (
+          <>
+            A <b>recovery key</b> lets you verify this account when no other device is signed in. It
+            is the only way back into your encrypted messages if you lose every device.
+          </>
+        )}
+      </Text>
+      <Text size="T200" priority="300">
+        Your recovery key never leaves your devices. It locks a copy of your cross-signing keys that
+        is stored on your homeserver, so the server holds them but cannot read them.
       </Text>
       <Box direction="Column" gap="100">
         <Text size="L400">Passphrase (optional)</Text>
         <PasswordInput name="passphraseInput" size="400" readOnly={loading} />
         <Text size="T200" priority="300">
           A passphrase is a memorable way to produce the same key. It is not your login password.
+          Use a long one: a weak passphrase could be guessed by someone who can read your account
+          data.
         </Text>
       </Box>
       <Box
@@ -237,7 +269,7 @@ export function SetupVerification({ onComplete }: SetupVerificationProps) {
         disabled={loading}
         before={loading && <Spinner size="200" variant="Primary" fill="Solid" />}
       >
-        <Text size="B400">Create recovery key</Text>
+        <Text size="B400">{keepIdentity ? 'Turn on recovery' : 'Create recovery key'}</Text>
       </Button>
       {setupState.status === AsyncStatus.Error && (
         <Text size="T200" style={{ color: color.Critical.Main }}>
@@ -353,9 +385,10 @@ export function RecoveryKeyDisplay({ recoveryKey, onDone }: RecoveryKeyDisplayPr
 
 type DeviceVerificationSetupProps = {
   onCancel: () => void;
+  keepIdentity?: boolean;
 };
 export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerificationSetupProps>(
-  ({ onCancel }, ref) => {
+  ({ onCancel, keepIdentity }, ref) => {
     const [recoveryKey, setRecoveryKey] = useState<string>();
 
     return (
@@ -369,7 +402,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
           size="500"
         >
           <Box grow="Yes">
-            <Text size="H4">Set up recovery</Text>
+            <Text size="H4">{keepIdentity ? 'Turn on recovery' : 'Set up recovery'}</Text>
           </Box>
           {/* Once a key exists it must be saved first, so only Done closes the dialog. */}
           {!recoveryKey && (
@@ -382,7 +415,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
           {recoveryKey ? (
             <RecoveryKeyDisplay recoveryKey={recoveryKey} onDone={onCancel} />
           ) : (
-            <SetupVerification onComplete={setRecoveryKey} />
+            <SetupVerification onComplete={setRecoveryKey} keepIdentity={keepIdentity} />
           )}
         </Box>
       </Dialog>

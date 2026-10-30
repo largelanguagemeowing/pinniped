@@ -27,6 +27,8 @@ import {
 } from '../../../hooks/useSecretStorage';
 import { useCrossSigningActive } from '../../../hooks/useCrossSigning';
 import { BackupRestoreTile } from '../../../components/BackupRestore';
+import { useIdentityState } from '../../../features/device-verification-gate/useVerificationGateState';
+import { recoveryTileState } from '../../../utils/recoveryTile';
 
 function DevicesPlaceholder() {
   return (
@@ -44,6 +46,8 @@ export function Devices({ requestClose }: DevicesProps) {
   const mx = useMatrixClient();
   const crypto = mx.getCrypto();
   const crossSigningActive = useCrossSigningActive();
+  const identity = useIdentityState();
+  const recoveryTile = recoveryTileState(crossSigningActive, identity);
   const [devices, refreshDeviceList] = useDeviceList();
 
   const [currentDevice, otherDevices] = useSplitCurrentDevice(devices);
@@ -95,11 +99,18 @@ export function Devices({ requestClose }: DevicesProps) {
                 >
                   <SettingTile
                     title="Recovery and verification"
-                    description="Set up a recovery key, and verify your devices so they can read your encrypted messages."
+                    description={
+                      recoveryTile === 'turnOn'
+                        ? 'Recovery is off. This device can still be verified from another device you are signed in on. Turn recovery on to get a recovery key again.'
+                        : 'Set up a recovery key, and verify your devices so they can read your encrypted messages. Recovery keeps an encrypted copy of your cross-signing keys on your homeserver; the key to it stays on your devices.'
+                    }
                     after={
                       <>
-                        <EnableVerification visible={!crossSigningActive} />
-                        {crossSigningActive && (
+                        <EnableVerification
+                          visible={recoveryTile === 'setup' || recoveryTile === 'turnOn'}
+                          keepIdentity={recoveryTile === 'turnOn'}
+                        />
+                        {recoveryTile === 'manage' && (
                           <Box gap="200" alignItems="Center">
                             <VerificationStatusBadge
                               verificationStatus={verificationStatus}

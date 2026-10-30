@@ -5,6 +5,9 @@ import { SetupVerification } from '../../src/app/components/DeviceVerificationSe
 
 const state = vi.hoisted(() => ({
   existingBackup: undefined as { version: string } | null | undefined,
+  held: { masterKey: true, selfSigningKey: true, userSigningKey: true },
+  bootstrapSecretStorage: vi.fn(async () => {}),
+  bootstrapCrossSigning: vi.fn(async () => {}),
   resetKeyBackup: vi.fn(async () => {}),
   deleteKeyBackupVersion: vi.fn(async () => {}),
 }));
@@ -16,8 +19,9 @@ vi.mock('../../src/app/hooks/useMatrixClient', () => ({
         encodedPrivateKey: 'EsTc 1abc',
         privateKey: new Uint8Array(32),
       }),
-      bootstrapSecretStorage: async () => {},
-      bootstrapCrossSigning: async () => {},
+      bootstrapSecretStorage: state.bootstrapSecretStorage,
+      bootstrapCrossSigning: state.bootstrapCrossSigning,
+      getCrossSigningStatus: async () => ({ privateKeysCachedLocally: state.held }),
       resetKeyBackup: state.resetKeyBackup,
       getKeyBackupInfo: async () => state.existingBackup ?? null,
       deleteKeyBackupVersion: state.deleteKeyBackupVersion,
@@ -39,9 +43,9 @@ const textOf = (node: ReactTestInstance | string): string =>
 describe('SetupVerification backup choice', () => {
   let r: ReactTestRenderer;
   const onComplete = vi.fn();
-  const mount = async () => {
+  const mount = async (props: { keepIdentity?: boolean } = {}) => {
     await act(async () => {
-      r = create(<SetupVerification onComplete={onComplete} />);
+      r = create(<SetupVerification onComplete={onComplete} {...props} />);
     });
   };
   const checkbox = () => r.root.findAll((n) => n.props.role === 'checkbox')[0];
@@ -57,6 +61,9 @@ describe('SetupVerification backup choice', () => {
 
   beforeEach(() => {
     state.existingBackup = undefined;
+    state.held = { masterKey: true, selfSigningKey: true, userSigningKey: true };
+    state.bootstrapSecretStorage.mockClear();
+    state.bootstrapCrossSigning.mockClear();
     state.resetKeyBackup.mockClear();
     state.deleteKeyBackupVersion.mockClear();
     onComplete.mockClear();
@@ -113,5 +120,59 @@ describe('SetupVerification backup choice', () => {
     await act(async () => checkbox().props.onClick());
     await submit();
     expect(state.resetKeyBackup).toHaveBeenCalledTimes(1);
+  });
+
+  describe('creating the identity, the normal first setup', () => {
+    it('creates new identity keys and says Create recovery key', async () => {
+      await mount();
+      await submit();
+      expect(state.bootstrapCrossSigning).toHaveBeenCalledWith(
+        expect.objectContaining({ setupNewCrossSigning: true })
+      );
+      expect(textOf(r.root)).toContain('Create recovery key');
+    });
+  });
+
+  describe('turning recovery back on around an identity that exists', () => {
+    it('says what it will do and calls the button Turn on recovery', async () => {
+      await mount({ keepIdentity: true });
+      const text = textOf(r.root);
+      expect(text).toContain('Recovery is off');
+      expect(text).toContain('Your identity and verified devices stay as they are');
+      expect(text).toContain('Turn on recovery');
+      expect(text).not.toContain('Create recovery key');
+    });
+
+    it('stores the identity this device holds in a new recovery, and never creates a new identity', async () => {
+      await mount({ keepIdentity: true });
+      await submit();
+      expect(state.bootstrapSecretStorage).toHaveBeenCalledWith(
+        expect.objectContaining({ setupNewSecretStorage: true })
+      );
+      expect(state.bootstrapCrossSigning).not.toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalledWith('EsTc 1abc');
+    });
+
+    it.each([
+      ['master', { masterKey: false, selfSigningKey: true, userSigningKey: true }],
+      ['self-signing', { masterKey: true, selfSigningKey: false, userSigningKey: true }],
+      ['user-signing', { masterKey: true, selfSigningKey: true, userSigningKey: false }],
+    ])('refuses, changing nothing, when this device lacks the %s key', async (_name, held) => {
+      state.held = held;
+      await mount({ keepIdentity: true });
+      await submit();
+      expect(state.bootstrapSecretStorage).not.toHaveBeenCalled();
+      expect(state.bootstrapCrossSigning).not.toHaveBeenCalled();
+      expect(onComplete).not.toHaveBeenCalled();
+      expect(textOf(r.root)).toContain('does not hold your identity keys');
+    });
+
+    it('still lets the person choose whether to back up', async () => {
+      await mount({ keepIdentity: true });
+      await act(async () => checkbox().props.onClick());
+      await submit();
+      expect(state.resetKeyBackup).not.toHaveBeenCalled();
+      expect(state.bootstrapCrossSigning).not.toHaveBeenCalled();
+    });
   });
 });

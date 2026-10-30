@@ -31,6 +31,7 @@ import {
   DeviceVerificationResetOverlay,
   DeviceVerificationSetup,
 } from '../../../components/DeviceVerificationSetup';
+import { TurnOffRecoveryOverlay } from '../../../components/TurnOffRecovery';
 import { stopPropagation } from '../../../utils/keyboard';
 import { useAuthMetadata } from '../../../hooks/useAuthMetadata';
 import { withSearchParam } from '../../../pages/pathUtils';
@@ -219,8 +220,10 @@ export function VerifyOtherDeviceTile({ crypto, deviceId }: VerifyOtherDeviceTil
 
 type EnableVerificationProps = {
   visible: boolean;
+  /** Recovery is off but an identity exists: turn it on around that identity, do not create one. */
+  keepIdentity?: boolean;
 };
-export function EnableVerification({ visible }: EnableVerificationProps) {
+export function EnableVerification({ visible, keepIdentity }: EnableVerificationProps) {
   const [open, setOpen] = useState(false);
 
   const handleCancel = useCallback(() => setOpen(false), []);
@@ -230,7 +233,7 @@ export function EnableVerification({ visible }: EnableVerificationProps) {
       {visible && (
         <Button size="300" radii="300" onClick={() => setOpen(true)}>
           <Text as="span" size="B300">
-            Set up recovery
+            {keepIdentity ? 'Turn on recovery' : 'Set up recovery'}
           </Text>
         </Button>
       )}
@@ -244,7 +247,7 @@ export function EnableVerification({ visible }: EnableVerificationProps) {
                 escapeDeactivates: false,
               }}
             >
-              <DeviceVerificationSetup onCancel={handleCancel} />
+              <DeviceVerificationSetup onCancel={handleCancel} keepIdentity={keepIdentity} />
             </FocusTrap>
           </OverlayCenter>
         </Overlay>
@@ -259,6 +262,7 @@ export function DeviceVerificationOptions() {
   const accountManagementActions = useAccountManagementActions();
 
   const [reset, setReset] = useState(false);
+  const [turnOff, setTurnOff] = useState(false);
 
   const handleCancelReset = useCallback(() => {
     setReset(false);
@@ -318,6 +322,20 @@ export function DeviceVerificationOptions() {
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                 <MenuItem
                   variant="Critical"
+                  onClick={() => {
+                    setMenuCords(undefined);
+                    setTurnOff(true);
+                  }}
+                  size="300"
+                  radii="300"
+                  fill="None"
+                >
+                  <Text as="span" size="T300" truncate>
+                    Turn off recovery...
+                  </Text>
+                </MenuItem>
+                <MenuItem
+                  variant="Critical"
                   onClick={handleReset}
                   size="300"
                   radii="300"
@@ -333,6 +351,7 @@ export function DeviceVerificationOptions() {
         }
       />
       {reset && <DeviceVerificationResetOverlay onCancel={handleCancelReset} />}
+      {turnOff && <TurnOffRecoveryOverlay onCancel={() => setTurnOff(false)} />}
     </>
   );
 }
