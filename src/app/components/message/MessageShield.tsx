@@ -8,7 +8,7 @@ export function MessageShieldIcon({ shield }: { shield: MessageShield }) {
     <TooltipProvider
       position="Top"
       tooltip={
-        <Tooltip style={{ maxWidth: toRem(260) }}>
+        <Tooltip style={{ maxWidth: toRem(320) }}>
           <Text size="T300">{shield.text}</Text>
         </Tooltip>
       }

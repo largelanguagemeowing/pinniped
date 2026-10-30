@@ -8,6 +8,26 @@ const info = (shieldColour: EventShieldColour, shieldReason: EventShieldReason |
 });
 
 describe('messageShield', () => {
+  it.each([
+    [EventShieldColour.RED, EventShieldReason.UNSIGNED_DEVICE, 'could have added it'],
+    [
+      EventShieldColour.RED,
+      EventShieldReason.UNKNOWN_DEVICE,
+      'added a device, sent this, and removed it',
+    ],
+    [EventShieldColour.RED, EventShieldReason.VERIFICATION_VIOLATION, 'could have reset it'],
+    [EventShieldColour.RED, EventShieldReason.MISMATCHED_SENDER, 'could have forged it'],
+    [
+      EventShieldColour.GREY,
+      EventShieldReason.AUTHENTICITY_NOT_GUARANTEED,
+      'added keys to your backup',
+    ],
+  ])('says a homeserver admin could be behind %s / reason %s', (colour, reason, how) => {
+    const text = messageShield(info(colour, reason))?.text ?? '';
+    expect(text).toMatch(/homeserver(’s)? admin/);
+    expect(text).toContain(how);
+  });
+
   it('shows nothing when the SDK has no concern', () => {
     expect(messageShield(info(EventShieldColour.NONE, null))).toBeNull();
   });
@@ -28,7 +48,7 @@ describe('messageShield', () => {
 
   it.each([
     [EventShieldReason.UNKNOWN_DEVICE, 'unknown or deleted device'],
-    [EventShieldReason.VERIFICATION_VIOLATION, 'changed their identity'],
+    [EventShieldReason.VERIFICATION_VIOLATION, 'their identity has changed'],
     [EventShieldReason.MISMATCHED_SENDER, 'does not match the device'],
   ])('words the red reason %s', (reason, snippet) => {
     const shield = messageShield(info(EventShieldColour.RED, reason));
