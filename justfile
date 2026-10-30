@@ -1,5 +1,8 @@
 # Build and install Pinniped desktop as an RPM.
 
+# Port for the Vite dev server; override with PINNIPED_DEV_PORT=<port> just dev-electron.
+dev_port := env_var_or_default("PINNIPED_DEV_PORT", "5173")
+
 build:
     npm run build
     npx electron-builder --config electron/electron-builder.yml --linux rpm
@@ -27,11 +30,11 @@ sync:
 dev-electron:
     #!/usr/bin/env bash
     set -euo pipefail
-    npx vite --strictPort &
+    PINNIPED_DEV_PORT={{dev_port}} npx vite --strictPort &
     watcher=$!
     trap 'kill $watcher 2>/dev/null || true' EXIT
-    until curl -sf http://localhost:8080/ >/dev/null 2>&1; do
+    until curl -sf http://localhost:{{dev_port}}/ >/dev/null 2>&1; do
       kill -0 $watcher 2>/dev/null || { echo "vite dev server exited" >&2; exit 1; }
       sleep 0.2
     done
-    CINNY_DEV_SERVER_URL=http://localhost:8080 CINNY_DEV_RELOAD=1 npm run electron:start
+    CINNY_DEV_SERVER_URL=http://localhost:{{dev_port}} CINNY_DEV_RELOAD=1 npm run electron:start

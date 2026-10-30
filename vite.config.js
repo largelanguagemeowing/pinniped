@@ -210,7 +210,8 @@ export default defineConfig({
     ],
   },
   server: {
-    port: 8080,
+    // Overridable because 8080 is a common port for other local servers.
+    port: Number(process.env.PINNIPED_DEV_PORT) || 5173,
     host: true,
     watch: {
       // The widget build output is reloaded explicitly by rebuildElementCallOnChange.
