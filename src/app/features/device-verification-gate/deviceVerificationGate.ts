@@ -1,4 +1,5 @@
 import { VerificationStatus } from '../../hooks/useDeviceVerificationStatus';
+import { createPersistentFlags } from '../../utils/persistentFlags';
 
 /**
  * `verify`: the account has an encryption identity and this device is not trusted by it yet.
@@ -49,46 +50,17 @@ export const justVerified = (wasVerifying: boolean, state: Omit<GateState, 'fini
 const dismissalKey = (kind: GateKind, userId: string, deviceId: string): string =>
   `verification_gate_dismissed:${kind}:${userId}:${deviceId}`;
 
-// The gate and the banner both read this, so it lives outside React. The in-memory copy keeps
-// the choice for the session when storage is blocked.
-const dismissed = new Set<string>();
-const listeners = new Set<() => void>();
-const notify = () => listeners.forEach((listener) => listener());
+// The gate and the banner both read this, so it lives outside React.
+const dismissals = createPersistentFlags();
 
-export const subscribeGateDismissal = (listener: () => void): (() => void) => {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-};
+export const subscribeGateDismissal = dismissals.subscribe;
 
-export const isGateDismissed = (kind: GateKind, userId: string, deviceId: string): boolean => {
-  const key = dismissalKey(kind, userId, deviceId);
-  if (dismissed.has(key)) return true;
-  try {
-    return localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
-};
+export const isGateDismissed = (kind: GateKind, userId: string, deviceId: string): boolean =>
+  dismissals.has(dismissalKey(kind, userId, deviceId));
 
-export const dismissGate = (kind: GateKind, userId: string, deviceId: string): void => {
-  const key = dismissalKey(kind, userId, deviceId);
-  dismissed.add(key);
-  try {
-    localStorage.setItem(key, '1');
-  } catch {
-    // The gate then shows again next launch, which is acceptable.
-  }
-  notify();
-};
+export const dismissGate = (kind: GateKind, userId: string, deviceId: string): void =>
+  dismissals.set(dismissalKey(kind, userId, deviceId));
 
 /** Brings the gate back, for the banner's action. */
-export const reopenGate = (kind: GateKind, userId: string, deviceId: string): void => {
-  const key = dismissalKey(kind, userId, deviceId);
-  dismissed.delete(key);
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // Nothing stored to clear.
-  }
-  notify();
-};
+export const reopenGate = (kind: GateKind, userId: string, deviceId: string): void =>
+  dismissals.clear(dismissalKey(kind, userId, deviceId));
