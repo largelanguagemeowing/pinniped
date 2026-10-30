@@ -5,8 +5,6 @@ import { AuthShell } from '../../pages/auth/AuthShell';
 import { AuthAside, AsideCopy } from '../../pages/auth/AuthAside';
 import * as css from '../../pages/auth/styles.css';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { useCrossSigningActive } from '../../hooks/useCrossSigning';
-import { useDeviceVerificationStatus } from '../../hooks/useDeviceVerificationStatus';
 import {
   useSecretStorageDefaultKeyId,
   useSecretStorageKeyContent,
@@ -29,10 +27,10 @@ import { SecretStorageKeyContent } from '../../../types/matrix/accountData';
 import {
   dismissGate,
   gateNeedsVerification,
-  isGateDismissed,
   justVerified,
   shouldShowGate,
 } from './deviceVerificationGate';
+import { useVerificationGateState } from './useVerificationGateState';
 
 type View = 'choose' | 'device' | 'key' | 'skip';
 
@@ -67,7 +65,7 @@ const ASIDE: Record<View | 'done', AsideCopy> = {
   done: {
     heading: 'What changed',
     paragraphs: [
-      'Your other devices and contacts now see this device as yours. New messages are readable here straight away.',
+      'Your contacts and your other devices now see this device as verified, and you will not be asked again on this device.',
     ],
   },
 };
@@ -356,18 +354,12 @@ function DoneView({ onContinue }: { onContinue: () => void }) {
  * and the choice is remembered per device so it does not return on every launch.
  */
 export function DeviceVerificationGate() {
-  const mx = useMatrixClient();
-  const userId = mx.getSafeUserId();
-  const deviceId = mx.getDeviceId() ?? undefined;
-
-  const crossSigningActive = useCrossSigningActive();
-  const status = useDeviceVerificationStatus(mx.getCrypto(), userId, deviceId);
+  const { userId, deviceId, crossSigningActive, status, dismissed } = useVerificationGateState();
 
   const keyId = useSecretStorageDefaultKeyId();
   const keyContent = useSecretStorageKeyContent(keyId ?? '');
   const canUseKey = !!keyId && !!keyContent;
 
-  const [dismissed, setDismissed] = useState(() => !deviceId || isGateDismissed(userId, deviceId));
   const [finished, setFinished] = useState(false);
   const [view, setView] = useState<View>('choose');
   const wasNeeded = useRef(false);
@@ -385,8 +377,8 @@ export function DeviceVerificationGate() {
   if (!shouldShowGate({ crossSigningActive, status, dismissed, finished })) return null;
 
   const handleContinueUnverified = () => {
+    setView('choose');
     if (deviceId) dismissGate(userId, deviceId);
-    setDismissed(true);
   };
 
   let content: React.ReactNode;

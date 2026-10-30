@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   dismissGate,
+  reopenGate,
+  subscribeGateDismissal,
   gateNeedsVerification,
   isGateDismissed,
   justVerified,
@@ -60,6 +62,7 @@ describe('gate dismissal', () => {
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => store.set(k, v),
+      removeItem: (k: string) => store.delete(k),
     });
   });
 
@@ -68,5 +71,37 @@ describe('gate dismissal', () => {
     expect(isGateDismissed('@a:x', 'DEV1')).toBe(true);
     expect(isGateDismissed('@a:x', 'DEV2')).toBe(false);
     expect(isGateDismissed('@b:x', 'DEV1')).toBe(false);
+  });
+
+  it('can be reopened from the banner, and tells subscribers', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeGateDismissal(listener);
+
+    dismissGate('@a:x', 'DEV3');
+    reopenGate('@a:x', 'DEV3');
+    expect(isGateDismissed('@a:x', 'DEV3')).toBe(false);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    dismissGate('@a:x', 'DEV3');
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the choice for the session when storage is blocked', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+      removeItem: () => {
+        throw new Error('blocked');
+      },
+    });
+    dismissGate('@a:x', 'DEV4');
+    expect(isGateDismissed('@a:x', 'DEV4')).toBe(true);
+    reopenGate('@a:x', 'DEV4');
+    expect(isGateDismissed('@a:x', 'DEV4')).toBe(false);
   });
 });

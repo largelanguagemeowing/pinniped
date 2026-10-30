@@ -2,6 +2,7 @@ import React from 'react';
 import { act, create, ReactTestRenderer, ReactTestInstance } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeviceVerificationGate } from '../../src/app/features/device-verification-gate/DeviceVerificationGate';
+import { reopenGate } from '../../src/app/features/device-verification-gate/deviceVerificationGate';
 import { VerificationStatus } from '../../src/app/hooks/useDeviceVerificationStatus';
 
 const state = vi.hoisted(() => ({
@@ -84,7 +85,9 @@ describe('DeviceVerificationGate', () => {
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => store.set(k, v),
+      removeItem: (k: string) => store.delete(k),
     });
+    reopenGate('@me:x', 'DEV1');
     state.crossSigningActive = true;
     state.status = VerificationStatus.Unverified;
     state.keyId = 'KEY';
