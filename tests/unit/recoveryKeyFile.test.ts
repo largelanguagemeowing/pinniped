@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recoveryKeyFilename } from '../../src/app/utils/recoveryKeyFile';
+import { messageKeysFilename, recoveryKeyFilename } from '../../src/app/utils/recoveryKeyFile';
 
 describe('recoveryKeyFilename', () => {
   it('names the file after the account', () => {
@@ -43,5 +43,12 @@ describe('recoveryKeyFilename', () => {
 
   it('always ends in .txt so it opens anywhere', () => {
     expect(recoveryKeyFilename('@alice:matrix.org').endsWith('.txt')).toBe(true);
+  });
+
+  it('names the message key file separately from the recovery key', () => {
+    expect(messageKeysFilename('@alice:matrix.org')).toBe(
+      'pinniped-message-keys-alice-matrix.org.txt'
+    );
+    expect(messageKeysFilename('')).toBe('pinniped-message-keys.txt');
   });
 });
