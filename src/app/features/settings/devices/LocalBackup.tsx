@@ -128,7 +128,7 @@ function ExportKeysTile() {
     <>
       <SettingTile
         title="Export message keys"
-        description="Save a password-protected file with your message keys, as a backup you keep yourself."
+        description="Save a password-protected file with your message keys. Your homeserver never holds it and cannot change it, so unlike the server backup it cannot be tampered with by your homeserver."
         after={
           <Box>
             <Button
@@ -257,7 +257,7 @@ function ImportKeysTile() {
     <>
       <SettingTile
         title="Import message keys"
-        description="Load a password-protected file of message keys to read your messages."
+        description="Load a password-protected file of message keys to read your messages. Only use a file you exported yourself."
         after={
           <Box>
             {file ? (
