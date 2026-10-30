@@ -14,7 +14,9 @@ vi.mock('../../src/app/components/ActionUIA', () => ({
   ActionUIAFlowsLoader: () => null,
 }));
 vi.mock('../../src/app/components/password-input', () => ({ PasswordInput: () => null }));
-vi.mock('../../src/app/hooks/useMatrixClient', () => ({ useMatrixClient: () => ({}) }));
+vi.mock('../../src/app/hooks/useMatrixClient', () => ({
+  useMatrixClient: () => ({ getSafeUserId: () => '@alice:matrix.org' }),
+}));
 
 const KEY = 'EsTc 1abc 2def 3ghi';
 
@@ -71,9 +73,12 @@ describe('RecoveryKeyDisplay', () => {
     expect(textOf(button('Copied'))).toContain('Copied');
   });
 
-  it('downloads the key as a text file', () => {
+  it('downloads the key as a text file named after the account', () => {
     mount();
     act(() => button('Download as file').props.onClick());
-    expect(saveAs).toHaveBeenCalledWith(expect.any(Blob), 'recovery-key.txt');
+    expect(saveAs).toHaveBeenCalledWith(
+      expect.any(Blob),
+      'pinniped-recovery-key-alice-matrix.org.txt'
+    );
   });
 });

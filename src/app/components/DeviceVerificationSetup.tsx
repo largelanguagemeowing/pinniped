@@ -24,6 +24,7 @@ import { AuthDict, IAuthData, MatrixError, UIAuthCallback } from 'matrix-js-sdk'
 import { PasswordInput } from './password-input';
 import { ContainerColor } from '../styles/ContainerColor.css';
 import { copyToClipboard } from '../utils/dom';
+import { recoveryKeyFilename } from '../utils/recoveryKeyFile';
 import { AsyncStatus, useAsyncCallback } from '../hooks/useAsyncCallback';
 import { clearSecretStorageKeys } from '../../client/secretStorageKeys';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
@@ -237,6 +238,7 @@ type RecoveryKeyDisplayProps = {
   onDone: () => void;
 };
 export function RecoveryKeyDisplay({ recoveryKey, onDone }: RecoveryKeyDisplayProps) {
+  const mx = useMatrixClient();
   const [show, setShow] = useState(false);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -250,7 +252,7 @@ export function RecoveryKeyDisplay({ recoveryKey, onDone }: RecoveryKeyDisplayPr
     const blob = new Blob([recoveryKey], {
       type: 'text/plain;charset=us-ascii',
     });
-    FileSaver.saveAs(blob, 'recovery-key.txt');
+    FileSaver.saveAs(blob, recoveryKeyFilename(mx.getSafeUserId()));
   };
 
   const safeToDisplayKey = show ? recoveryKey : recoveryKey.replace(/[^\s]/g, '*');
