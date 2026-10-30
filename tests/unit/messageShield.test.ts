@@ -39,6 +39,7 @@ describe('messageShield', () => {
     );
     expect(shield?.colour).toBe('grey');
     expect(shield?.text).toContain('one of your devices or your encrypted backup');
+    expect(shield?.text).toContain('only as trustworthy as those');
     expect(shield?.text).not.toMatch(/forward/i);
   });
 
