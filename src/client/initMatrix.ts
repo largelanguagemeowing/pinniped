@@ -15,6 +15,7 @@ import { clearNavToActivePathStore } from '../app/state/navToActivePath';
 import { getSettings } from '../app/state/settings';
 import { playEventSound } from '../app/sound/play';
 import { pushSessionToSW } from '../sw-session';
+import { compactServerAcls } from './compactServerAcl';
 import { USER_PROFILE_FIELDS } from '../types/matrix/profile';
 import { reportClientStorageError, resetClientStorageError } from './storageStatus';
 
@@ -145,6 +146,7 @@ export const startClient = async (mx: MatrixClient) => {
   // page reload occurs and the SW may not have the session yet.
   pushSessionToSW(mx.baseUrl, mx.getAccessToken() ?? undefined);
   refreshWellKnownCache(mx);
+  compactServerAcls(mx);
   await mx.startClient({
     lazyLoadMembers: true,
     unstableMSC4429SyncUserProfileFields: USER_PROFILE_FIELDS,
