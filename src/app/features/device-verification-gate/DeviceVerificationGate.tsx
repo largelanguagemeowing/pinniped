@@ -465,8 +465,7 @@ function DoneView({ onContinue }: { onContinue: () => void }) {
   return (
     <Box direction="Column" gap="500">
       <Heading title="This device is verified">
-        If you have a key backup, older messages are restored in the background and appear as their
-        keys arrive.
+        If you have a key backup, you will be asked whether to restore your older messages.
       </Heading>
       <Button variant="Primary" size="500" onClick={onContinue}>
         <Text as="span" size="B500">

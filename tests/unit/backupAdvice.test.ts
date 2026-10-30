@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { KeyBackupInfo } from 'matrix-js-sdk/lib/crypto-api';
-import { backupAdvice } from '../../src/app/components/backupAdvice';
+import { backupAdvice } from '../../src/app/utils/backupAdvice';
 
 const info = (count: number): KeyBackupInfo =>
   ({

@@ -21,3 +21,19 @@ export const useBackupRestored = (
   useSyncExternalStore(flags.subscribe, () =>
     deviceId && version ? isBackupRestored(userId, deviceId, version) : false
   );
+
+const declinedKey = (userId: string, deviceId: string, version: string): string =>
+  `key_backup_restore_declined:${userId}:${deviceId}:${version}`;
+
+/** The person chose "Not now" when asked to restore this backup, so the question is not repeated. */
+export const declineBackupRestore = (userId: string, deviceId: string, version: string): void =>
+  flags.set(declinedKey(userId, deviceId, version));
+
+export const useBackupRestoreDeclined = (
+  userId: string,
+  deviceId: string | undefined,
+  version: string | undefined
+): boolean =>
+  useSyncExternalStore(flags.subscribe, () =>
+    deviceId && version ? flags.has(declinedKey(userId, deviceId, version)) : false
+  );

@@ -1,6 +1,6 @@
 import React, { MouseEventHandler, useCallback, useState } from 'react';
 import { useAtom } from 'jotai';
-import { CryptoApi, KeyBackupInfo, KeyBackupRestoreResult } from 'matrix-js-sdk/lib/crypto-api';
+import { CryptoApi, KeyBackupRestoreResult } from 'matrix-js-sdk/lib/crypto-api';
 import {
   Badge,
   Box,
@@ -23,23 +23,17 @@ import FocusTrap from 'focus-trap-react';
 import { BackupProgressStatus, backupRestoreProgressAtom } from '../state/backupRestore';
 import { InfoCard } from './info-card';
 import { AsyncStatus, useAsyncCallback } from '../hooks/useAsyncCallback';
-import {
-  useKeyBackupInfo,
-  useKeyBackupStatus,
-  useKeyBackupSync,
-  useKeyBackupTrust,
-} from '../hooks/useKeyBackup';
+import { useKeyBackupStatus, useKeyBackupSync } from '../hooks/useKeyBackup';
+import { useBackupAdvice } from '../hooks/useBackupAdvice';
 import { stopPropagation } from '../utils/keyboard';
 import { useMatrixClient } from '../hooks/useMatrixClient';
-import { useBackupRestored } from '../state/backupRestored';
 import { restoreKeyBackupAndRecord } from '../utils/backupRestore';
-import { backupAdvice } from './backupAdvice';
+import { BackupAdvice } from '../utils/backupAdvice';
 import { ManualVerificationTile } from './ManualVerification';
 import {
   useSecretStorageDefaultKeyId,
   useSecretStorageKeyContent,
 } from '../hooks/useSecretStorage';
-import { useRestoreBackupOnVerification } from '../hooks/useRestoreBackupOnVerification';
 
 type BackupStatusProps = {
   enabled: boolean;
@@ -163,8 +157,7 @@ function UnlockBackup() {
 }
 
 type BackupAdviceSectionProps = {
-  crypto: CryptoApi;
-  backupInfo: KeyBackupInfo;
+  advice: BackupAdvice;
   busy: boolean;
   onRestore: () => void;
 };
@@ -172,16 +165,7 @@ type BackupAdviceSectionProps = {
  * Says what the backup needs, and shows the Restore button only when pressing it would help:
  * the device can open the backup and has not restored it yet.
  */
-function BackupAdviceSection({ crypto, backupInfo, busy, onRestore }: BackupAdviceSectionProps) {
-  const mx = useMatrixClient();
-  const trust = useKeyBackupTrust(crypto, backupInfo);
-  const restored = useBackupRestored(
-    mx.getSafeUserId(),
-    mx.getDeviceId() ?? undefined,
-    backupInfo.version
-  );
-  const advice = backupAdvice(backupInfo, trust, restored);
-
+function BackupAdviceSection({ advice, busy, onRestore }: BackupAdviceSectionProps) {
   if (advice.kind === 'locked') {
     return (
       <Box direction="Column" gap="200">
@@ -238,7 +222,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
     restoreProgress.status === BackupProgressStatus.Loading;
 
   const backupEnabled = useKeyBackupStatus(crypto);
-  const backupInfo = useKeyBackupInfo(crypto);
+  const { info: backupInfo, advice } = useBackupAdvice(crypto);
   const [remainingSession, syncFailure] = useKeyBackupSync();
 
   const [menuCords, setMenuCords] = useState<RectCords>();
@@ -339,8 +323,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
       )}
       {backupInfo && (
         <BackupAdviceSection
-          crypto={crypto}
-          backupInfo={backupInfo}
+          advice={advice}
           busy={busy}
           // The failure is shown below, so the rethrown rejection would only add console noise.
           onRestore={() => {
@@ -368,10 +351,4 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
       )}
     </InfoCard>
   );
-}
-
-export function AutoRestoreBackupOnVerification() {
-  useRestoreBackupOnVerification();
-
-  return null;
 }
