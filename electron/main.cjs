@@ -27,6 +27,11 @@ const APP_ICON = path
 // built bundle in dist/.
 const DEV_SERVER_URL = process.env.CINNY_DEV_SERVER_URL;
 
+// Dev runs get their own profile. Otherwise they share the installed app's profile, lose the
+// single-instance lock below, quit, and just focus the installed window instead of the dev build.
+// A separate profile also starts signed out, like a new device.
+if (DEV_SERVER_URL) app.setPath('userData', path.join(app.getPath('appData'), 'pinniped-dev'));
+
 // Dev only (`just dev-electron`): expose DevTools over CDP on localhost for layout debugging.
 if (process.env.CINNY_DEV_RELOAD) app.commandLine.appendSwitch('remote-debugging-port', '9333');
 
