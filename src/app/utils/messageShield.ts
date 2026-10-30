@@ -20,7 +20,7 @@ const REASON_TEXT: Partial<Record<EventShieldReason, string>> = {
   [EventShieldReason.MISMATCHED_SENDER]:
     'The sender of this message does not match the device that encrypted it.',
   [EventShieldReason.AUTHENTICITY_NOT_GUARANTEED]:
-    'The key for this message was forwarded or restored from a backup, so it cannot be confirmed that it came from the sender’s device.',
+    'This device did not get the key for this message straight from the sender. Another device or your backup supplied it, so it cannot confirm who really sent it.',
   [EventShieldReason.UNVERIFIED_IDENTITY]: 'Sent by someone you have not verified.',
 };
 

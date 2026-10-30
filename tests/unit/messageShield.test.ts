@@ -38,7 +38,8 @@ describe('messageShield', () => {
       info(EventShieldColour.GREY, EventShieldReason.AUTHENTICITY_NOT_GUARANTEED)
     );
     expect(shield?.colour).toBe('grey');
-    expect(shield?.text).toContain('forwarded or restored from a backup');
+    expect(shield?.text).toContain('Another device or your backup supplied it');
+    expect(shield?.text).not.toMatch(/forward/i);
   });
 
   it('words an unverified identity, though the SDK does not currently raise it', () => {
