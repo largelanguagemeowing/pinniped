@@ -39,7 +39,7 @@ export function OnlyVerifiedDevicesTile() {
   return (
     <SettingTile
       title="Only verified devices"
-      description="Only share message keys with devices you have verified. Messages from unverified devices won't open, and sending fails if anyone in a room has an unverified device."
+      description="Only share message keys with devices their owners have verified, and only open messages sent from them. This is the setting that stops a homeserver admin from reading new messages in your encrypted rooms: an admin can add their own device to an account, but cannot verify it. Sending fails if someone you have verified replaces their identity."
       after={<Switch variant="Primary" value={onlySignedDevices} onChange={handleChange} />}
     />
   );
