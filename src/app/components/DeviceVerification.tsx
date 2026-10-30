@@ -226,7 +226,7 @@ function VerificationCanceled({ onClose }: VerificationCanceledProps) {
   );
 }
 
-const cancelRequest = (request: VerificationRequest) => {
+export const cancelVerificationRequest = (request: VerificationRequest) => {
   if (request.phase !== VerificationPhase.Done && request.phase !== VerificationPhase.Cancelled) {
     request.cancel();
   }
@@ -242,7 +242,7 @@ export function DeviceVerificationFlow({ request, onExit }: DeviceVerificationPr
   const phase = useVerificationRequestPhase(request);
 
   const handleCancel = useCallback(() => {
-    cancelRequest(request);
+    cancelVerificationRequest(request);
     onExit();
   }, [request, onExit]);
 
@@ -282,7 +282,7 @@ export function DeviceVerificationFlow({ request, onExit }: DeviceVerificationPr
 
 export function DeviceVerification({ request, onExit }: DeviceVerificationProps) {
   const handleCancel = useCallback(() => {
-    cancelRequest(request);
+    cancelVerificationRequest(request);
     onExit();
   }, [request, onExit]);
 

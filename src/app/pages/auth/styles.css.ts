@@ -97,3 +97,12 @@ export const AuthAsideContent = style({
     },
   },
 });
+
+// Covers the app until this device is verified or the person chooses to continue without.
+// Below config.zIndex.Max so the incoming-verification dialog still opens on top.
+export const AuthGate = style({
+  position: 'fixed',
+  inset: 0,
+  zIndex: config.zIndex.Z400,
+  backgroundColor: color.Surface.Container,
+});

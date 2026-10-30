@@ -77,7 +77,7 @@ export function SecretStorageRecoveryPassphrase({
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="100">
       <Box gap="200" alignItems="End">
         <Box grow="Yes" direction="Column" gap="100">
-          <Text size="L400">Recovery Passphrase</Text>
+          <Text size="L400">Recovery passphrase</Text>
           <PasswordInput
             name="recoveryPassphraseInput"
             size="400"
@@ -167,7 +167,7 @@ export function SecretStorageRecoveryKey({
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="100">
       <Box gap="200" alignItems="End">
         <Box grow="Yes" direction="Column" gap="100">
-          <Text size="L400">Recovery Key</Text>
+          <Text size="L400">Recovery key</Text>
           <PasswordInput
             name="recoveryKeyInput"
             size="400"

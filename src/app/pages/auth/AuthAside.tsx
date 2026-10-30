@@ -3,7 +3,7 @@ import { Box, Text } from 'folds';
 import * as css from './styles.css';
 import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '../paths';
 
-type AsideCopy = {
+export type AsideCopy = {
   heading: string;
   paragraphs: string[];
 };
@@ -32,14 +32,15 @@ const ASIDE_COPY: Record<string, AsideCopy> = {
   },
 };
 
-export function AuthAside({ authPath }: { authPath: string }) {
-  const copy = ASIDE_COPY[authPath] ?? ASIDE_COPY[LOGIN_PATH];
+export const getAuthAsideCopy = (authPath: string): AsideCopy =>
+  ASIDE_COPY[authPath] ?? ASIDE_COPY[LOGIN_PATH];
 
+export function AuthAside({ heading, paragraphs }: AsideCopy) {
   return (
     <Box as="aside" className={css.AuthAside}>
       <Box className={css.AuthAsideContent} direction="Column">
-        <Text size="H3">{copy.heading}</Text>
-        {copy.paragraphs.map((paragraph) => (
+        <Text size="H3">{heading}</Text>
+        {paragraphs.map((paragraph) => (
           <Text key={paragraph} size="T400" priority="300">
             {paragraph}
           </Text>
