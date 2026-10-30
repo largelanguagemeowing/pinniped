@@ -4,11 +4,40 @@ import { AsyncStatus, useAsyncCallback } from '../hooks/useAsyncCallback';
 import { logoutClient } from '../../client/initMatrix';
 import { useMatrixClient } from '../hooks/useMatrixClient';
 import { useCrossSigningActive } from '../hooks/useCrossSigning';
+import { CryptoApi } from 'matrix-js-sdk/lib/crypto-api';
 import { InfoCard } from './info-card';
-import {
-  useDeviceVerificationStatus,
-  VerificationStatus,
-} from '../hooks/useDeviceVerificationStatus';
+import { useDeviceVerificationStatus } from '../hooks/useDeviceVerificationStatus';
+import { useKeyBackupStatus, useKeyBackupSync } from '../hooks/useKeyBackup';
+import { useDeviceList } from '../hooks/useDeviceList';
+import { logoutRisks } from './logoutRisks';
+
+/** What logging out would cost, as one card per risk. It only makes sense with encrypted rooms. */
+function LogoutRiskCards({ crypto }: { crypto: CryptoApi }) {
+  const mx = useMatrixClient();
+  const deviceId = mx.getDeviceId() ?? undefined;
+
+  const crossSigningActive = useCrossSigningActive();
+  const verification = useDeviceVerificationStatus(crypto, mx.getSafeUserId(), deviceId);
+  const backupActive = useKeyBackupStatus(crypto);
+  const [backupRemaining] = useKeyBackupSync();
+  const [devices] = useDeviceList();
+
+  const risks = logoutRisks({
+    crossSigningActive,
+    verification,
+    backupActive,
+    backupRemaining,
+    otherDevices: devices?.filter((device) => device.device_id !== deviceId).length,
+  });
+
+  return (
+    <>
+      {risks.map(({ id, severity, title, description }) => (
+        <InfoCard key={id} variant={severity} title={title} description={description} />
+      ))}
+    </>
+  );
+}
 
 type LogoutDialogProps = {
   handleClose: () => void;
@@ -16,13 +45,8 @@ type LogoutDialogProps = {
 export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
   ({ handleClose }, ref) => {
     const mx = useMatrixClient();
+    const crypto = mx.getCrypto();
     const hasEncryptedRoom = !!mx.getRooms().find((room) => room.hasEncryptionStateEvent());
-    const crossSigningActive = useCrossSigningActive();
-    const verificationStatus = useDeviceVerificationStatus(
-      mx.getCrypto(),
-      mx.getSafeUserId(),
-      mx.getDeviceId() ?? undefined
-    );
 
     const [logoutState, logout] = useAsyncCallback<void, Error, []>(
       useCallback(async () => {
@@ -47,22 +71,7 @@ export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
           </Box>
         </Header>
         <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-          {hasEncryptedRoom &&
-            (crossSigningActive ? (
-              verificationStatus === VerificationStatus.Unverified && (
-                <InfoCard
-                  variant="Critical"
-                  title="Unverified Device"
-                  description="Verify your device before logging out to save your encrypted messages."
-                />
-              )
-            ) : (
-              <InfoCard
-                variant="Critical"
-                title="Alert"
-                description="Enable device verification or export your encrypted data from settings to avoid losing access to your messages."
-              />
-            ))}
+          {crypto && hasEncryptedRoom && <LogoutRiskCards crypto={crypto} />}
           <Text priority="400">You’re about to log out. Are you sure?</Text>
           {logoutState.status === AsyncStatus.Error && (
             <Text style={{ color: color.Critical.Main }} size="T300">
