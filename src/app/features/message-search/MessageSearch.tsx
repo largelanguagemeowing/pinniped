@@ -196,16 +196,32 @@ export function MessageSearch({
   const lastVItem = vItems[vItems.length - 1];
   const lastVItemIndex: number | undefined = lastVItem?.index;
   const lastGroupIndex = groups.length - 1;
+  // A page that adds no groups (everything filtered out) must not trigger the
+  // next fetch by itself, or the search would page through the whole history.
+  const autoFetchedAt = useRef<{ first: unknown; groups: number }>(undefined);
   useEffect(() => {
     if (
       lastGroupIndex > -1 &&
       lastGroupIndex === lastVItemIndex &&
       !isFetchingNextPage &&
-      hasNextPage
+      hasNextPage &&
+      !(
+        autoFetchedAt.current?.first === data?.pages[0] &&
+        autoFetchedAt.current?.groups === groups.length
+      )
     ) {
+      autoFetchedAt.current = { first: data?.pages[0], groups: groups.length };
       fetchNextPage();
     }
-  }, [lastVItemIndex, lastGroupIndex, fetchNextPage, isFetchingNextPage, hasNextPage]);
+  }, [
+    lastVItemIndex,
+    lastGroupIndex,
+    fetchNextPage,
+    isFetchingNextPage,
+    hasNextPage,
+    data,
+    groups.length,
+  ]);
 
   return (
     <Box direction="Column" gap="700">

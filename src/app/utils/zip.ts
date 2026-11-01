@@ -37,11 +37,11 @@ export const downloadImagePackZip = async (
       let name = ext ? `${base}.${ext}` : base;
 
       let suffix = 1;
-      while (usedNames.has(name)) {
+      while (usedNames.has(name.toLowerCase())) {
         name = ext ? `${base}-${suffix}.${ext}` : `${base}-${suffix}`;
         suffix += 1;
       }
-      usedNames.add(name);
+      usedNames.add(name.toLowerCase());
       zip.file(name, blob);
     })
   );

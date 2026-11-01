@@ -185,8 +185,13 @@ export const parseSearchQuery = (input: string, now: number = Date.now()): Parse
 };
 
 /** Remove one token from the raw query string, tidying whitespace. */
-export const removeQueryToken = (input: string, token: QueryToken): string =>
-  `${input.slice(0, token.start)}${input.slice(token.end)}`.replace(/\s+/g, ' ').trim();
+export const removeQueryToken = (input: string, token: QueryToken): string => {
+  // Only the gap the token leaves is tidied; whitespace inside quoted phrases
+  // elsewhere in the query must stay as typed.
+  const before = input.slice(0, token.start).trimEnd();
+  const after = input.slice(token.end).trimStart();
+  return before && after ? `${before} ${after}` : `${before}${after}`;
+};
 
 export type SearchLookup = {
   /** userId -> display name, for every candidate sender */

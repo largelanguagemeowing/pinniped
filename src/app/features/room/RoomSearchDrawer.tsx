@@ -198,7 +198,7 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
       resultFilter,
       extensions,
     }),
-    [term, rooms, search.senders, search.has, effectiveOrder, resultFilter, extensions]
+    [term, rooms, search.senders, effectiveOrder, resultFilter, extensions]
   );
   const searchMessages = useMessageSearch(msgSearchParams);
 
@@ -229,16 +229,32 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
   const lastVItem = vItems[vItems.length - 1];
   const lastVItemIndex = lastVItem?.index;
   const lastGroupIndex = groups.length - 1;
+  // A page that adds no groups (everything filtered out) must not trigger the
+  // next fetch by itself, or the search would page through the whole history.
+  const autoFetchedAt = useRef<{ first: unknown; groups: number }>(undefined);
   useEffect(() => {
     if (
       lastGroupIndex > -1 &&
       lastVItemIndex === lastGroupIndex &&
       !isFetchingNextPage &&
-      hasNextPage
+      hasNextPage &&
+      !(
+        autoFetchedAt.current?.first === data?.pages[0] &&
+        autoFetchedAt.current?.groups === groups.length
+      )
     ) {
+      autoFetchedAt.current = { first: data?.pages[0], groups: groups.length };
       fetchNextPage();
     }
-  }, [lastVItemIndex, lastGroupIndex, fetchNextPage, isFetchingNextPage, hasNextPage]);
+  }, [
+    lastVItemIndex,
+    lastGroupIndex,
+    fetchNextPage,
+    isFetchingNextPage,
+    hasNextPage,
+    data,
+    groups.length,
+  ]);
 
   // The server tells us which non-spec options it honoured. Say so when one that
   // changes what the person sees was ignored, instead of silently showing the

@@ -177,7 +177,7 @@ export function ExportChatDialog({
         <Box gap="200" alignItems="Center">
           <Button
             variant="Primary"
-            onClick={() => preview && runExport(preview)}
+            onClick={() => !busy && preview && runExport(preview)}
             before={
               busy ? (
                 <Spinner fill="Solid" variant="Primary" size="200" />

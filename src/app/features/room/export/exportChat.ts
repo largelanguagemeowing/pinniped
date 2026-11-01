@@ -76,11 +76,11 @@ export class ChatExportImageCollector {
     const ext = nameExt || pickExtension(ref);
     let name = `${stem}${ext}`;
     let suffix = 2;
-    while (this.usedNames.has(name)) {
+    while (this.usedNames.has(name.toLowerCase())) {
       name = `${stem}-${suffix}${ext}`;
       suffix += 1;
     }
-    this.usedNames.add(name);
+    this.usedNames.add(name.toLowerCase());
 
     const file: ExportFile = {
       path: `${CHAT_EXPORT_FILES_DIR}/${name}`,

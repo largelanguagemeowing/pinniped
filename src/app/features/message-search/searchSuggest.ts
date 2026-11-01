@@ -121,7 +121,8 @@ export const getSearchSuggestions = (
           items: matches.map((r) => ({
             key: r.roomId,
             label: r.name,
-            insert: `${prefix}${quoteIfNeeded(r.name)}`,
+            // Queries have no escape for a quote, so such a name is inserted as its id.
+            insert: `${prefix}${r.name.includes('"') ? r.roomId : quoteIfNeeded(r.name)}`,
           })),
         };
       }

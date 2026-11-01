@@ -2,7 +2,6 @@ import {
   IContent,
   M_POLL_END,
   M_POLL_KIND_DISCLOSED,
-  M_POLL_KIND_UNDISCLOSED,
   M_POLL_RESPONSE,
   M_POLL_START,
   MatrixEvent,

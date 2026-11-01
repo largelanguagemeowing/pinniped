@@ -69,7 +69,7 @@ export function RoomSearchBar() {
       return;
     }
     if (items.length === 0) return;
-    if (evt.key === 'ArrowDown' || evt.key === 'ArrowUp') {
+    if ((evt.key === 'ArrowDown' || evt.key === 'ArrowUp') && !evt.altKey) {
       evt.preventDefault();
       const step = evt.key === 'ArrowDown' ? 1 : -1;
       setHighlight((h) => {
