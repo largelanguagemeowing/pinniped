@@ -40,6 +40,8 @@ export class Soundboard {
   private readonly buffers = new Map<string, Promise<AudioBuffer>>();
   private readonly playing = new Set<AudioBufferSourceNode>();
   private publication: Promise<LocalTrackPublication | undefined> | undefined;
+  // Bumped by stop(), so sounds still loading when it is called do not start.
+  private stopGeneration = 0;
 
   public constructor(
     private readonly room: LivekitRoom,
@@ -75,6 +77,14 @@ export class Soundboard {
   }
 
   private async publish(): Promise<LocalTrackPublication | undefined> {
+    // A disconnect unpublishes and (stopLocalTrackOnUnpublish) stops the track,
+    // so a cached publication may point at an ended track. Start over with a
+    // fresh destination in that case.
+    const cached = await this.publication;
+    if (cached && cached.track?.mediaStreamTrack.readyState === "ended") {
+      this.publication = undefined;
+      this.output.destination = this.output.ctx.createMediaStreamDestination();
+    }
     this.publication ??= this.room.localParticipant
       .publishTrack(this.output.destination.stream.getAudioTracks()[0], {
         source: Track.Source.Unknown,
@@ -93,8 +103,11 @@ export class Soundboard {
 
   public async play(url: string): Promise<void> {
     this.logger.info(`[sound] play soundboard (${url})`);
+    const generation = this.stopGeneration;
     await this.ctx.resume();
     const [buffer] = await Promise.all([this.decode(url), this.publish()]);
+    // stop() was called while this sound was still loading.
+    if (generation !== this.stopGeneration) return;
 
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
@@ -119,6 +132,7 @@ export class Soundboard {
 
   public stop(): void {
     this.logger.info("[sound] stop soundboard");
+    this.stopGeneration += 1;
     this.playing.forEach((source) => source.stop());
   }
 
