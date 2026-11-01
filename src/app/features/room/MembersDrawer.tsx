@@ -138,7 +138,7 @@ function MemberItem({
     <PresenceBadge presence={presence.presence} status={presence.status} size="200" />
   ) : undefined;
   const statusMsg = hasPresence && presence.status ? presence.status : undefined;
-  const richPresence = useUserRichPresence(member.userId);
+  const richPresence = useUserRichPresence(showPresence ? member.userId : '');
 
   return (
     <MenuItem

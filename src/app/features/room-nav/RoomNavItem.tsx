@@ -431,7 +431,7 @@ export function RoomNavItem({
   const statusMsg = hasPresence && presence.status ? presence.status : undefined;
   // Rich presence surfaces in the status slot even without m.presence data;
   // the hook is a no-op for the empty userId used by non-DM rooms.
-  const richPresence = useUserRichPresence(presenceUserId);
+  const richPresence = useUserRichPresence(showPresenceInDMList && direct ? presenceUserId : '');
 
   const voiceMatch = roomName.match(VOICE_CHANNEL_PREFIX_RE);
   const isVoiceChannel = !!voiceMatch;

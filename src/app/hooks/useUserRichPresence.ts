@@ -97,13 +97,14 @@ const startSubscription = (
     if (updatedUserId !== userId) return;
 
     updateVersion += 1;
-    // An update without the field is how a stopped publisher shows up (the
-    // property is deleted), so it clears rather than being ignored.
-    setRichPresence(
-      profile !== null && hasRichPresenceField(profile)
-        ? getProfileRichPresence(profile)
-        : undefined
-    );
+    if (profile !== null && hasRichPresenceField(profile)) {
+      setRichPresence(getProfileRichPresence(profile));
+      return;
+    }
+    // The update may be a delta about some other field, so its lacking ours
+    // proves nothing. Ask the server: a stopped publisher (property deleted)
+    // shows up there as the field missing, which clears.
+    loadProfile();
   };
 
   mx.on(ClientEvent.UserProfileUpdate, handleProfileUpdate);
