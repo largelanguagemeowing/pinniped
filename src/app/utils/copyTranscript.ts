@@ -19,7 +19,8 @@ const USER_ID_IN_TEXT = /@[^\s:@]+:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*(?::\d+)?/g;
 // the timeline shows them: "@Display Name".
 const resolveMentionsInBody = (room: Room, body: string): string =>
   body.replace(USER_ID_IN_TEXT, (userId) => {
-    const name = getMemberDisplayName(room, userId) ?? getMxIdLocalPart(userId);
+    // Only people in the room are mentions; other mxid-shaped text stays as written.
+    const name = getMemberDisplayName(room, userId);
     return name ? `@${name}` : userId;
   });
 

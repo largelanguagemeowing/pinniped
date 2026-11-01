@@ -224,12 +224,15 @@ const useTimelinePagination = (
   const timelineRef = useRef(timeline);
   timelineRef.current = timeline;
   const alive = useAlive();
+  // The timeline/direction that stalled, so jumping to another timeline
+  // (permalink) is not blocked by an earlier stall. Jump to Latest rebuilds the
+  // same timeline objects, so it clears this explicitly (clearStall).
+  const stalledRef = useRef<{ timeline: EventTimeline; backwards: boolean } | undefined>(undefined);
 
   const handleTimelinePagination = useMemo(() => {
     let fetching = false;
     // The timeline/direction that stalled, so jumping to another timeline
     // (permalink, jump to latest) is not blocked by an earlier stall.
-    let stalledAt: { timeline: EventTimeline; backwards: boolean } | undefined;
 
     const recalibratePagination = (
       linkedTimelines: EventTimeline[],
@@ -275,7 +278,11 @@ const useTimelinePagination = (
           current[current.length - 1] !== lTimelines[lTimelines.length - 1]
         );
       };
-      if (stalledAt?.timeline === timelineToPaginate && stalledAt.backwards === backwards) return;
+      if (
+        stalledRef.current?.timeline === timelineToPaginate &&
+        stalledRef.current.backwards === backwards
+      )
+        return;
 
       const paginationToken = timelineToPaginate.getPaginationToken(
         backwards ? Direction.Backward : Direction.Forward
@@ -328,7 +335,7 @@ const useTimelinePagination = (
         );
         fetching = false;
         if (isStale()) return;
-        stalledAt = { timeline: timelineToPaginate, backwards };
+        stalledRef.current = { timeline: timelineToPaginate, backwards };
         if (alive()) onStalled();
         return;
       }
@@ -350,7 +357,10 @@ const useTimelinePagination = (
       }
     };
   }, [mx, alive, setTimeline, limit, onStalled]);
-  return handleTimelinePagination;
+  const clearStall = useCallback(() => {
+    stalledRef.current = undefined;
+  }, []);
+  return [handleTimelinePagination, clearStall] as const;
 };
 
 const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void) => {
@@ -547,7 +557,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const atLiveEndRef = useRef(liveTimelineLinked && rangeAtEnd);
   atLiveEndRef.current = liveTimelineLinked && rangeAtEnd;
 
-  const handleTimelinePagination = useTimelinePagination(
+  const [handleTimelinePagination, clearPaginationStall] = useTimelinePagination(
     mx,
     timeline,
     setTimeline,
@@ -919,10 +929,11 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       navigateRoom(room.roomId, undefined, { replace: true });
     }
     setPaginationStalled(false);
+    clearPaginationStall();
     setTimeline(getInitialTimeline(room));
     scrollToBottomRef.current.count += 1;
     scrollToBottomRef.current.smooth = false;
-  }, [eventId, navigateRoom, room]);
+  }, [eventId, navigateRoom, room, clearPaginationStall]);
 
   const handleJumpToUnread = () => {
     if (unreadInfo?.readUptoEventId) {
@@ -1903,7 +1914,8 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
           mEvent &&
           eventTimeline &&
           !(mEvent.getSender() && ignoredUsersSet.has(mEvent.getSender() ?? '')) &&
-          !(mEvent.isRedacted() && !showHiddenEvents);
+          !(mEvent.isRedacted() && !showHiddenEvents) &&
+          !reactionOrEditEvent(mEvent);
         if (visible && mEvent && eventTimeline) {
           const line = eventToTranscriptLine(
             room,
