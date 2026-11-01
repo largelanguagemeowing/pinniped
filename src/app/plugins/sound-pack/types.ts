@@ -11,6 +11,8 @@ export type SoundInfo = {
   duration?: number;
 };
 
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+
 export type PackSound = {
   /** mxc:// URL of the audio file. */
   url: string;
@@ -18,6 +20,8 @@ export type PackSound = {
   /** A single emoji shown next to the name. */
   emoji?: string;
   info?: SoundInfo;
+  /** Set when the file is encrypted (sounds uploaded in an encrypted room). */
+  file?: EncryptedAttachmentInfo;
 };
 
 export type PackMeta = {

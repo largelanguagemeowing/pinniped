@@ -10,6 +10,8 @@ const parseFavorites = (content: SoundFavoritesContent | undefined): string[] =>
     ? content.favorites.filter((k): k is string => typeof k === 'string')
     : [];
 
+let queue: Promise<unknown> = Promise.resolve();
+
 /** The user's favourite soundboard sounds (keys, see Sound), synced as account data. */
 export const useSoundFavorites = (): [Set<string>, (key: string) => void] => {
   const mx = useMatrixClient();
@@ -19,12 +21,20 @@ export const useSoundFavorites = (): [Set<string>, (key: string) => void] => {
 
   const toggle = useCallback(
     (key: string) => {
-      const next = favorites.has(key) ? list.filter((k) => k !== key) : [...list, key];
-      mx.setAccountData(AccountDataEvent.PinnipedSoundFavorites, { favorites: next }).catch(
-        () => undefined
-      );
+      // Queued, and computed from the newest account data when it runs, so
+      // quick toggles don't overwrite each other with a stale list.
+      queue = queue
+        .catch(() => undefined)
+        .then(() => {
+          const current = parseFavorites(
+            mx.getAccountData(AccountDataEvent.PinnipedSoundFavorites)?.getContent()
+          );
+          const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+          return mx.setAccountData(AccountDataEvent.PinnipedSoundFavorites, { favorites: next });
+        });
+      queue.catch(() => undefined);
     },
-    [mx, list, favorites]
+    [mx]
   );
 
   return [favorites, toggle];

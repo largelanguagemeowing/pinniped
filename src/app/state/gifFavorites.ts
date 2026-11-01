@@ -72,14 +72,23 @@ export const getGifFavorites = (mx: MatrixClient): StoredFavorite[] => {
 const setGifFavorites = (mx: MatrixClient, favorites: StoredFavorite[]): Promise<unknown> =>
   mx.setAccountData(AccountDataEvent.PinnipedGifFavorites, { favorites });
 
+// Toggles run one after another, each against the newest account data, so quick
+// successive toggles don't overwrite each other with a stale list.
+let toggleQueue: Promise<unknown> = Promise.resolve();
+
 export const toggleGifFavorite = (mx: MatrixClient, fav: FavoriteGif): Promise<unknown> => {
-  const id = getFavoriteGifId(fav);
-  const current = getGifFavorites(mx);
-  const exists = current.some((f) => f.id === id);
-  const next = exists
-    ? current.filter((f) => f.id !== id)
-    : [{ id, fav, addedAt: Date.now() }, ...current];
-  return setGifFavorites(mx, next);
+  toggleQueue = toggleQueue
+    .catch(() => undefined)
+    .then(() => {
+      const id = getFavoriteGifId(fav);
+      const current = getGifFavorites(mx);
+      const exists = current.some((f) => f.id === id);
+      const next = exists
+        ? current.filter((f) => f.id !== id)
+        : [{ id, fav, addedAt: Date.now() }, ...current];
+      return setGifFavorites(mx, next);
+    });
+  return toggleQueue;
 };
 
 /**

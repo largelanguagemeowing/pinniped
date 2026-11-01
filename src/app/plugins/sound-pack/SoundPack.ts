@@ -6,6 +6,8 @@ export type Sound = {
   packId: string;
   id: string;
   url: string;
+  /** Decryption info when the file is stored encrypted. */
+  file?: PackSound['file'];
   name: string;
   emoji?: string;
   /** Milliseconds, when known. */
@@ -21,6 +23,7 @@ const parseSound = (packId: string, id: string, sound: PackSound): Sound | undef
     packId,
     id,
     url: sound.url,
+    file: sound.file && typeof sound.file === 'object' ? sound.file : undefined,
     name: typeof sound.name === 'string' && sound.name ? sound.name : id,
     emoji: typeof sound.emoji === 'string' && sound.emoji ? sound.emoji : undefined,
     duration: typeof sound.info?.duration === 'number' ? sound.info.duration : undefined,

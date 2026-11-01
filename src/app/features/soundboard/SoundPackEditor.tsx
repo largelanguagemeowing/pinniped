@@ -1,4 +1,4 @@
-import React, { FormEventHandler, useRef, useState } from 'react';
+import React, { FormEventHandler, useCallback, useRef, useState } from 'react';
 import { Box, Button, config, Icon, IconButton, Icons, Input, Spinner, Text, color } from 'folds';
 import { SequenceCard } from '../../components/sequence-card';
 import { SettingTile } from '../../components/setting-tile';
@@ -15,6 +15,7 @@ import {
   MAX_SOUND_MS,
 } from '../../plugins/sound-pack';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
+import { encryptFile } from '../../utils/matrix';
 import { EmojiPickerButton } from './EmojiPickerButton';
 import { useSoundBlobUrl } from './useSoundPlayer';
 
@@ -36,7 +37,7 @@ function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
 
   const preview = async () => {
     audioRef.current?.pause();
-    const audio = new Audio(await getBlobUrl(sound.url));
+    const audio = new Audio(await getBlobUrl(sound.url, sound.file));
     audioRef.current = audio;
     audio.play().catch(() => undefined);
   };
@@ -181,6 +182,26 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string>();
 
+  // Changes are applied to the newest content when they run, one after another,
+  // so an edit made during a slow upload (or a quick second edit) is not lost.
+  const latest = useRef(pack.content);
+  latest.current = pack.content;
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const change = useCallback(
+    (apply: (content: SoundPackContent) => SoundPackContent) => {
+      const run = queue.current
+        .catch(() => undefined)
+        .then(() => {
+          const next = apply(latest.current);
+          latest.current = next;
+          return onUpdate(next);
+        });
+      queue.current = run;
+      return run;
+    },
+    [onUpdate]
+  );
+
   const handleUpload: FormEventHandler<HTMLFormElement> = async (evt) => {
     evt.preventDefault();
     const form = evt.currentTarget;
@@ -193,19 +214,24 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
     setError(undefined);
     try {
       const { duration } = await readSoundFile(file);
-      const { content_uri: url } = await mx.uploadContent(file, {
+      // Room packs are state events visible to the room; in an encrypted room
+      // the audio must be encrypted like any other attachment.
+      const encrypt = !!pack.address && mx.isRoomEncrypted(pack.address.roomId);
+      const encrypted = encrypt ? await encryptFile(file) : undefined;
+      const { content_uri: url } = await mx.uploadContent(encrypted?.file ?? file, {
         name: file.name,
-        type: file.type,
+        type: encrypted ? 'application/octet-stream' : file.type,
       });
-      const id = newSoundId(name, (taken) => !!pack.content.sounds?.[taken]);
-      await onUpdate(
-        withSound(pack.content, id, {
+      await change((content) => {
+        const id = newSoundId(name, (taken) => !!content.sounds?.[taken]);
+        return withSound(content, id, {
           url,
           name,
           emoji: newEmoji,
           info: { mimetype: file.type, size: file.size, duration },
-        })
-      );
+          file: encrypted?.encInfo,
+        });
+      });
       form.reset();
       setFile(undefined);
       setNewEmoji(undefined);
@@ -217,9 +243,13 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
   };
 
   const handleSave = (id: string, name: string, emoji: string) => {
-    const existing = pack.content.sounds?.[id];
-    if (!existing) return Promise.resolve();
-    return onUpdate(withSound(pack.content, id, { ...existing, name, emoji: emoji || undefined }));
+    if (!pack.content.sounds?.[id]) return Promise.resolve();
+    return change((content) => {
+      const current = content.sounds?.[id];
+      return current
+        ? withSound(content, id, { ...current, name, emoji: emoji || undefined })
+        : content;
+    });
   };
 
   return (
@@ -240,7 +270,7 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
             sound={sound}
             canEdit={canEdit}
             onSave={handleSave}
-            onDelete={(id) => onUpdate(withoutSound(pack.content, id))}
+            onDelete={(id) => change((content) => withoutSound(content, id))}
           />
         </SequenceCard>
       ))}
