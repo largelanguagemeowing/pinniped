@@ -234,17 +234,27 @@ export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
   // case right after a restart (only the cached sync window is in memory). The
   // receipt's own timestamp still says when we read, so use it to tell events
   // we already read from newer ones.
-  const readTs = Math.max(
+  const receiptTs = Math.max(
     room.getReadReceiptForUserId(userId, false, ReceiptType.Read)?.data.ts ?? 0,
-    room.getReadReceiptForUserId(userId, false, ReceiptType.ReadPrivate)?.data.ts ?? 0,
-    getLocalReadTs(room.roomId)
+    room.getReadReceiptForUserId(userId, false, ReceiptType.ReadPrivate)?.data.ts ?? 0
   );
+  // Marking a room read here remembers the newest event's timestamp, so an
+  // event at exactly that time is read.
+  const localTs = getLocalReadTs(room.roomId);
+
+  // When the receipt's event is loaded, timeline order decides: timestamps can
+  // tie or even run backwards (bridges, clock skew), so they must not.
+  const readIndex = readUpToId ? liveEvents.findIndex((e) => e.getId() === readUpToId) : -1;
+  if (readIndex >= 0) {
+    return liveEvents
+      .slice(readIndex + 1)
+      .some((e) => isNotificationEvent(e) && e.getTs() > localTs);
+  }
 
   for (let i = liveEvents.length - 1; i >= 0; i -= 1) {
     const event = liveEvents[i];
     if (!event) return false;
-    if (event.getId() === readUpToId) return false;
-    if (isNotificationEvent(event)) return event.getTs() > readTs;
+    if (isNotificationEvent(event)) return event.getTs() > localTs && event.getTs() >= receiptTs;
   }
   // Nothing in the loaded window can notify, so there is nothing unread to show.
   return false;

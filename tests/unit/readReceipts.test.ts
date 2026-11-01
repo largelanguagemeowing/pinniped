@@ -104,6 +104,13 @@ describe('roomHaveUnread', () => {
     expect(roomHaveUnread(client, room)).toBe(true);
   });
 
+  it('counts a newer event as unread even when its timestamp ties the read one', async () => {
+    const { roomHaveUnread } = await load();
+    const { room, client } = setup([msg('$1', OTHER, 1000), msg('$2', OTHER, 1000)]);
+    room.addReceipt(receipt('$1', ReceiptType.Read, 1000));
+    expect(roomHaveUnread(client, room)).toBe(true);
+  });
+
   it('falls back on the locally remembered read time', async () => {
     const { roomHaveUnread, rememberLocalReadTs } = await load();
     const { room, client } = setup([msg('$1', OTHER, 10)]);
