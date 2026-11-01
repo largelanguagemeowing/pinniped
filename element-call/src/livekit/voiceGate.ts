@@ -51,15 +51,23 @@ export class VoiceGateProcessor implements AudioProcessor {
     },
   ) {}
 
+  // livekit-client's restartTrack calls restart() without an audioContext, so
+  // keep the one init() was given and fall back to it.
+  private audioContext?: AudioContext;
+
   public async init(opts: AudioProcessorOptions): Promise<void> {
+    this.audioContext = opts.audioContext;
     await this.inner?.init(opts);
     this.build(this.inner?.processedTrack ?? opts.track, opts.audioContext);
   }
 
   public async restart(opts: AudioProcessorOptions): Promise<void> {
+    const ctx = opts.audioContext ?? this.audioContext;
+    if (!ctx) throw new Error("VoiceGate: no AudioContext to restart with");
+    this.audioContext = ctx;
     this.teardown?.();
-    await this.inner?.restart(opts);
-    this.build(this.inner?.processedTrack ?? opts.track, opts.audioContext);
+    await this.inner?.restart({ ...opts, audioContext: ctx });
+    this.build(this.inner?.processedTrack ?? opts.track, ctx);
   }
 
   public async destroy(): Promise<void> {

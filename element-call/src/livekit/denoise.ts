@@ -122,9 +122,12 @@ export function denoiseSync(
       if (track === null) return;
       const key = processingKey(mode, gate);
       if ((applied.get(track) ?? "off") === key) return;
+      // Claim the key while applying so concurrent emissions don't double
+      // apply, but release it on failure so a later emission retries.
       applied.set(track, key);
-      applyProcessing(track, mode, gate).catch((e) =>
-        logger.error("Failed to apply microphone processing", e),
-      );
+      applyProcessing(track, mode, gate).catch((e) => {
+        if (applied.get(track) === key) applied.delete(track);
+        logger.error("Failed to apply microphone processing", e);
+      });
     });
 }
