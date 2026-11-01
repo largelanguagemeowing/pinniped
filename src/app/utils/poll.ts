@@ -78,7 +78,8 @@ export const parsePollStart = (content: IContent): PollData | undefined => {
   const rawMax = typeof poll.max_selections === 'number' ? poll.max_selections : 1;
   const maxSelections = Math.min(Math.max(1, Math.floor(rawMax)), answers.length);
 
-  const disclosed = !M_POLL_KIND_UNDISCLOSED.matches(poll.kind);
+  // A missing or unrecognised kind is undisclosed (MSC3381).
+  const disclosed = M_POLL_KIND_DISCLOSED.matches(poll.kind);
 
   const rawExpires = content[POLL_EXPIRES_KEY];
   const expiresAt = typeof rawExpires === 'number' && rawExpires > 0 ? rawExpires : undefined;
@@ -168,9 +169,11 @@ export const tallyPoll = (
     const content = evt.getContent();
     const raw = (content[M_POLL_RESPONSE.name] ?? content[M_POLL_RESPONSE.altName])?.answers;
     if (!Array.isArray(raw)) return;
-    const picked = Array.from(
-      new Set(raw.filter((id): id is string => typeof id === 'string' && validIds.has(id)))
-    ).slice(0, poll.maxSelections);
+    // Truncate to max_selections first, then drop duplicates; any id that is
+    // not an answer of this poll spoils the whole response.
+    const limited = raw.slice(0, poll.maxSelections);
+    if (limited.some((id) => typeof id !== 'string' || !validIds.has(id))) return;
+    const picked = Array.from(new Set<string>(limited));
     if (picked.length === 0) return;
     userAnswers.set(sender, picked);
     picked.forEach((id) => counts.set(id, (counts.get(id) ?? 0) + 1));

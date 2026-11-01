@@ -195,7 +195,6 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
       senders: search.senders,
       // `oldest` is not a spec order_by; it is recency plus an extension flag
       order: effectiveOrder === 'rank' ? SearchOrderBy.Rank : SearchOrderBy.Recent,
-      containsUrl: search.has.includes('link'),
       resultFilter,
       extensions,
     }),

@@ -3,8 +3,9 @@ import { IEventWithRoomId } from 'matrix-js-sdk';
 /**
  * Discord-style search query: free text plus `operator:value` filters.
  *
- * The server only understands free text, a room list, a sender list and
- * `contains_url`. Everything else (`has:` media kinds, dates, `mentions:`,
+ * The server only understands free text, a room list and a sender list
+ * (its `contains_url` means "content.url is set", i.e. media, not a link in the
+ * text, so `has:link` is not sent). Everything else (`has:` kinds, dates, `mentions:`,
  * `pinned:`) is applied to results in the client.
  */
 
@@ -280,7 +281,7 @@ export const resolveSearchQuery = (
   rooms.unresolved.forEach((value) => unresolved.push({ operator: 'in', value }));
 
   const needsClientFilter =
-    query.has.some((k) => k !== 'link') ||
+    query.has.length > 0 ||
     query.before !== undefined ||
     query.after !== undefined ||
     query.mentions.length > 0 ||

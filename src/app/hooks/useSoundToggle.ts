@@ -4,10 +4,10 @@ import { SoundKind } from '../sound/bundles';
 import { isSoundEnabled } from '../sound/toggles';
 import { settingsAtom } from '../state/settings';
 
-/** Whether a sound is switched on (see SOUND_TOGGLES). */
+/** Whether a sound plays: notification sounds are on overall and its own switch is on. */
 export const useSoundToggle = (kind: SoundKind): boolean => {
   const [settings] = useAtom(settingsAtom);
-  return isSoundEnabled(settings, kind);
+  return settings.isNotificationSounds && isSoundEnabled(settings, kind);
 };
 
 /** Sets one sound's switch. */

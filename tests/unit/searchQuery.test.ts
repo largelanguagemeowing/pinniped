@@ -153,11 +153,13 @@ describe('resolveSearchQuery', () => {
 
   it('only asks for client filtering when the server cannot do the job', () => {
     const plain = resolveSearchQuery(
-      parseSearchQuery('x from:alice has:link', NOW),
+      parseSearchQuery('x from:alice', NOW),
       lookup,
       defaultRooms
     );
     expect(plain.needsClientFilter).toBe(false);
+    const link = resolveSearchQuery(parseSearchQuery('x has:link', NOW), lookup, defaultRooms);
+    expect(link.needsClientFilter).toBe(true);
     const dated = resolveSearchQuery(
       parseSearchQuery('x before:2026-10-01', NOW),
       lookup,
