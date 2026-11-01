@@ -210,9 +210,14 @@ const createRichPresenceServer = ({ onActivity }) => {
     }
   };
 
+  // server.close() waits for open connections, so stop() has to end them.
+  const sockets = new Set();
+
   const handleConnection = (socket) => {
     const socketId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     socket.socketId = socketId;
+    sockets.add(socket);
+    socket.once('close', () => sockets.delete(socket));
     order.push(socketId);
     activities.set(socketId, null);
     log(`connect #${socketId}`);
@@ -327,16 +332,20 @@ const createRichPresenceServer = ({ onActivity }) => {
       } catch {
         // ignore
       }
-      server.close(() => {
-        if (platform !== 'win32' && bound) {
+      const closing = server;
+      const closedBound = bound;
+      // Free the slot at once so a start() right after stop() really listens.
+      server = null;
+      bound = null;
+      for (const socket of sockets) socket.destroy();
+      closing.close(() => {
+        if (platform !== 'win32' && closedBound) {
           try {
-            unlinkSync(bound.path);
+            unlinkSync(closedBound.path);
           } catch {
             // ignore
           }
         }
-        server = null;
-        bound = null;
         resolve();
       });
     });

@@ -162,6 +162,11 @@ function link(active, output = '') {
   const child = spawn('pw-dump', ['--monitor', '--no-colors'], {
     stdio: ['ignore', 'pipe', 'ignore'],
   });
+  // Without pw-dump (no PipeWire tools) spawn emits 'error'; unhandled, that
+  // would crash the main process.
+  child.on('error', () => {
+    if (monitor === child) monitor = null;
+  });
   monitor = child;
   const graph = new Map();
   let batch = [];
