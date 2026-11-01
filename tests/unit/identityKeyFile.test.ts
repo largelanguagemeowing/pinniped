@@ -12,7 +12,7 @@ const makeCrypto = (over: Record<string, unknown> = {}) => {
     getCrossSigningStatus: async () => ({ privateKeysCachedLocally: held }),
     exportSecretsBundle: vi.fn(async () => bundle),
     importSecretsBundle: vi.fn(async (b: unknown) => void imported.push(b)),
-    bootstrapCrossSigning: vi.fn(async () => {}),
+    crossSignDevice: vi.fn(async () => {}),
     ...over,
   };
   return { crypto: crypto as never, imported, raw: crypto };
@@ -27,9 +27,9 @@ describe('identity key file', () => {
   it('round-trips, and signs the device after importing', async () => {
     const text = await exportIdentityKeyFile(makeCrypto().crypto);
     const dest = makeCrypto();
-    await importIdentityKeyFile(dest.crypto, text);
+    await importIdentityKeyFile(dest.crypto, 'DEV', text);
     expect(dest.imported).toEqual([bundle]);
-    expect(dest.raw.bootstrapCrossSigning).toHaveBeenCalledWith({});
+    expect(dest.raw.crossSignDevice).toHaveBeenCalledWith('DEV');
   });
 
   it('refuses to export when this device lacks the keys', async () => {
@@ -47,7 +47,7 @@ describe('identity key file', () => {
       exportIdentityKeyFile(makeCrypto({ exportSecretsBundle: undefined }).crypto)
     ).rejects.toThrow('cannot export');
     await expect(
-      importIdentityKeyFile(makeCrypto({ importSecretsBundle: undefined }).crypto, '{}')
+      importIdentityKeyFile(makeCrypto({ importSecretsBundle: undefined }).crypto, 'DEV', '{}')
     ).rejects.toThrow('cannot import');
   });
 
@@ -57,10 +57,10 @@ describe('identity key file', () => {
     ['a bundle missing a key', JSON.stringify({ cross_signing: { master_key: 'm' } })],
   ])('rejects %s and imports nothing', async (_name, text) => {
     const dest = makeCrypto();
-    await expect(importIdentityKeyFile(dest.crypto, text)).rejects.toThrow(
+    await expect(importIdentityKeyFile(dest.crypto, 'DEV', text)).rejects.toThrow(
       'does not contain identity keys'
     );
     expect(dest.imported).toEqual([]);
-    expect(dest.raw.bootstrapCrossSigning).not.toHaveBeenCalled();
+    expect(dest.raw.crossSignDevice).not.toHaveBeenCalled();
   });
 });

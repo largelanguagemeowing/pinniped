@@ -135,6 +135,15 @@ export const mimeTypeToExt = (mimeType: string): string => {
   const extStart = mimeType.lastIndexOf('/') + 1;
   return mimeType.slice(extStart);
 };
+/**
+ * Like mimeTypeToExt, but safe to put in a file name or archive path: the
+ * subtype comes from message content, so anything that is not a short
+ * alphanumeric token becomes `bin`.
+ */
+export const mimeTypeToSafeExt = (mimeType: string): string => {
+  const ext = mimeTypeToExt(mimeType).split(';')[0].trim();
+  return /^[a-z0-9]{1,8}$/i.test(ext) ? ext : 'bin';
+};
 export const getFileNameExt = (fileName: string): string => {
   const extStart = fileName.lastIndexOf('.') + 1;
   return fileName.slice(extStart);

@@ -19,7 +19,7 @@ import {
   toExportMessage,
 } from './chatExport';
 import { decryptFile, mxcUrlToHttp } from '../../../utils/matrix';
-import { FALLBACK_MIMETYPE, getFileNameExt, mimeTypeToExt } from '../../../utils/mimeTypes';
+import { FALLBACK_MIMETYPE, getFileNameExt, mimeTypeToSafeExt } from '../../../utils/mimeTypes';
 import { decryptAllTimelineEvent, getStateEvent } from '../../../utils/room';
 import { StateEvent } from '../../../../types/matrix/room';
 import { getLinkedTimelines, getLiveTimeline } from '../../../utils/timeline';
@@ -44,7 +44,7 @@ const pickExtension = (ref: ExportImageRef): string => {
   const fromName = ref.name ? splitExtension(sanitizeExportFileName(ref.name))[1] : '';
   if (fromName) return fromName;
   const fromMimetype =
-    ref.mimetype && ref.mimetype !== FALLBACK_MIMETYPE ? mimeTypeToExt(ref.mimetype) : '';
+    ref.mimetype && ref.mimetype !== FALLBACK_MIMETYPE ? mimeTypeToSafeExt(ref.mimetype) : '';
   return fromMimetype ? `.${fromMimetype}` : `.${FALLBACK_FILE_EXT}`;
 };
 

@@ -32,7 +32,11 @@ export const exportIdentityKeyFile = async (crypto: CryptoApi): Promise<string> 
 };
 
 /** Imports a file made by exportIdentityKeyFile, then signs this device with the identity. */
-export const importIdentityKeyFile = async (crypto: CryptoApi, text: string): Promise<void> => {
+export const importIdentityKeyFile = async (
+  crypto: CryptoApi,
+  deviceId: string,
+  text: string
+): Promise<void> => {
   if (!crypto.importSecretsBundle) {
     throw new Error('This version of the encryption library cannot import identity keys.');
   }
@@ -46,6 +50,8 @@ export const importIdentityKeyFile = async (crypto: CryptoApi, text: string): Pr
     throw new Error('This file does not contain identity keys. Is it a message key file?');
   }
   await crypto.importSecretsBundle(bundle as never);
-  // Same step the recovery key flow takes, so this device becomes verified.
-  await crypto.bootstrapCrossSigning({});
+  // The bundle only installs the identity; it does not sign this device.
+  // (bootstrapCrossSigning would skip signing when the identity already exists,
+  // and may need secret storage.)
+  await crypto.crossSignDevice(deviceId);
 };

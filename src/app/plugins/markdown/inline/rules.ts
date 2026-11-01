@@ -25,7 +25,7 @@ const ITALIC_MD_1 = '*';
 const ITALIC_PREFIX_1 = `${ESC_NEG_LB}\\*`;
 const ITALIC_NEG_LA_1 = '(?!\\*)';
 const ITALIC_REG_1 = new RegExp(
-  `${URL_NEG_LB}${ITALIC_PREFIX_1}(?=[^\\s*])${MIN_ANY}(?<=\\S)${ITALIC_PREFIX_1}${ITALIC_NEG_LA_1}`
+  `${URL_NEG_LB}${ITALIC_PREFIX_1}${MIN_ANY}(?<=\\S)${ITALIC_PREFIX_1}${ITALIC_NEG_LA_1}`
 );
 export const ItalicRule1: InlineMDRule = {
   match: (text) => text.match(ITALIC_REG_1),

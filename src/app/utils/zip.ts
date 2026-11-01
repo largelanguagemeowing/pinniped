@@ -3,7 +3,7 @@ import FileSaver from 'file-saver';
 import { MatrixClient } from 'matrix-js-sdk';
 import { ImagePack } from '../plugins/custom-emoji';
 import { downloadMedia, mxcUrlToHttp } from './matrix';
-import { mimeTypeToExt } from './mimeTypes';
+import { mimeTypeToSafeExt } from './mimeTypes';
 
 const sanitizeFileName = (name: string): string => {
   const cleaned = name.replace(/[^a-zA-Z0-9-_]+/g, '_').replace(/^_+|_+$/g, '');
@@ -32,7 +32,7 @@ export const downloadImagePackZip = async (
       if (!httpUrl) throw new Error(`Could not resolve URL for ${image.shortcode}`);
 
       const blob = await downloadMedia(httpUrl);
-      const ext = mimeTypeToExt(image.info?.mimetype || blob.type || '');
+      const ext = mimeTypeToSafeExt(image.info?.mimetype || blob.type || '');
       const base = (image.shortcode || 'image').replace(/[/\\]/g, '_');
       let name = ext ? `${base}.${ext}` : base;
 

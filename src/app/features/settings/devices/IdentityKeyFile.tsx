@@ -74,7 +74,9 @@ export function ImportIdentityKeysTile() {
       async (picked) => {
         const crypto = mx.getCrypto();
         if (!crypto) throw new Error('Encryption is not available on this device.');
-        await importIdentityKeyFile(crypto, await picked.text());
+        const deviceId = mx.getDeviceId();
+        if (!deviceId) throw new Error('This session has no device ID.');
+        await importIdentityKeyFile(crypto, deviceId, await picked.text());
       },
       [mx]
     )
