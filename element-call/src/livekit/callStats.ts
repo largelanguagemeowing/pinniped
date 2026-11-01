@@ -91,10 +91,14 @@ export async function sampleConnection(
       )
     );
   };
-  const pair = pairOf(pubStats) ?? pairOf(subStats);
+  const pubPair = pairOf(pubStats);
+  const pair = pubPair ?? pairOf(subStats);
   const pairRtt = num(pair?.currentRoundTripTime);
+  // The local candidate lives in the same connection's stats as its pair.
   const local = pair
-    ? entries(pub).find((s) => s.id === pair.localCandidateId)
+    ? (pubPair ? pubStats : subStats).find(
+        (s) => s.id === pair.localCandidateId,
+      )
     : undefined;
 
   const byId = new Map(

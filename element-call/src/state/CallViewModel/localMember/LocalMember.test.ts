@@ -534,6 +534,7 @@ describe("LocalMembership", () => {
       localParticipant: {
         isScreenShareEnabled: false,
         trackPublications: [],
+        getTrackPublication: () => undefined,
       } as unknown as LocalParticipant,
     }),
     state$: constant(ConnectionState.LivekitConnected),
