@@ -245,8 +245,10 @@ function AudioTrackWithAudioNodes({
   );
 
   useEffect(() => {
-    if (levelNode) levelNode.gain.value = level;
-  }, [levelNode, level]);
+    // Through the audio context the element's own `muted` has no effect, so deafening
+    // (muted) silences the track here.
+    if (levelNode) levelNode.gain.value = muted ? 0 : level;
+  }, [levelNode, level, muted]);
 
   useEffect(() => {
     if (!trackRef || trackReady) return;
