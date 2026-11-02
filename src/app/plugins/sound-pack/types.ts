@@ -13,12 +13,19 @@ export type SoundInfo = {
 
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 
+export type SoundMode = 'cut' | 'add';
+
 export type PackSound = {
   /** mxc:// URL of the audio file. */
   url: string;
   name?: string;
   /** A single emoji shown next to the name. */
   emoji?: string;
+  /**
+   * What playing the sound again while it still plays does: 'cut' starts it over from the
+   * beginning, 'add' layers another copy on top. Absent means 'add'.
+   */
+  mode?: SoundMode;
   info?: SoundInfo;
   /** Set when the file is encrypted (sounds uploaded in an encrypted room). */
   file?: EncryptedAttachmentInfo;

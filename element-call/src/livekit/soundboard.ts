@@ -20,7 +20,8 @@ import { soundboardVolume } from "../settings/settings";
  * Soundboard commands from the embedding client (ElementWidgetActions.Soundboard).
  * `url` is a same-origin (blob:) URL of an audio file the client has already downloaded.
  */
-export type SoundboardCommand = { op: "play"; url: string } | { op: "stop" };
+export type SoundboardCommand =
+  { op: "play"; url: string; mode?: "cut" | "add" } | { op: "stop" };
 
 export const soundboardCommand$ = new Subject<SoundboardCommand>();
 
@@ -38,7 +39,10 @@ export class Soundboard {
     | { ctx: AudioContext; destination: MediaStreamAudioDestinationNode }
     | undefined;
   private readonly buffers = new Map<string, Promise<AudioBuffer>>();
-  private readonly playing = new Set<AudioBufferSourceNode>();
+  private readonly playing = new Map<AudioBufferSourceNode, string>();
+  // Per URL, bumped when a "cut" play restarts that sound, so an earlier click still
+  // loading does not start on top of the newer one.
+  private readonly restartGeneration = new Map<string, number>();
   private publication: Promise<LocalTrackPublication | undefined> | undefined;
   // Bumped by stop(), so sounds still loading when it is called do not start.
   private stopGeneration = 0;
@@ -101,13 +105,30 @@ export class Soundboard {
     return this.publication;
   }
 
-  public async play(url: string): Promise<void> {
-    this.logger.info(`[sound] play soundboard (${url})`);
+  /**
+   * `mode` "cut" stops this sound's copies that are still playing (or loading) first, so a
+   * repeated click starts it over; "add" (the default) layers another copy on top. Other
+   * sounds are not affected either way.
+   */
+  public async play(url: string, mode: "cut" | "add" = "add"): Promise<void> {
+    this.logger.info(`[sound] play soundboard (${url}, ${mode})`);
+    if (mode === "cut") {
+      this.restartGeneration.set(
+        url,
+        (this.restartGeneration.get(url) ?? 0) + 1,
+      );
+      this.playing.forEach((playingUrl, source) => {
+        if (playingUrl === url) source.stop();
+      });
+    }
     const generation = this.stopGeneration;
+    const restart = this.restartGeneration.get(url);
     await this.ctx.resume();
     const [buffer] = await Promise.all([this.decode(url), this.publish()]);
     // stop() was called while this sound was still loading.
     if (generation !== this.stopGeneration) return;
+    // A later "cut" click on this sound took over while it was loading.
+    if (restart !== this.restartGeneration.get(url)) return;
 
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
@@ -120,7 +141,7 @@ export class Soundboard {
     gain.connect(this.output.destination);
     gain.connect(monitor);
     monitor.connect(this.ctx.destination);
-    this.playing.add(source);
+    this.playing.set(source, url);
     source.addEventListener("ended", () => {
       this.playing.delete(source);
       source.disconnect();
@@ -133,7 +154,7 @@ export class Soundboard {
   public stop(): void {
     this.logger.info("[sound] stop soundboard");
     this.stopGeneration += 1;
-    this.playing.forEach((source) => source.stop());
+    this.playing.forEach((_url, source) => source.stop());
   }
 
   public async dispose(): Promise<void> {

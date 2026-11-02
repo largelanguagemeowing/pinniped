@@ -46,7 +46,7 @@ export const useSoundPlayer = (callEmbed: CallEmbed) => {
     async (sound: Sound) => {
       logSound('play', `soundboard ${sound.key}`, sound.name);
       const url = await getBlobUrl(sound.url, sound.file);
-      await callEmbed.soundboard({ op: 'play', url });
+      await callEmbed.soundboard({ op: 'play', url, mode: sound.mode });
       setRecent([sound.key, ...recent.filter((k) => k !== sound.key)].slice(0, MAX_RECENT));
     },
     [callEmbed, getBlobUrl, recent, setRecent]

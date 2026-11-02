@@ -1,5 +1,17 @@
 import React, { FormEventHandler, useCallback, useRef, useState } from 'react';
-import { Box, Button, config, Icon, IconButton, Icons, Input, Spinner, Text, color } from 'folds';
+import {
+  Box,
+  Button,
+  config,
+  Icon,
+  IconButton,
+  Icons,
+  Input,
+  Spinner,
+  Switch,
+  Text,
+  color,
+} from 'folds';
 import { SequenceCard } from '../../components/sequence-card';
 import { SettingTile } from '../../components/setting-tile';
 import { SequenceCardStyle } from '../settings/styles.css';
@@ -7,6 +19,7 @@ import {
   readSoundFile,
   newSoundId,
   Sound,
+  SoundMode,
   SoundPack,
   SoundPackContent,
   withoutSound,
@@ -21,10 +34,29 @@ import { useSoundBlobUrl } from './useSoundPlayer';
 
 const formatDuration = (ms?: number) => (ms === undefined ? '' : `${(ms / 1000).toFixed(1)} s`);
 
+type ModeSwitchProps = { value: SoundMode; onChange: (mode: SoundMode) => void };
+/** Whether playing a sound again restarts it ('cut') or layers another copy ('add'). */
+function ModeSwitch({ value, onChange }: ModeSwitchProps) {
+  return (
+    <Box
+      direction="Column"
+      gap="100"
+      title="On: playing the sound again starts it over. Off: copies overlap."
+    >
+      <Text size="L400">Restart</Text>
+      <Switch
+        variant="Primary"
+        value={value === 'cut'}
+        onChange={(cut) => onChange(cut ? 'cut' : 'add')}
+      />
+    </Box>
+  );
+}
+
 type SoundRowProps = {
   sound: Sound;
   canEdit: boolean;
-  onSave: (id: string, name: string, emoji: string) => Promise<unknown>;
+  onSave: (id: string, name: string, emoji: string, mode: SoundMode) => Promise<unknown>;
   onDelete: (id: string) => Promise<unknown>;
 };
 function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
@@ -33,12 +65,15 @@ function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
   const [emoji, setEmoji] = useState(sound.emoji);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const audioRef = useRef<HTMLAudioElement>(undefined);
+  const [mode, setMode] = useState<SoundMode>(sound.mode);
+  const previews = useRef(new Set<HTMLAudioElement>());
 
   const preview = async () => {
-    audioRef.current?.pause();
     const audio = new Audio(await getBlobUrl(sound.url, sound.file));
-    audioRef.current = audio;
+    // Like in a call: 'cut' starts the sound over, 'add' plays another copy on top.
+    if (sound.mode === 'cut') previews.current.forEach((a) => a.pause());
+    previews.current.add(audio);
+    audio.addEventListener('ended', () => previews.current.delete(audio));
     audio.play().catch(() => undefined);
   };
 
@@ -50,7 +85,7 @@ function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
     setBusy(true);
     setError(undefined);
     try {
-      await onSave(sound.id, name, emoji ?? '');
+      await onSave(sound.id, name, emoji ?? '', mode);
       setEditing(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed.');
@@ -96,6 +131,7 @@ function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
               required
             />
           </Box>
+          <ModeSwitch value={mode} onChange={setMode} />
           <Button type="submit" size="400" variant="Primary" radii="300" disabled={busy}>
             <Text size="B400">Save</Text>
           </Button>
@@ -107,6 +143,7 @@ function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
             radii="300"
             onClick={() => {
               setEmoji(sound.emoji);
+              setMode(sound.mode);
               setEditing(false);
             }}
           >
@@ -121,7 +158,11 @@ function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
   return (
     <SettingTile
       title={`${sound.emoji ? `${sound.emoji} ` : ''}${sound.name}`}
-      description={formatDuration(sound.duration)}
+      description={`${formatDuration(sound.duration)}${
+        sound.mode === 'cut'
+          ? `${sound.duration === undefined ? '' : ' · '}Restarts when repeated`
+          : ''
+      }`}
       after={
         <Box gap="100" alignItems="Center">
           <IconButton
@@ -179,6 +220,8 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File>();
   const [newEmoji, setNewEmoji] = useState<string>();
+  const [newMode, setNewMode] = useState<SoundMode>('add');
+  const pendingPreview = useRef<HTMLAudioElement>(undefined);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -228,6 +271,7 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
           url,
           name,
           emoji: newEmoji,
+          mode: newMode === 'cut' ? 'cut' : undefined,
           info: { mimetype: file.type, size: file.size, duration },
           file: encrypted?.encInfo,
         });
@@ -235,6 +279,8 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
       form.reset();
       setFile(undefined);
       setNewEmoji(undefined);
+      setNewMode('add');
+      pendingPreview.current?.pause();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed.');
     } finally {
@@ -242,12 +288,28 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
     }
   };
 
-  const handleSave = (id: string, name: string, emoji: string) => {
+  // Listen to the chosen file before uploading it.
+  const previewPending = () => {
+    if (!file) return;
+    pendingPreview.current?.pause();
+    const url = URL.createObjectURL(file);
+    const audio = new Audio(url);
+    audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+    pendingPreview.current = audio;
+    audio.play().catch(() => undefined);
+  };
+
+  const handleSave = (id: string, name: string, emoji: string, mode: SoundMode) => {
     if (!pack.content.sounds?.[id]) return Promise.resolve();
     return change((content) => {
       const current = content.sounds?.[id];
       return current
-        ? withSound(content, id, { ...current, name, emoji: emoji || undefined })
+        ? withSound(content, id, {
+            ...current,
+            name,
+            emoji: emoji || undefined,
+            mode: mode === 'cut' ? 'cut' : undefined,
+          })
         : content;
     });
   };
@@ -324,6 +386,20 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
                   {file ? file.name : 'Choose File'}
                 </Text>
               </Button>
+              <IconButton
+                type="button"
+                size="400"
+                variant="Secondary"
+                fill="Soft"
+                radii="300"
+                aria-label="Preview chosen file"
+                title="Preview"
+                disabled={!file}
+                onClick={previewPending}
+              >
+                <Icon size="100" src={Icons.Play} />
+              </IconButton>
+              <ModeSwitch value={newMode} onChange={setNewMode} />
               <Button
                 type="submit"
                 size="400"

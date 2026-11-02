@@ -88,7 +88,7 @@ export class Publisher {
       if (command.op === "stop") soundboard.stop();
       else
         soundboard
-          .play(command.url)
+          .play(command.url, command.mode)
           .catch((e) =>
             this.logger.error("Failed to play a soundboard sound", e),
           );

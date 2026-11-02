@@ -88,4 +88,4 @@ export type ElementCallSettings = {
 };
 
 /** `url` is a blob: URL of the audio, which the same-origin call widget can read. */
-export type SoundboardCommand = { op: 'play'; url: string } | { op: 'stop' };
+export type SoundboardCommand = { op: 'play'; url: string; mode?: 'cut' | 'add' } | { op: 'stop' };

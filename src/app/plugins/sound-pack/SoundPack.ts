@@ -1,4 +1,4 @@
-import { PackSound, SoundPackContent } from './types';
+import { PackSound, SoundMode, SoundPackContent } from './types';
 
 export type Sound = {
   /** Unique across packs: `<packId>/<soundId>`. */
@@ -10,6 +10,7 @@ export type Sound = {
   file?: PackSound['file'];
   name: string;
   emoji?: string;
+  mode: SoundMode;
   /** Milliseconds, when known. */
   duration?: number;
 };
@@ -26,6 +27,7 @@ const parseSound = (packId: string, id: string, sound: PackSound): Sound | undef
     file: sound.file && typeof sound.file === 'object' ? sound.file : undefined,
     name: typeof sound.name === 'string' && sound.name ? sound.name : id,
     emoji: typeof sound.emoji === 'string' && sound.emoji ? sound.emoji : undefined,
+    mode: sound.mode === 'cut' ? 'cut' : 'add',
     duration: typeof sound.info?.duration === 'number' ? sound.info.duration : undefined,
   };
 };
