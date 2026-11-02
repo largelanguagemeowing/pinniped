@@ -1,4 +1,4 @@
-import { Room } from 'matrix-js-sdk';
+import { Room, RoomStateEvent } from 'matrix-js-sdk';
 import {
   MatrixRTCSession,
   MatrixRTCSessionEvent,
@@ -9,9 +9,31 @@ import { useEffect, useState } from 'react';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 import { useMatrixClient } from './useMatrixClient';
 import { getSpaceChildren } from '../utils/room';
+import { StateEvent } from '../../types/matrix/room';
+
+/**
+ * The client lazy-loads room members, but matrix-js-sdk drops the call membership of anyone
+ * whose join it has not loaded ("not in the room"), so a freshly joined account would see a
+ * call without the people already in it. Load the members of a room once it has call
+ * memberships; the session recalculates when they arrive. Rooms without a call are left alone.
+ */
+const useLoadMembersForCall = (room: Room) => {
+  useEffect(() => {
+    const loadIfCall = () => {
+      if (room.currentState.getStateEvents(StateEvent.GroupCallMemberPrefix).length === 0) return;
+      room.loadMembersIfNeeded().catch(() => undefined);
+    };
+    loadIfCall();
+    room.on(RoomStateEvent.Events, loadIfCall);
+    return () => {
+      room.off(RoomStateEvent.Events, loadIfCall);
+    };
+  }, [room]);
+};
 
 export const useCallSession = (room: Room): MatrixRTCSession => {
   const mx = useMatrixClient();
+  useLoadMembersForCall(room);
 
   const [session, setSession] = useState(mx.matrixRTC.getRoomSession(room));
 
