@@ -176,6 +176,17 @@ export class CallControl extends EventEmitter implements CallControlState {
   }
 
   private setSound(sound: boolean): void {
+    // The widget's own output switch (the `window.controls` API Element's native apps use):
+    // it mutes the call's audio renderers, which a plain `muted` on the audio elements cannot,
+    // since voices play through an audio context.
+    try {
+      (
+        this.iframe.contentWindow as
+          (Window & { controls?: { setAudioEnabled?: (enabled: boolean) => void } }) | null
+      )?.controls?.setAudioEnabled?.(sound);
+    } catch {
+      // not same-origin or not loaded yet; the elements below still get muted
+    }
     const callDocument = this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
     if (callDocument) {
       callDocument.querySelectorAll('audio').forEach((el) => {
