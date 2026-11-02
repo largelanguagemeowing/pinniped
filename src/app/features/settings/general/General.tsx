@@ -43,6 +43,7 @@ import {
   useThemeNames,
   useThemes,
 } from '../../../hooks/useTheme';
+import { AutostartState } from '../../../utils/device';
 import { stopPropagation } from '../../../utils/keyboard';
 import { useMessageLayoutItems } from '../../../hooks/useMessageLayout';
 import { useMessageSpacingItems } from '../../../hooks/useMessageSpacing';
@@ -709,6 +710,60 @@ function SelectDateFormat() {
   );
 }
 
+function Startup() {
+  const bridge = window.cinnyDesktop;
+  const [state, setState] = useState<AutostartState>();
+
+  useEffect(() => {
+    let cancelled = false;
+    bridge?.getAutostart?.().then((value) => {
+      if (!cancelled) setState(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bridge]);
+
+  if (!bridge?.getAutostart || !bridge.setAutostart) return null;
+
+  const update = (next: AutostartState) => {
+    setState(next);
+    bridge.setAutostart?.(next.enabled, next.minimized).then(setState);
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Startup</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Open Pinniped at Login"
+          description="Start Pinniped when you sign in to your computer."
+          after={
+            <Switch
+              variant="Primary"
+              value={state?.enabled === true}
+              disabled={!state}
+              onChange={(enabled) => state && update({ ...state, enabled })}
+            />
+          }
+        />
+        <SettingTile
+          title="Start Minimized"
+          description="When opened at login, keep the window out of the way."
+          after={
+            <Switch
+              variant="Primary"
+              value={state?.minimized !== false}
+              disabled={!state?.enabled}
+              onChange={(minimized) => state && update({ ...state, minimized })}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
 function DateAndTime() {
   const [hour24Clock, setHour24Clock] = useSetting(settingsAtom, 'hour24Clock');
 
@@ -1110,6 +1165,7 @@ export function General({ requestClose }: GeneralProps) {
           <PageContent>
             <Box direction="Column" gap="700">
               <Appearance />
+              <Startup />
               <DateAndTime />
               <Editor />
               <Sidebar />

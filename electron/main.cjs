@@ -11,6 +11,8 @@ const {
   powerMonitor,
 } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const { registerAppScheme, registerAppHandler, APP_ORIGIN } = require('./app-protocol.cjs');
 const { buildAppMenu } = require('./menu.cjs');
 const { createRichPresenceServer } = require('./rich-presence.cjs');
@@ -90,6 +92,122 @@ ipcMain.handle('screenshare-audio:link', (_event, active, output) =>
   screenShareAudio.link(active === true, typeof output === 'string' ? output : '')
 );
 ipcMain.handle('screenshare-audio:release', () => screenShareAudio.release());
+
+// Launch at login, like Discord. Windows/macOS use the OS login items. Linux has no such
+// API in Electron: outside a sandbox we write an XDG autostart entry, inside Flatpak (which
+// cannot reach the host's ~/.config/autostart) we ask the Background portal over D-Bus.
+// Autostart launches pass --hidden when "start minimized" is on; the window then goes to the
+// tray where there is one, and is minimized otherwise.
+const START_HIDDEN_ARG = '--hidden';
+const IS_FLATPAK = process.platform === 'linux' && fs.existsSync('/.flatpak-info');
+const linuxAutostartFile = path.join(
+  process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'),
+  'autostart',
+  'club.stablecat.pinniped.desktop'
+);
+const startupStateFile = () => path.join(app.getPath('userData'), 'startup.json');
+const readStartupState = () => {
+  try {
+    const state = JSON.parse(fs.readFileSync(startupStateFile(), 'utf8'));
+    return { minimized: state.minimized !== false, portalEnabled: state.portalEnabled === true };
+  } catch {
+    return { minimized: true, portalEnabled: false };
+  }
+};
+const writeStartupState = (patch) => {
+  fs.writeFileSync(startupStateFile(), JSON.stringify({ ...readStartupState(), ...patch }));
+};
+
+const autostartArgs = (minimized) => (minimized ? [START_HIDDEN_ARG] : []);
+const autostartCommand = (minimized) => {
+  const exe = process.env.APPIMAGE || process.execPath;
+  const entry = app.isPackaged ? [] : [app.getAppPath()];
+  return [exe, ...entry, ...autostartArgs(minimized)];
+};
+const quoteDesktopArg = (arg) => `"${arg.replace(/(["`$\\])/g, '\\$1').replace(/%/g, '%%')}"`;
+
+// Flatpak: RequestBackground is asynchronous and may show the user a permission dialog; we
+// record the request and trust it, as the portal offers no cheap way to read the result back.
+const requestPortalAutostart = (enabled, minimized) =>
+  new Promise((resolve) => {
+    const variant = (value) => `<${value}>`;
+    const commandline = autostartCommand(minimized).map(
+      (arg) => `'${arg.replace(/(['\\])/g, '\\$1')}'`
+    );
+    const options = [
+      `'autostart': ${variant(enabled)}`,
+      `'background': ${variant(enabled)}`,
+      `'commandline': ${variant(`[${commandline.join(', ')}]`)}`,
+      `'reason': ${variant("'Open Pinniped when you log in'")}`,
+    ].join(', ');
+    require('child_process').execFile(
+      'gdbus',
+      [
+        'call',
+        '--session',
+        '--dest',
+        'org.freedesktop.portal.Desktop',
+        '--object-path',
+        '/org/freedesktop/portal/desktop',
+        '--method',
+        'org.freedesktop.portal.Background.RequestBackground',
+        '',
+        `{${options}}`,
+      ],
+      (err) => resolve(!err)
+    );
+  });
+
+const getStartup = () => {
+  const { minimized, portalEnabled } = readStartupState();
+  let enabled;
+  if (process.platform === 'linux') {
+    enabled = IS_FLATPAK ? portalEnabled : fs.existsSync(linuxAutostartFile);
+  } else {
+    enabled = app.getLoginItemSettings({ args: autostartArgs(minimized) }).openAtLogin;
+  }
+  return { enabled, minimized };
+};
+const setStartup = async (enabled, minimized) => {
+  writeStartupState({ minimized });
+  if (process.platform !== 'linux') {
+    app.setLoginItemSettings({ openAtLogin: enabled, args: autostartArgs(minimized) });
+  } else if (IS_FLATPAK) {
+    if (await requestPortalAutostart(enabled, minimized))
+      writeStartupState({ portalEnabled: enabled });
+  } else if (!enabled) {
+    fs.rmSync(linuxAutostartFile, { force: true });
+  } else {
+    fs.mkdirSync(path.dirname(linuxAutostartFile), { recursive: true });
+    fs.writeFileSync(
+      linuxAutostartFile,
+      [
+        '[Desktop Entry]',
+        'Type=Application',
+        'Name=Pinniped',
+        `Exec=${autostartCommand(minimized).map(quoteDesktopArg).join(' ')}`,
+        'Icon=pinniped',
+        'X-GNOME-Autostart-enabled=true',
+        '',
+      ].join('\n')
+    );
+  }
+};
+ipcMain.handle('startup:get', () => {
+  try {
+    return getStartup();
+  } catch {
+    return { enabled: false, minimized: true };
+  }
+});
+ipcMain.handle('startup:set', async (_event, enabled, minimized) => {
+  try {
+    await setStartup(enabled === true, minimized !== false);
+  } catch {
+    // report the actual state below
+  }
+  return getStartup();
+});
 
 // Seconds since the last keyboard/mouse input anywhere on the system; the
 // renderer uses it for idle detection.
@@ -175,7 +293,17 @@ function createWindow() {
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  // Started by autostart: stay in the tray instead of popping the window up.
+  const startHidden = process.argv.includes(START_HIDDEN_ARG);
+  mainWindow.once('ready-to-show', () => {
+    if (!startHidden || (CLOSE_TO_TRAY && tray)) {
+      // with a tray the window just stays hidden; without one, minimize it instead
+      if (!startHidden) mainWindow.show();
+      return;
+    }
+    mainWindow.showInactive();
+    mainWindow.minimize();
+  });
 
   // Electron has no default browser context menu. Copy the rendered image so
   // authenticated media and decrypted blob URLs work without fetching again.

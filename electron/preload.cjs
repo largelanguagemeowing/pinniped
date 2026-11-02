@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('cinnyDesktop', {
   showWindow: () => ipcRenderer.send('window:show'),
   setBadgeCount: (count, overlay, hasUnread) =>
     ipcRenderer.send('badge:set', { count, overlay, hasUnread }),
+  getAutostart: () => ipcRenderer.invoke('startup:get'),
+  setAutostart: (enabled, minimized) => ipcRenderer.invoke('startup:set', enabled, minimized),
   getSystemIdleTime: () => ipcRenderer.invoke('system:idle-time'),
   // Linux: a virtual microphone with the other applications' audio, for screen shares.
   screenShareAudio:

@@ -21,6 +21,8 @@ export type DiscordRichPresenceActivity = {
 export type RichPresenceBridgeStartResult =
   { ok: true; path: string; index: number } | { ok: false; error: string };
 
+export type AutostartState = { enabled: boolean; minimized: boolean };
+
 declare global {
   interface Window {
     cinnyDesktop?: {
@@ -28,6 +30,10 @@ declare global {
       versions: { electron: string; chrome: string; node: string };
       showWindow?: () => void;
       setBadgeCount?: (count: number, overlayPng?: string, hasUnread?: boolean) => void;
+      /** Whether the app launches at login, and whether it then starts minimized. */
+      getAutostart?: () => Promise<AutostartState>;
+      /** Resolves to the resulting state. */
+      setAutostart?: (enabled: boolean, minimized: boolean) => Promise<AutostartState>;
       getSystemIdleTime?: () => Promise<number>;
       /** Linux only: a virtual microphone carrying other applications' audio, for screen shares. */
       screenShareAudio?: {
