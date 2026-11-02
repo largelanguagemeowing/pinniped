@@ -100,11 +100,12 @@ ipcMain.handle('screenshare-audio:release', () => screenShareAudio.release());
 // tray where there is one, and is minimized otherwise.
 const START_HIDDEN_ARG = '--hidden';
 const IS_FLATPAK = process.platform === 'linux' && fs.existsSync('/.flatpak-info');
-const linuxAutostartFile = path.join(
-  process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'),
-  'autostart',
-  'club.stablecat.pinniped.desktop'
-);
+const linuxAutostartFile = () =>
+  path.join(
+    process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'),
+    'autostart',
+    'club.stablecat.pinniped.desktop'
+  );
 const startupStateFile = () => path.join(app.getPath('userData'), 'startup.json');
 const readStartupState = () => {
   try {
@@ -162,7 +163,7 @@ const getStartup = () => {
   const { minimized, portalEnabled } = readStartupState();
   let enabled;
   if (process.platform === 'linux') {
-    enabled = IS_FLATPAK ? portalEnabled : fs.existsSync(linuxAutostartFile);
+    enabled = IS_FLATPAK ? portalEnabled : fs.existsSync(linuxAutostartFile());
   } else {
     enabled = app.getLoginItemSettings({ args: autostartArgs(minimized) }).openAtLogin;
   }
@@ -176,11 +177,11 @@ const setStartup = async (enabled, minimized) => {
     if (await requestPortalAutostart(enabled, minimized))
       writeStartupState({ portalEnabled: enabled });
   } else if (!enabled) {
-    fs.rmSync(linuxAutostartFile, { force: true });
+    fs.rmSync(linuxAutostartFile(), { force: true });
   } else {
-    fs.mkdirSync(path.dirname(linuxAutostartFile), { recursive: true });
+    fs.mkdirSync(path.dirname(linuxAutostartFile()), { recursive: true });
     fs.writeFileSync(
-      linuxAutostartFile,
+      linuxAutostartFile(),
       [
         '[Desktop Entry]',
         'Type=Application',
