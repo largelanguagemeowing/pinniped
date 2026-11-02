@@ -164,6 +164,18 @@ export const soundboardVolume = new Setting<number>("soundboard-volume", 1);
  */
 export const mutedSounds = new Setting<string[]>("muted-sounds", []);
 
+/**
+ * How loud each participant's voice is for this listener (Matrix user ID to 0-1; absent
+ * means 1, a muted participant is at 0). Owned by the embedding client.
+ */
+export const userVolumes = new Setting<Record<string, number>>(
+  "user-volumes",
+  {},
+);
+
+/** Participants (Matrix user IDs) whose soundboard sounds this listener has muted. */
+export const mutedSoundboards = new Setting<string[]>("muted-soundboards", []);
+
 export const showHandRaisedTimer = new Setting<boolean>(
   "hand-raised-show-timer",
   false,

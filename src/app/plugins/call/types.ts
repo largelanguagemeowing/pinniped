@@ -81,6 +81,10 @@ export type ElementCallSettings = {
   soundVolume: number;
   /** How loud soundboard sounds are for this client, 0-1. */
   soundboardVolume: number;
+  /** Per participant (Matrix user ID): voice level 0-1, 0 when muted. Absent means 1. */
+  userVolumes: Record<string, number>;
+  /** Participants whose soundboard sounds are muted for this client. */
+  mutedSoundboards: string[];
   /** Names of the call's own sounds that are switched off. */
   mutedSounds: string[];
   audioInput: string;
@@ -89,3 +93,15 @@ export type ElementCallSettings = {
 
 /** `url` is a blob: URL of the audio, which the same-origin call widget can read. */
 export type SoundboardCommand = { op: 'play'; url: string; mode?: 'cut' | 'add' } | { op: 'stop' };
+
+/** Voice level per participant as the widget applies it: muted participants are at 0. */
+export const getCallUserVolumes = (settings: {
+  callUserVolumes: Record<string, number>;
+  callMutedUsers: string[];
+}): Record<string, number> => {
+  const volumes = { ...settings.callUserVolumes };
+  settings.callMutedUsers.forEach((userId) => {
+    volumes[userId] = 0;
+  });
+  return volumes;
+};

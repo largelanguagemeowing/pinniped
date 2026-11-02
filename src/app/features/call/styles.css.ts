@@ -58,3 +58,5 @@ export const EndButton = style({
     '&:active:not(:disabled)': { backgroundColor: '#961e2b !important' },
   },
 });
+
+export const MenuSlider = style({ width: '100%' });

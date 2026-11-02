@@ -284,6 +284,10 @@ export interface UrlConfiguration {
   soundboardVolume?: number;
   /** Names of the call's own sounds the client has switched off, comma separated in the URL. */
   mutedSounds?: string[];
+  /** Voice level per participant (Matrix user ID), see userVolumes in settings.ts. */
+  userVolumes?: Record<string, number>;
+  /** Participants whose soundboard sounds are muted. */
+  mutedSoundboards?: string[];
   audioInput?: string;
   audioOutput?: string;
 }
@@ -561,6 +565,11 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
     screenShare: parser.getParam("screenShare") || undefined,
     screenShareAudio: parser.getParam("screenShareAudio") || undefined,
     mutedSounds: parser.getParam("mutedSounds")?.split(",").filter(Boolean),
+    userVolumes: parseUserVolumes(parser.getParam("userVolumes")),
+    mutedSoundboards: parser
+      .getParam("mutedSoundboards")
+      ?.split(",")
+      .filter(Boolean),
     soundVolume: Number.isFinite(
       parseFloat(parser.getParam("soundVolume") ?? ""),
     )
@@ -711,6 +720,25 @@ function parseVoiceTuning(
   if (!raw) return undefined;
   try {
     return normalizeVoiceTuning(JSON.parse(raw));
+  } catch {
+    return undefined;
+  }
+}
+
+/** Parses the `userVolumes` param, a JSON object of Matrix user ID to level; bad entries are dropped. */
+function parseUserVolumes(
+  raw: string | null,
+): Record<string, number> | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return undefined;
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, number] =>
+          typeof entry[1] === "number" && Number.isFinite(entry[1]),
+      ),
+    );
   } catch {
     return undefined;
   }

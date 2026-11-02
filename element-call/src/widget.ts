@@ -57,6 +57,8 @@ import {
   soundEffectVolume,
   soundboardVolume,
   mutedSounds,
+  userVolumes,
+  mutedSoundboards,
   videoSimulcast,
 } from "./settings/settings";
 import { Config } from "./config/Config";
@@ -69,7 +71,7 @@ export enum ElementWidgetActions {
   HangupCall = "im.vector.hangup",
   Close = "io.element.close",
   // toWidget (fork): the client sets the call audio preferences, data
-  // `{ denoise?, voiceGate?, voiceGateAuto?, voiceGateThreshold?, voiceTuning?, simulcast?, screenShare?, screenShareAudio?, soundVolume?, soundboardVolume?, mutedSounds?, audioInput?, audioOutput? }`.
+  // `{ denoise?, voiceGate?, voiceGateAuto?, voiceGateThreshold?, voiceTuning?, simulcast?, screenShare?, screenShareAudio?, soundVolume?, soundboardVolume?, userVolumes?, mutedSoundboards?, mutedSounds?, audioInput?, audioOutput? }`.
   // An empty device ID means the system default.
   CallSettings = "io.cinny.call_settings",
   // toWidget (fork): play or stop a soundboard sound, see SoundboardCommand
@@ -147,6 +149,8 @@ export const initializeWidget = (
       soundVolume,
       soundboardVolume: soundboardVolumeParam,
       mutedSounds: mutedSoundsParam,
+      userVolumes: userVolumesParam,
+      mutedSoundboards: mutedSoundboardsParam,
       audioInput: audioInputId,
       audioOutput: audioOutputId,
     } = getUrlParams();
@@ -193,6 +197,8 @@ export const initializeWidget = (
       if (screenShareAudioParam)
         screenShareAudio.setValue(screenShareAudioParam);
       mutedSounds.setValue(mutedSoundsParam ?? []);
+      userVolumes.setValue(userVolumesParam ?? {});
+      mutedSoundboards.setValue(mutedSoundboardsParam ?? []);
       if (soundVolume !== undefined) soundEffectVolume.setValue(soundVolume);
       if (soundboardVolumeParam !== undefined)
         soundboardVolume.setValue(soundboardVolumeParam);
@@ -214,6 +220,8 @@ export const initializeWidget = (
             soundVolume?: number;
             soundboardVolume?: number;
             mutedSounds?: string[];
+            userVolumes?: Record<string, number>;
+            mutedSoundboards?: string[];
             audioInput?: string;
             audioOutput?: string;
           };
@@ -237,6 +245,10 @@ export const initializeWidget = (
             soundboardVolume.setValue(data.soundboardVolume);
           if (data.mutedSounds !== undefined)
             mutedSounds.setValue(data.mutedSounds);
+          if (data.userVolumes !== undefined)
+            userVolumes.setValue(data.userVolumes);
+          if (data.mutedSoundboards !== undefined)
+            mutedSoundboards.setValue(data.mutedSoundboards);
           if (data.audioInput !== undefined)
             audioInput.setValue(data.audioInput || undefined);
           if (data.audioOutput !== undefined)

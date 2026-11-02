@@ -25,6 +25,7 @@ import {
   ElementCallThemeKind,
   ElementMediaStateDetail,
   ElementWidgetActions,
+  getCallUserVolumes,
   screenShareAudioSource,
 } from './types';
 import { getCallSoundHandoff, getCallSoundOverrides, getMutedCallSounds } from '../../sound/play';
@@ -159,6 +160,8 @@ export class CallEmbed {
     params.append('soundVolume', settings.soundVolume.toString());
     params.append('mutedSounds', getMutedCallSounds(settings).join(','));
     params.append('soundboardVolume', settings.soundboardVolume.toString());
+    params.append('userVolumes', JSON.stringify(getCallUserVolumes(settings)));
+    params.append('mutedSoundboards', settings.callSoundboardMutedUsers.join(','));
     params.append('audioInput', settings.callAudioInput);
     params.append('audioOutput', settings.callAudioOutput);
 

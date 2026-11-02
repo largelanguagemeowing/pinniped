@@ -48,6 +48,7 @@ import { LeaveRoomPrompt } from '../../components/leave-room-prompt';
 import { useRoomTypingMember } from '../../hooks/useRoomTypingMembers';
 import { TypingIndicator } from '../../components/typing-indicator';
 import { stopPropagation } from '../../utils/keyboard';
+import { CallMemberMenu } from '../call/CallMemberMenu';
 import { getMatrixToRoom } from '../../plugins/matrix-to';
 import {
   addRoomIdToMDirect,
@@ -306,6 +307,7 @@ type CallNavItemMembersProps = {
   members: CallMembership[];
 };
 function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
+  const [menu, setMenu] = useState<{ userId: string; cords: RectCords }>();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openUserProfile = useOpenUserRoomProfile();
@@ -344,6 +346,11 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
               .filter(Boolean)
               .join(', ')}
             data-speaking={speakers.has(userId)}
+            aria-haspopup="menu"
+            onContextMenu={(evt: React.MouseEvent<HTMLButtonElement>) => {
+              evt.preventDefault();
+              setMenu({ userId, cords: getMouseEventCords(evt.nativeEvent) });
+            }}
             alignItems="Center"
             gap="200"
             shrink="No"
@@ -384,6 +391,36 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
           </Box>
         );
       })}
+      <PopOut
+        anchor={menu?.cords}
+        offset={0}
+        alignOffset={0}
+        position="Bottom"
+        align="Start"
+        content={
+          menu && (
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                returnFocusOnDeactivate: false,
+                onDeactivate: () => setMenu(undefined),
+                clickOutsideDeactivates: true,
+                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                escapeDeactivates: stopPropagation,
+              }}
+            >
+              <CallMemberMenu
+                roomId={room.roomId}
+                userId={menu.userId}
+                cords={menu.cords}
+                control={menu.userId === myUserId ? roomCallEmbed?.control : undefined}
+                requestClose={() => setMenu(undefined)}
+              />
+            </FocusTrap>
+          )
+        }
+      />
     </Box>
   );
 }

@@ -76,6 +76,11 @@ export interface Settings {
   // Soundboard: how loud sounds you play are (to the call and to you), and the last played.
   soundboardVolume: number;
   soundboardRecent: string[];
+  // Per participant, for you only (Matrix user IDs): how loud their voice is (0-1, default 1),
+  // whether it is muted, and whether their soundboard sounds are muted.
+  callUserVolumes: Record<string, number>;
+  callMutedUsers: string[];
+  callSoundboardMutedUsers: string[];
 
   hour24Clock: boolean;
   dateFormatString: string;
@@ -140,6 +145,9 @@ const defaultSettings: Settings = {
   soundVolume: 0.6,
   soundboardVolume: 1,
   soundboardRecent: [],
+  callUserVolumes: {},
+  callMutedUsers: [],
+  callSoundboardMutedUsers: [],
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',

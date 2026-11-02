@@ -222,6 +222,8 @@ interface LayoutScanState {
 export type LivekitRoomItem = {
   livekitRoom: LivekitRoom;
   participants: string[];
+  /** Matrix user ID of each participant, by LiveKit identity. */
+  userIds: Record<string, string>;
   url: string;
 };
 
@@ -674,6 +676,7 @@ export function createCallViewModel$(
                   url,
                   livekitRoom,
                   participant: participant.identity,
+                  userId: member.userId,
                 };
               }),
             ),
@@ -688,10 +691,12 @@ export function createCallViewModel$(
           const existing = acc.find((item) => item.url === curr.url);
           if (existing) {
             existing.participants.push(curr.participant);
+            existing.userIds[curr.participant] = curr.userId;
           } else {
             acc.push({
               livekitRoom: curr.livekitRoom,
               participants: [curr.participant],
+              userIds: { [curr.participant]: curr.userId },
               url: curr.url,
             });
           }

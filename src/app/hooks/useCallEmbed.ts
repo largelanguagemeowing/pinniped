@@ -17,6 +17,7 @@ import {
   useCallActivity,
   useClientWidgetApiEvent,
   screenShareAudioSource,
+  getCallUserVolumes,
 } from '../plugins/call';
 import { CallControlEvent } from '../plugins/call/CallControl';
 import { useSetting } from '../state/hooks/settings';
@@ -199,6 +200,9 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
   const [screenShareAudio] = useSetting(settingsAtom, 'callScreenShareAudio');
   const [soundVolume] = useSetting(settingsAtom, 'soundVolume');
   const [soundboardVolume] = useSetting(settingsAtom, 'soundboardVolume');
+  const [callUserVolumes] = useSetting(settingsAtom, 'callUserVolumes');
+  const [callMutedUsers] = useSetting(settingsAtom, 'callMutedUsers');
+  const [callSoundboardMutedUsers] = useSetting(settingsAtom, 'callSoundboardMutedUsers');
   const allSettings = useAtomValue(settingsAtom);
   // Joined so the effect below compares by value; the array is new every render.
   const mutedSounds = getMutedCallSounds(allSettings).join(',');
@@ -218,6 +222,8 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
         screenShareAudio: screenShareAudioSource(screenShareAudio),
         soundVolume,
         soundboardVolume,
+        userVolumes: getCallUserVolumes({ callUserVolumes, callMutedUsers }),
+        mutedSoundboards: callSoundboardMutedUsers,
         mutedSounds: mutedSounds ? mutedSounds.split(',') : [],
         audioInput,
         audioOutput,
@@ -236,6 +242,9 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
     screenShareAudio,
     soundVolume,
     soundboardVolume,
+    callUserVolumes,
+    callMutedUsers,
+    callSoundboardMutedUsers,
     mutedSounds,
     audioInput,
     audioOutput,

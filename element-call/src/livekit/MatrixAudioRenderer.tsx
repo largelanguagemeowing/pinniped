@@ -15,11 +15,20 @@ import {
   type AudioTrackProps,
 } from "@livekit/components-react";
 import { logger } from "matrix-js-sdk/lib/logger";
+import { useObservableEagerState } from "observable-hooks";
 
-import { useEarpieceAudioConfig } from "../MediaDevicesContext";
+import {
+  useEarpieceAudioConfig,
+  useMediaDevices,
+} from "../MediaDevicesContext";
 import { useReactiveState } from "../useReactiveState";
 import * as controls from "../controls";
-import { soundboardVolume, useSetting } from "../settings/settings";
+import {
+  mutedSoundboards,
+  soundboardVolume,
+  userVolumes,
+  useSetting,
+} from "../settings/settings";
 
 export interface MatrixAudioRendererProps {
   /**
@@ -33,6 +42,8 @@ export interface MatrixAudioRendererProps {
    * that are not expected to be in the rtc session (local user is excluded).
    */
   validIdentities: string[];
+  /** Matrix user ID of each participant, by identity, to apply per-user settings. */
+  userIds?: Record<string, string>;
   /**
    * If set to `true`, mutes all audio tracks rendered by the component.
    * @remarks
@@ -59,6 +70,7 @@ export function LivekitRoomAudioRenderer({
   url,
   livekitRoom,
   validIdentities,
+  userIds,
   muted,
 }: MatrixAudioRendererProps): ReactNode {
   const tracks = useTracks(
@@ -96,20 +108,24 @@ export function LivekitRoomAudioRenderer({
   // The Safari audio devices enumeration does not expose an earpiece audio device.
   // We alternatively use the audioContext pan node to only use one of the stereo channels.
 
-  // This component does get additionally complicated because of a Safari bug.
-  // (see: https://bugs.webkit.org/show_bug.cgi?id=251532
-  // and the related issues: https://bugs.webkit.org/show_bug.cgi?id=237878
-  // and https://bugs.webkit.org/show_bug.cgi?id=231105)
-  //
-  // AudioContext gets stopped if the webview gets moved into the background.
-  // Once the phone is in standby audio playback will stop.
-  // So we can only use the pan trick only works is the phone is not in standby.
-  // If earpiece mode is not used we do not use audioContext to allow standby playback.
-  // shouldUseAudioContext is set to false if stereoPan === 0 to allow standby bluetooth playback.
+  // Cinny (fork): every voice goes through the audio context, so that each listener's own
+  // per-participant level (0-200%, set from the embedding client's context menu) can be
+  // applied as a gain node of that track's own, which an audio element's volume (capped at 1)
+  // cannot do. The context follows the chosen output device through setSinkId. Where the
+  // browser's AudioContext has no setSinkId (Firefox, Safari) we keep the plain audio
+  // elements, which honour the device, and per-participant levels past 100% are unavailable.
 
   const { pan: stereoPan, volume: volumeFactor } = useEarpieceAudioConfig();
   const [soundboardVolumeLevel] = useSetting(soundboardVolume);
-  const shouldUseAudioContext = stereoPan !== 0;
+  const [mutedSoundboardUsers] = useSetting(mutedSoundboards);
+  const [userLevels] = useSetting(userVolumes);
+  const levelOf = (identity: string): number =>
+    userLevels[userIds?.[identity] ?? ""] ?? 1;
+  const shouldUseAudioContext =
+    stereoPan !== 0 || "setSinkId" in AudioContext.prototype;
+  const audioOutputId = useObservableEagerState(
+    useMediaDevices().audioOutput.selected$,
+  )?.id;
 
   // initialize the potentially used audio context.
   const [audioContext, setAudioContext] = useState<AudioContext | undefined>(
@@ -130,6 +146,16 @@ export function LivekitRoomAudioRenderer({
     [audioContext],
   );
 
+  // Audio played through the context follows the chosen output device, like the elements do.
+  useEffect(() => {
+    if (audioContext && audioOutputId && "setSinkId" in audioContext) {
+      // @ts-expect-error - setSinkId is not in the types everywhere yet.
+      audioContext.setSinkId(audioOutputId).catch((ex) => {
+        prefixedLogger.warn("Unable to change sink for audio context", ex);
+      });
+    }
+  }, [audioContext, audioOutputId]);
+
   // Simple effects to update the gain and pan node based on the props
   useEffect(() => {
     if (audioNodes.pan) audioNodes.pan.pan.value = stereoPan;
@@ -141,27 +167,42 @@ export function LivekitRoomAudioRenderer({
   return (
     // We add all audio elements into one <div> for the browser developer tool experience/tidyness.
     <div style={{ display: "none" }}>
-      {tracks.map((trackRef) => (
-        <AudioTrackWithAudioNodes
-          key={getTrackReferenceId(trackRef)}
-          trackRef={trackRef}
-          muted={muted}
-          // Soundboard sounds are sent at full level; the listener sets how loud they are.
-          volume={
-            trackRef.publication.trackName === "soundboard"
-              ? soundboardVolumeLevel
-              : undefined
-          }
-          audioContext={shouldUseAudioContext ? audioContext : undefined}
-          audioNodes={audioNodes}
-        />
-      ))}
+      {/* Wait for the context, so the tracks do not first play through plain elements. */}
+      {(audioContext || !shouldUseAudioContext) &&
+        tracks.map((trackRef) => (
+          <AudioTrackWithAudioNodes
+            key={getTrackReferenceId(trackRef)}
+            trackRef={trackRef}
+            muted={muted}
+            // Soundboard sounds are sent at full level; the listener sets how loud they are.
+            // Their sounds are silent when the listener muted that participant's soundboard.
+            volume={
+              trackRef.publication.trackName === "soundboard"
+                ? mutedSoundboardUsers.includes(
+                    userIds?.[trackRef.participant.identity] ?? "",
+                  )
+                  ? 0
+                  : soundboardVolumeLevel
+                : undefined
+            }
+            // Soundboard sounds have their own mute, so the participant's level skips them.
+            level={
+              trackRef.publication.trackName === "soundboard"
+                ? 1
+                : levelOf(trackRef.participant.identity)
+            }
+            audioContext={shouldUseAudioContext ? audioContext : undefined}
+            audioNodes={audioNodes}
+          />
+        ))}
     </div>
   );
 }
 
 interface StereoPanAudioTrackProps {
   muted?: boolean;
+  /** This listener's own gain for the participant: 0 muted, 1 unchanged, up to 2. */
+  level: number;
   audioContext?: AudioContext;
   audioNodes: {
     gain?: GainNode;
@@ -184,12 +225,15 @@ interface StereoPanAudioTrackProps {
 function AudioTrackWithAudioNodes({
   trackRef,
   muted,
+  level,
   audioContext,
   audioNodes,
   ...props
 }: StereoPanAudioTrackProps &
   AudioTrackProps &
   React.RefAttributes<HTMLAudioElement>): ReactNode {
+  // This track's own gain, after the shared gain and pan nodes.
+  const levelNode = useMemo(() => audioContext?.createGain(), [audioContext]);
   // This is used to unmount/remount the AudioTrack component.
   // Mounting needs to happen after the audioContext is set.
   // (adding the audio context when already mounted did not work outside strict mode)
@@ -197,20 +241,32 @@ function AudioTrackWithAudioNodes({
     () => false,
     // We only want the track to reset once both (audioNodes and audioContext) are set.
     // for unsetting the audioContext its enough if one of the two is undefined.
-    [audioContext && audioNodes],
+    [audioContext && audioNodes && levelNode],
   );
+
+  useEffect(() => {
+    if (levelNode) levelNode.gain.value = level;
+  }, [levelNode, level]);
 
   useEffect(() => {
     if (!trackRef || trackReady) return;
     const track = trackRef.publication.track as RemoteAudioTrack;
-    const useContext = audioContext && audioNodes.gain && audioNodes.pan;
+    const useContext =
+      audioContext && audioNodes.gain && audioNodes.pan && levelNode;
     track.setAudioContext(useContext ? audioContext : undefined);
     track.setWebAudioPlugins(
-      useContext ? [audioNodes.gain!, audioNodes.pan!] : [],
+      useContext ? [audioNodes.gain!, audioNodes.pan!, levelNode] : [],
     );
     setTrackReady(true);
     controls.setPlaybackStarted();
-  }, [audioContext, audioNodes, setTrackReady, trackReady, trackRef]);
+  }, [
+    audioContext,
+    audioNodes,
+    levelNode,
+    setTrackReady,
+    trackReady,
+    trackRef,
+  ]);
 
   return (
     trackReady && <AudioTrack trackRef={trackRef} muted={muted} {...props} />

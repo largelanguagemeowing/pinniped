@@ -728,12 +728,13 @@ export const InCallView: FC<InCallViewProps> = ({
       onPointerOut={onPointerOut}
     >
       {header}
-      {audioParticipants.map(({ livekitRoom, url, participants }) => (
+      {audioParticipants.map(({ livekitRoom, url, participants, userIds }) => (
         <LivekitRoomAudioRenderer
           key={url}
           url={url}
           livekitRoom={livekitRoom}
           validIdentities={participants}
+          userIds={userIds}
           muted={muteAllAudio}
         />
       ))}
