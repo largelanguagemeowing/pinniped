@@ -1,5 +1,5 @@
 import React, { CSSProperties, ReactNode } from 'react';
-import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
+import { Box, Chip, Icon, Icons, Text, config, toRem } from 'folds';
 import { IContent } from 'matrix-js-sdk';
 import { JUMBO_EMOJI_REG, getEmbedUrls } from '../../utils/regex';
 import { trimReplyFromBody } from '../../utils/room';
@@ -14,6 +14,8 @@ import {
 import {
   IAudioContent,
   IAudioInfo,
+  MATRIX_AUDIO_PROPERTY_NAME,
+  MATRIX_VOICE_PROPERTY_NAME,
   IEncryptedFile,
   IFileContent,
   IFileInfo,
@@ -314,6 +316,8 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
 
 type RenderAudioContentProps = {
   info: IAudioInfo;
+  /** Set for a voice message that carries a waveform. */
+  waveform?: number[];
   mimeType: string;
   url: string;
   encInfo?: IEncryptedFile;
@@ -337,26 +341,40 @@ export function MAudio({ content, renderAsFile, renderAudioContent, outlined }: 
   }
 
   const filename = content.filename ?? content.body ?? 'Audio';
+  // A voice message (MSC3245) is a bubble of its own: no file name, and its waveform (MSC1767)
+  // stands in for the seek bar. Untrusted samples are reduced to finite numbers.
+  const voice = !!content[MATRIX_VOICE_PROPERTY_NAME];
+  const samples = content[MATRIX_AUDIO_PROPERTY_NAME]?.waveform;
+  const waveform =
+    voice && Array.isArray(samples)
+      ? samples
+          .filter((sample) => typeof sample === 'number' && Number.isFinite(sample))
+          .slice(0, 256)
+      : undefined;
   return (
     <Attachment outlined={outlined}>
-      <AttachmentHeader>
-        <FileHeader
-          body={filename}
-          mimeType={safeMimeType}
-          after={
-            <FileDownloadButton
-              filename={filename}
-              url={mxcUrl}
-              mimeType={safeMimeType}
-              encInfo={content.file}
-            />
-          }
-        />
-      </AttachmentHeader>
+      {!voice && (
+        <AttachmentHeader>
+          <FileHeader
+            body={filename}
+            mimeType={safeMimeType}
+            after={
+              <FileDownloadButton
+                filename={filename}
+                url={mxcUrl}
+                mimeType={safeMimeType}
+                encInfo={content.file}
+              />
+            }
+          />
+        </AttachmentHeader>
+      )}
       <AttachmentBox>
-        <AttachmentContent>
+        {/* Without a header above it, the content needs its own top padding. */}
+        <AttachmentContent style={voice ? { paddingTop: config.space.S300 } : undefined}>
           {renderAudioContent({
             info: audioInfo,
+            waveform: waveform?.length ? waveform : undefined,
             mimeType: safeMimeType,
             url: mxcUrl,
             encInfo: content.file,

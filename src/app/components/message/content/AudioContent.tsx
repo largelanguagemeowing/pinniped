@@ -1,6 +1,17 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 import React, { ReactNode, useCallback, useRef, useState } from 'react';
-import { Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, color, toRem } from 'folds';
+import {
+  Box,
+  Chip,
+  Icon,
+  IconButton,
+  Icons,
+  ProgressBar,
+  Spinner,
+  Text,
+  color,
+  toRem,
+} from 'folds';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -24,6 +35,7 @@ import {
   mxcUrlToHttp,
 } from '../../../utils/matrix';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { VoiceWaveform } from './VoiceWaveform';
 
 const PLAY_TIME_THROTTLE_OPS = {
   wait: 500,
@@ -48,6 +60,8 @@ export type AudioContentProps = {
   url: string;
   info: IAudioInfo;
   encInfo?: EncryptedAttachmentInfo;
+  /** Voice messages: waveform samples (0-1024) shown instead of the plain seek bar. */
+  waveform?: number[];
   renderMediaControl: (props: RenderMediaControlProps) => ReactNode;
 };
 export function AudioContent({
@@ -55,6 +69,7 @@ export function AudioContent({
   url,
   info,
   encInfo,
+  waveform,
   renderMediaControl,
 }: AudioContentProps) {
   const mx = useMatrixClient();
@@ -107,10 +122,63 @@ export function AudioContent({
     seek(nextTime);
   };
 
+  const handleSeekTo = (seconds: number) => handleSeek([seconds]);
+
   const seekDuration = duration > 0 ? duration : 1;
   const seekTime = Math.min(currentTime, seekDuration);
   const formattedSeekTime = secondsToMinutesAndSeconds(seekTime);
   const formattedDuration = secondsToMinutesAndSeconds(duration);
+
+  // A voice message is a compact bubble, not the full player: play, bars, time and speed.
+  if (waveform) {
+    const busy = srcState.status === AsyncStatus.Loading || loading;
+    return (
+      <Box alignItems="Center" gap="300">
+        <IconButton
+          variant="Primary"
+          size="400"
+          radii="Pill"
+          onClick={handlePlay}
+          disabled={srcState.status === AsyncStatus.Loading}
+          aria-label={playing ? 'Pause voice message' : 'Play voice message'}
+        >
+          {busy ? (
+            <Spinner variant="Primary" fill="Solid" size="200" />
+          ) : (
+            <Icon src={playing ? Icons.Pause : Icons.Play} filled />
+          )}
+        </IconButton>
+        <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
+          <VoiceWaveform
+            waveform={waveform}
+            currentTime={seekTime}
+            duration={duration}
+            onSeek={handleSeekTo}
+            valueText={`${formattedSeekTime} of ${formattedDuration}`}
+          />
+          <Text size="T200" priority="300">
+            {playing || seekTime > 0
+              ? `${formattedSeekTime} / ${formattedDuration}`
+              : formattedDuration}
+          </Text>
+        </Box>
+        <Chip
+          onClick={() => setPlaybackRate(getNextPlaybackRate(playbackRate))}
+          variant="SurfaceVariant"
+          radii="Pill"
+          aria-label={`Playback speed, ${playbackRate} times`}
+        >
+          <Text size="B300">{playbackRate}×</Text>
+        </Chip>
+        <audio
+          controls={false}
+          autoPlay
+          ref={audioRef}
+          src={srcState.status === AsyncStatus.Success ? srcState.data : undefined}
+        />
+      </Box>
+    );
+  }
 
   return renderMediaControl({
     after: (

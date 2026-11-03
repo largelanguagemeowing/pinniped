@@ -67,8 +67,15 @@ export type IVideoContent = {
   [MATRIX_SPOILER_REASON_PROPERTY_NAME]?: string;
 };
 
+export const MATRIX_VOICE_PROPERTY_NAME = 'org.matrix.msc3245.voice';
+export const MATRIX_AUDIO_PROPERTY_NAME = 'org.matrix.msc1767.audio';
+
 export type IAudioContent = {
   msgtype: MsgType.Audio;
+  /** MSC3245: present on a voice message. */
+  [MATRIX_VOICE_PROPERTY_NAME]?: Record<string, never>;
+  /** MSC1767: the duration and the waveform (samples 0-1024) of a voice message. */
+  [MATRIX_AUDIO_PROPERTY_NAME]?: { duration?: number; waveform?: number[] };
   body?: string;
   filename?: string;
   url?: string;
