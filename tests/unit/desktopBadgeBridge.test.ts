@@ -41,7 +41,12 @@ describe('Windows badge IPC', () => {
       BrowserWindow: Window,
       Tray,
       Menu: { setApplicationMenu: vi.fn(), buildFromTemplate: vi.fn() },
-      session: { defaultSession: { setDisplayMediaRequestHandler: vi.fn() } },
+      session: {
+        defaultSession: {
+          setDisplayMediaRequestHandler: vi.fn(),
+          webRequest: { onBeforeSendHeaders: vi.fn() },
+        },
+      },
       nativeImage: { createFromDataURL, createFromPath: () => ({ resize: vi.fn() }) },
     };
     runInNewContext(readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8'), {

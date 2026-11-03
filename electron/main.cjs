@@ -210,6 +210,47 @@ ipcMain.handle('startup:set', async (_event, enabled, minimized) => {
   return getStartup();
 });
 
+// Authenticated media: the homeserver wants a bearer token on media downloads and thumbnails,
+// which <img>, <audio> and <video> cannot send themselves. On the web a service worker adds
+// it; here the main process does, for every request of the session (the call iframe and
+// workers included) with no worker to start, control or race. The renderer hands over the
+// homeserver URL and token at login and clears them at logout (see src/sw-session.ts).
+let mediaAuth = null;
+const MEDIA_URL_PATTERNS = ['*://*/*_matrix/client/v1/media/*', '*://*/*_matrix/media/v3/*'];
+ipcMain.on('media-auth:set', (event, baseUrl, accessToken) => {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return;
+  try {
+    const url = new URL(baseUrl);
+    if (!/^https?:$/.test(url.protocol) || typeof accessToken !== 'string' || !accessToken) {
+      throw new Error('invalid media session');
+    }
+    mediaAuth = { prefix: `${baseUrl.replace(/\/+$/, '')}/_matrix/`, accessToken };
+  } catch {
+    mediaAuth = null;
+  }
+});
+function enableMediaAuth() {
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: MEDIA_URL_PATTERNS },
+    (details, callback) => {
+      if (
+        mediaAuth &&
+        (details.method === 'GET' || details.method === 'HEAD') &&
+        details.url.startsWith(mediaAuth.prefix)
+      ) {
+        callback({
+          requestHeaders: {
+            ...details.requestHeaders,
+            Authorization: `Bearer ${mediaAuth.accessToken}`,
+          },
+        });
+        return;
+      }
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  );
+}
+
 // Seconds since the last keyboard/mouse input anywhere on the system; the
 // renderer uses it for idle detection.
 ipcMain.handle('system:idle-time', () => powerMonitor.getSystemIdleTime());
@@ -427,6 +468,7 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(buildAppMenu());
     registerAppHandler(DIST_DIR);
     enableScreenShare();
+    enableMediaAuth();
     createWindow();
     if (CLOSE_TO_TRAY) createTray();
 

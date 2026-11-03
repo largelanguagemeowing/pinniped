@@ -30,6 +30,8 @@ declare global {
       versions: { electron: string; chrome: string; node: string };
       showWindow?: () => void;
       setBadgeCount?: (count: number, overlayPng?: string, hasUnread?: boolean) => void;
+      /** Gives the main process the token to add to the homeserver's media requests. */
+      setMediaAuth?: (baseUrl?: string, accessToken?: string) => void;
       /** Whether the app launches at login, and whether it then starts minimized. */
       getAutostart?: () => Promise<AutostartState>;
       /** Resolves to the resulting state. */

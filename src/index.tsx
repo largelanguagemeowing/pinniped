@@ -16,7 +16,7 @@ import App from './app/pages/App';
 import './app/i18n';
 import { pushSessionToSW } from './sw-session';
 import { getFallbackSession } from './app/state/sessions';
-import { APP_VERSION } from './app/utils/device';
+import { APP_VERSION, isDesktop } from './app/utils/device';
 
 document.body.classList.add(configClass, varsClass);
 
@@ -34,17 +34,18 @@ const mountApp = () => {
   root.render(<App />);
 };
 
-// Register Service Worker
-if ('serviceWorker' in navigator) {
+const sendSessionToSW = () => {
+  const session = getFallbackSession();
+  pushSessionToSW(session?.baseUrl, session?.accessToken);
+};
+
+// Register Service Worker. The desktop app has no use for it: its main process adds the media
+// token to the requests itself, with nothing to wait for before the first one.
+if ('serviceWorker' in navigator && !isDesktop()) {
   const swUrl =
     import.meta.env.MODE === 'production'
       ? `${trimTrailingSlash(import.meta.env.BASE_URL)}/sw.js`
       : `/dev-sw.js?dev-sw`;
-
-  const sendSessionToSW = () => {
-    const session = getFallbackSession();
-    pushSessionToSW(session?.baseUrl, session?.accessToken);
-  };
 
   navigator.serviceWorker.register(swUrl);
 
@@ -95,5 +96,6 @@ if ('serviceWorker' in navigator) {
     mountApp();
   });
 } else {
+  sendSessionToSW();
   mountApp();
 }
