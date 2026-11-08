@@ -10,6 +10,12 @@ export const RoomSearchDrawerWide = style({
   width: toRem(450),
 });
 
+/** A DM's profile: a wider sidebar, with the same 8px inset as Discord's. */
+export const RoomSearchDrawerDirect = style({
+  width: toRem(320),
+  padding: config.space.S200,
+});
+
 export const SearchResultsHeader = style({
   flexShrink: 0,
   alignItems: 'Center',

@@ -500,7 +500,8 @@ export function RoomSearchDrawer({ room, members }: RoomSearchDrawerProps) {
       className={classNames(
         css.RoomSearchDrawer,
         ContainerColor({ variant: 'Background' }),
-        searchTerm && css.RoomSearchDrawerWide
+        searchTerm && css.RoomSearchDrawerWide,
+        direct && !searchTerm && css.RoomSearchDrawerDirect
       )}
       shrink="No"
       direction="Column"

@@ -552,9 +552,10 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
     <PageHeader
       // The voice room's header has no divider line: it sits on the gradient.
       outlined={!callView}
+      bar={callView ? 'call' : 'room'}
       className={ContainerColor({ variant: 'Surface' })}
-      style={
-        inCall
+      style={{
+        ...(inCall
           ? {
               background: '#000',
               opacity: callIdle ? 0 : 1,
@@ -564,8 +565,8 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
           : // Before joining, the voice room's gradient shows through the header.
             callView
             ? { background: 'transparent' }
-            : undefined
-      }
+            : undefined),
+      }}
       balance={screenSize === ScreenSize.Mobile}
     >
       <Box grow="Yes" gap="300">
@@ -573,7 +574,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
           <BackRouteHandler>
             {(onBack) => (
               <Box shrink="No" alignItems="Center">
-                <IconButton fill="None" onClick={onBack}>
+                <IconButton size="300" fill="None" onClick={onBack}>
                   <Icon src={Icons.ArrowLeft} />
                 </IconButton>
               </Box>
@@ -583,20 +584,20 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
         <Box grow="Yes" alignItems="Center" gap="300">
           {callView && <Icon size="300" src={Icons.VolumeHigh} />}
           {!callView && screenSize !== ScreenSize.Mobile && (
-            <Avatar size="300">
+            <Avatar size="200">
               <RoomAvatar
                 roomId={room.roomId}
                 src={avatarUrl}
                 alt={name}
                 renderFallback={() => (
-                  <RoomIcon size="200" joinRule={room.getJoinRule()} roomType={room.getType()} />
+                  <RoomIcon size="100" joinRule={room.getJoinRule()} roomType={room.getType()} />
                 )}
               />
             </Avatar>
           )}
           <Box direction="Column">
             <Box alignItems="Center" gap="200">
-              <Text size={topic && !callView ? 'H5' : 'H3'} truncate>
+              <Text size="H5" truncate>
                 {name}
               </Text>
               {unencryptedDm && <UnencryptedBadge />}
@@ -676,11 +677,12 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
               {(triggerRef) => (
                 <IconButton
                   fill="None"
+                  size="300"
                   ref={triggerRef}
                   onClick={handleSearchClick}
                   aria-label="Search messages"
                 >
-                  <Icon size="400" src={Icons.Search} />
+                  <Icon size="300" src={Icons.Search} />
                 </IconButton>
               )}
             </TooltipProvider>
@@ -699,6 +701,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                 {(triggerRef) => (
                   <IconButton
                     fill="None"
+                    size="300"
                     style={{ position: 'relative' }}
                     onClick={handleOpenPinMenu}
                     ref={triggerRef}
@@ -721,7 +724,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                         </Text>
                       </Badge>
                     )}
-                    <Icon size="400" src={Icons.Pin} filled={!!pinMenuAnchor} />
+                    <Icon size="300" src={Icons.Pin} filled={!!pinMenuAnchor} />
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -779,7 +782,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
               }
             >
               {(triggerRef) => (
-                <IconButton fill="None" ref={triggerRef} onClick={handleMemberToggle}>
+                <IconButton size="300" fill="None" ref={triggerRef} onClick={handleMemberToggle}>
                   <Icon size="400" src={Icons.User} />
                 </IconButton>
               )}
@@ -801,6 +804,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                 {(triggerRef) => (
                   <IconButton
                     fill="None"
+                    size="300"
                     onClick={handleOpenMenu}
                     ref={triggerRef}
                     aria-pressed={!!menuAnchor}

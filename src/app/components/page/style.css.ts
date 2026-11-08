@@ -53,9 +53,18 @@ export const PageNavHeader = recipe({
         borderBottomWidth: 1,
       },
     },
+    /** The height of a room's bar, so the server bar sits level with it. */
+    bar: {
+      room: {
+        height: '42px',
+        paddingTop: 0,
+        paddingBottom: 0,
+      },
+    },
   },
   defaultVariants: {
     outlined: true,
+    bar: 'room',
   },
 });
 export type PageNavHeaderVariants = RecipeVariants<typeof PageNavHeader>;
@@ -78,6 +87,18 @@ export const PageHeader = recipe({
         paddingLeft: config.space.S200,
       },
     },
+    /** Heights of the room bars: a text room's (as Discord's) and a voice room's. */
+    bar: {
+      room: {
+        height: '42px',
+        paddingTop: 0,
+        paddingBottom: 0,
+      },
+      call: {
+        height: '49px',
+        padding: '8px 8px 8px 12px',
+      },
+    },
     outlined: {
       true: {
         borderBottomWidth: config.borderWidth.B300,
@@ -86,6 +107,7 @@ export const PageHeader = recipe({
   },
   defaultVariants: {
     outlined: true,
+    bar: 'room',
   },
 });
 export type PageHeaderVariants = RecipeVariants<typeof PageHeader>;
