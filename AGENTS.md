@@ -80,9 +80,10 @@ Fork changes on top of upstream + old patches:
   speaking ring and activity are not limited to the server's coarse speaker updates.
   It watches every audio track a participant sends (`broadcastTracks.ts`: microphone,
   soundboard, shared-screen audio), so the indicator shows whenever anything is
-  broadcast. Your own microphone behind the voice gate is measured as the gate lets it
-  through, where any sound above digital silence counts; remote participants use the
-  indicator sensitivity setting (their gate is invisible to us).
+  broadcast. Every track this client sends (microphone with or without the voice gate,
+  soundboard, shared-screen audio) is measured where any sound above digital silence
+  counts; remote participants use the indicator sensitivity setting (their gate is
+  invisible to us).
 - **Call stats**: the widget (`src/livekit/callStats.ts`, reported from
   `InCallView`) samples each SFU connection's `RTCPeerConnection` stats once a
   second and sends the raw counters to Cinny as the `io.cinny.call_stats`

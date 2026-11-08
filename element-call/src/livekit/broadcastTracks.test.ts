@@ -6,16 +6,13 @@ Please see LICENSE in the repository root for full details.
 */
 
 import { EventEmitter } from "events";
-import { afterEach, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { type Participant, ParticipantEvent, TrackEvent } from "livekit-client";
 
 import {
   observeBroadcastTracks$,
   type BroadcastTrack,
 } from "./broadcastTracks";
-import { voiceGate } from "../settings/settings";
-
-afterEach(() => voiceGate.setValue(false));
 
 interface FakeTrack extends EventEmitter {
   mediaStreamTrack: MediaStreamTrack;
@@ -62,22 +59,19 @@ test("includes every audio track: microphone, soundboard and shared audio", () =
   expect(seen.at(-1)?.map((t) => t.track.id)).toEqual(["mic", "board"]);
 });
 
-test("only your own microphone counts as gated, and only while the gate is on", () => {
+test("every track your client sends is sentByUs, whether or not the voice gate is on", () => {
   const { participant, publish } = fakeParticipant(true);
   const seen = collect(participant);
   publish("mic", "microphone", fakeTrack("mic"));
   publish("board", "unknown", fakeTrack("board"));
-  expect(seen.at(-1)?.map((t) => t.gated)).toEqual([false, false]);
-  voiceGate.setValue(true);
-  expect(seen.at(-1)?.map((t) => t.gated)).toEqual([true, false]);
+  expect(seen.at(-1)?.map((t) => t.sentByUs)).toEqual([true, true]);
 });
 
-test("a remote participant is never treated as gated", () => {
+test("a remote participant's tracks are never sentByUs", () => {
   const { participant, publish } = fakeParticipant(false);
   const seen = collect(participant);
-  voiceGate.setValue(true);
   publish("mic", "microphone", fakeTrack("mic"));
-  expect(seen.at(-1)?.[0].gated).toBe(false);
+  expect(seen.at(-1)?.[0].sentByUs).toBe(false);
 });
 
 test("measures the new track when a processor swaps the one carrying the audio", () => {
@@ -89,6 +83,7 @@ test("measures the new track when a processor swaps the one carrying the audio",
   mic.mediaStreamTrack = { id: "processed" } as MediaStreamTrack;
   mic.emit(TrackEvent.TrackProcessorUpdate);
   expect(seen.at(-1)?.[0].track.id).toBe("processed");
+  expect(seen.at(-1)?.[0].sentByUs).toBe(true);
 });
 
 test("does not re-emit when nothing changed", () => {

@@ -163,16 +163,17 @@ const context = (): AudioContext | undefined => {
 };
 
 /**
- * On a track behind the voice gate, anything above digital silence is being sent
- * (the gate leaves exact silence while closed), so this is the level that counts.
+ * On a track this client sends, anything above digital silence is being
+ * broadcast (the voice gate leaves exact silence while closed), so this is the
+ * level that counts.
  */
-const GATED_OPEN_LEVEL = 10 ** (-75 / 20);
-const GATED_CLOSE_LEVEL = 10 ** (-80 / 20);
+const SENT_OPEN_LEVEL = 10 ** (-75 / 20);
+const SENT_CLOSE_LEVEL = 10 ** (-80 / 20);
 
-/** Emits whether the audio in `track` is currently loud enough to be speech, or, if gated, being sent. */
+/** Emits whether the audio in `track` is currently loud enough to be speech, or, if we send it, being broadcast. */
 function observeTrackVoice$({
   track,
-  gated,
+  sentByUs,
 }: BroadcastTrack): Observable<boolean> {
   return new Observable<boolean>((subscriber) => {
     const ctx = context();
@@ -189,7 +190,7 @@ function observeTrackVoice$({
     subscriber.next(false);
     const id = setInterval(() => {
       const tuning = voiceTuning.getValue();
-      if (gated) gate.setLevels(GATED_OPEN_LEVEL, GATED_CLOSE_LEVEL);
+      if (sentByUs) gate.setLevels(SENT_OPEN_LEVEL, SENT_CLOSE_LEVEL);
       else {
         const levels = voiceGateLevels(
           tuning.indicatorSensitivity,
@@ -211,8 +212,8 @@ function observeTrackVoice$({
 /**
  * Measures speech from the audio itself, as it is sent or received, rather than
  * waiting for the server's speaker updates, which are coarse and delayed.
- * True while any of the tracks carries speech (or, behind the voice gate,
- * anything at all); false until there is a track.
+ * True while any of the tracks carries speech (or, on a track we send, anything
+ * at all); false until there is a track.
  */
 export function observeVoiceActivity$(
   tracks$: Observable<BroadcastTrack[]>,

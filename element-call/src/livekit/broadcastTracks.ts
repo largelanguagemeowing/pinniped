@@ -13,21 +13,20 @@ import {
 } from "livekit-client";
 import { Observable } from "rxjs";
 
-import { voiceGate } from "../settings/settings";
-
 /** An audio track a participant is sending, as something that can be measured. */
 export interface BroadcastTrack {
   track: MediaStreamTrack;
   /**
-   * The track is your own microphone behind the voice gate: it carries nothing
-   * but what the gate lets through, so any sound on it is being broadcast.
+   * The track is one this client sends (your microphone, soundboard or shared
+   * audio). Whatever is on it is being broadcast, so any sound above digital
+   * silence counts, whether or not the voice gate is on.
    */
-  gated: boolean;
+  sentByUs: boolean;
 }
 
 const sameTracks = (a: BroadcastTrack[], b: BroadcastTrack[]): boolean =>
   a.length === b.length &&
-  a.every((t, i) => t.track === b[i].track && t.gated === b[i].gated);
+  a.every((t, i) => t.track === b[i].track && t.sentByUs === b[i].sentByUs);
 
 const TRACK_EVENTS = [
   ParticipantEvent.TrackPublished,
@@ -41,9 +40,8 @@ const TRACK_EVENTS = [
 /**
  * Every audio track a participant is currently sending: the microphone, but also
  * soundboard sounds and shared-screen audio, so the speaking indicator shows
- * whenever anything is broadcast. Re-emits when tracks come and go, when a
- * local microphone gets or loses a processor (the track to measure changes with
- * it), and when the voice gate is switched.
+ * whenever anything is broadcast. Re-emits when tracks come and go and when a
+ * local track gets or loses a processor (the track to measure changes with it).
  */
 export function observeBroadcastTracks$(
   participant: Participant,
@@ -53,7 +51,6 @@ export function observeBroadcastTracks$(
     let last: BroadcastTrack[] | undefined;
 
     const update = (): void => {
-      const gating = participant.isLocal && voiceGate.getValue();
       const current: BroadcastTrack[] = [];
       const live = new Set<Track>();
       participant.audioTrackPublications.forEach((publication) => {
@@ -62,7 +59,7 @@ export function observeBroadcastTracks$(
         live.add(track);
         current.push({
           track: track.mediaStreamTrack,
-          gated: gating && publication.source === "microphone",
+          sentByUs: participant.isLocal,
         });
         // A processor swaps the track that carries the audio.
         if (participant.isLocal && !watched.has(track)) {
@@ -84,11 +81,9 @@ export function observeBroadcastTracks$(
     };
 
     TRACK_EVENTS.forEach((event) => participant.on(event, update));
-    const gateSubscription = voiceGate.value$.subscribe(update);
     update();
     return (): void => {
       TRACK_EVENTS.forEach((event) => participant.off(event, update));
-      gateSubscription.unsubscribe();
       watched.forEach((stop) => stop());
       watched.clear();
     };
