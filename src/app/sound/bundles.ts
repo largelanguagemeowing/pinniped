@@ -38,8 +38,7 @@ type SoundUrls = Partial<Record<SoundKind, string>>;
 const BUNDLE_LABELS: Record<string, string> = {
   icq: 'ICQ 7',
   'icq-classic': 'ICQ (classic)',
-  skype: 'Skype',
-  'skype-classic': 'Skype (classic)',
+  'skype-classic-7x': 'Skype (classic 7.x)',
 };
 
 const files = import.meta.glob<string>('./bundles/*/*.{ogg,mp3,wav}', {

@@ -22,7 +22,7 @@ const settings = (over: Partial<Settings> = {}) =>
     isNotificationSounds: true,
     eventSounds: false,
     soundToggles: {},
-    notificationSoundBundle: 'skype',
+    notificationSoundBundle: 'skype-classic-7x',
     ...over,
   }) as Settings;
 

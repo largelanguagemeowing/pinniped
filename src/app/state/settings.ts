@@ -163,12 +163,21 @@ const defaultSettings: Settings = {
   onlySignedDevices: false,
 };
 
+/** Sound bundles that were removed, and the bundle their users move to. */
+const MIGRATED_SOUND_BUNDLES: Record<string, string> = {
+  skype: 'skype-classic-7x',
+  'skype-classic': 'skype-classic-7x',
+};
+
 export const getSettings = () => {
   const settings = localStorage.getItem(STORAGE_KEY);
   if (settings === null) return defaultSettings;
+  const saved = JSON.parse(settings) as Settings;
   return {
     ...defaultSettings,
-    ...(JSON.parse(settings) as Settings),
+    ...saved,
+    notificationSoundBundle:
+      MIGRATED_SOUND_BUNDLES[saved.notificationSoundBundle] ?? saved.notificationSoundBundle,
   };
 };
 

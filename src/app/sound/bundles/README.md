@@ -1,6 +1,6 @@
 # Notification sound bundles
 
-Each folder here is a bundle, named by its folder (`icq/`, `skype/`, ...).
+Each folder here is a bundle, named by its folder (`icq/`, `skype-classic-7x/`, ...).
 A bundle appears in Settings > Notifications once it contains a `message` file.
 
 - `message.(ogg|mp3|wav)`: new message (required)

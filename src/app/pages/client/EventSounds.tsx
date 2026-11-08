@@ -22,10 +22,10 @@ export function EventSounds() {
   useEffect(() => {
     if (joined === wasJoinedRef.current) return;
     wasJoinedRef.current = joined;
-    // A ringing outgoing call plays the start sound itself, ahead of the ringback.
-    if (joined && callEmbed?.ringing) return;
-    playEventSound(joined ? 'callStart' : 'callEnd');
-  }, [joined, callEmbed]);
+    // Joining plays nothing here. A ringing outgoing call plays its start sound ahead of the
+    // ringback (the widget's intro), and a channel, which rings nobody, plays none.
+    if (!joined) playEventSound('callEnd');
+  }, [joined]);
 
   useEffect(() => {
     const onLocalEcho = (mEvent: MatrixEvent) => {
