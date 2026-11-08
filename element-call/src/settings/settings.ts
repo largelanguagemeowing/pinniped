@@ -49,7 +49,9 @@ export class Setting<T> {
   public readonly setValue = (value: T, reason?: string): void => {
     this._value$.next(value);
     this._lastUpdateReason$.next(reason ?? null);
-    localStorage.setItem(this.key, JSON.stringify(value));
+    // JSON.stringify(undefined) is undefined, which would be stored as the text "undefined".
+    if (value === undefined) localStorage.removeItem(this.key);
+    else localStorage.setItem(this.key, JSON.stringify(value));
   };
   public readonly getValue = (): T => {
     return this._value$.getValue();
