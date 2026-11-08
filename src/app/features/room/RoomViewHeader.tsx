@@ -64,7 +64,6 @@ import { UnencryptedBadge } from '../../components/unencrypted-indicator';
 import { useStateEvent } from '../../hooks/useStateEvent';
 import { BackRouteHandler } from '../../components/BackRouteHandler';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
-import { useRoomPinnedEvents } from '../../hooks/useRoomPinnedEvents';
 import { RoomPinMenu } from './room-pin-menu';
 import { useOpenRoomSettings } from '../../state/hooks/roomSettings';
 import { RoomNotificationModeSwitcher } from '../../components/RoomNotificationSwitcher';
@@ -490,7 +489,6 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
   const streamQuality = useStreamQuality(sharerId ? embed : undefined);
   const direct = useIsDirectRoom();
 
-  const pinnedEvents = useRoomPinnedEvents(room);
   const searchDrawerActive = useAtomValue(roomSearchDrawerActiveAtom);
   const avatarMxc = useRoomAvatar(room, direct);
   const matrixOrgExposure = useMatrixOrgExposure(room);
@@ -707,23 +705,6 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                     ref={triggerRef}
                     aria-pressed={!!pinMenuAnchor}
                   >
-                    {pinnedEvents.length > 0 && (
-                      <Badge
-                        style={{
-                          position: 'absolute',
-                          left: toRem(3),
-                          top: toRem(3),
-                        }}
-                        variant="Secondary"
-                        size="400"
-                        fill="Solid"
-                        radii="Pill"
-                      >
-                        <Text as="span" size="L400">
-                          {pinnedEvents.length}
-                        </Text>
-                      </Badge>
-                    )}
                     <Icon size="300" src={Icons.Pin} filled={!!pinMenuAnchor} />
                   </IconButton>
                 )}
