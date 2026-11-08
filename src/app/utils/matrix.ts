@@ -18,6 +18,7 @@ import { IImageInfo, IThumbnailContent, IVideoInfo } from '../../types/matrix/co
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { getStateEvent } from './room';
 import { Membership, StateEvent } from '../../types/matrix/room';
+import { getFallbackSession } from '../state/sessions';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
@@ -296,9 +297,34 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
+/**
+ * The `Authorization` header for an authenticated-media request to the session's own homeserver,
+ * else none. Sent explicitly so a download does not depend on the web build's service worker,
+ * which can miss a request (uncontrolled page after a hard reload, first visit). The token must
+ * never go to another host, so the URL has to sit under the session's base URL.
+ */
+export const mediaAuthHeaders = (
+  src: string,
+  session?: { baseUrl: string; accessToken: string }
+): Record<string, string> => {
+  if (!session) return {};
+  try {
+    const url = new URL(src);
+    const base = new URL(session.baseUrl);
+    const onHomeserver = url.origin === base.origin && url.pathname.startsWith(base.pathname);
+    const authenticated = url.pathname.includes('/_matrix/client/v1/media/');
+    if (onHomeserver && authenticated) return { Authorization: `Bearer ${session.accessToken}` };
+  } catch {
+    // not an absolute URL: nothing to authenticate
+  }
+  return {};
+};
+
 export const downloadMedia = async (src: string): Promise<Blob> => {
-  // this request is authenticated by service worker
-  const res = await fetch(src, { method: 'GET' });
+  const res = await fetch(src, {
+    method: 'GET',
+    headers: mediaAuthHeaders(src, getFallbackSession()),
+  });
   if (!res.ok) throw new Error(`Media download failed (${res.status})`);
   const blob = await res.blob();
   return blob;
