@@ -25,6 +25,8 @@ import { type Behavior } from "../Behavior";
 export interface ParticipantActivity {
   /** At least one of the user's devices is speaking. */
   speaking: ReadonlySet<string>;
+  /** At least one of the user's devices reports itself deafened (client-reported, not enforced). */
+  deafened: ReadonlySet<string>;
   /** None of the user's devices is sending audio. */
   muted: ReadonlySet<string>;
   screenSharing: ReadonlySet<string>;
@@ -33,6 +35,7 @@ export interface ParticipantActivity {
 /** Nobody speaking, muted or sharing: what to show until participants report. */
 export const emptyParticipantActivity: ParticipantActivity = {
   speaking: new Set(),
+  deafened: new Set(),
   muted: new Set(),
   screenSharing: new Set(),
 };
@@ -42,6 +45,7 @@ export interface ActivityUserMedia {
   userId: string;
   speaking$: Behavior<boolean>;
   audioEnabled$: Behavior<boolean>;
+  deafened$: Behavior<boolean>;
 }
 
 export interface ActivityScreenShare {
@@ -56,6 +60,7 @@ export const sameActivity = (
   b: ParticipantActivity,
 ): boolean =>
   sameSet(a.speaking, b.speaking) &&
+  sameSet(a.deafened, b.deafened) &&
   sameSet(a.muted, b.muted) &&
   sameSet(a.screenSharing, b.screenSharing);
 
@@ -75,11 +80,12 @@ export function observeParticipantActivity$(
         ? of([])
         : combineLatest(
             list.map((m) =>
-              combineLatest([m.speaking$, m.audioEnabled$]).pipe(
-                map(([speaking, audioEnabled]) => ({
+              combineLatest([m.speaking$, m.audioEnabled$, m.deafened$]).pipe(
+                map(([speaking, audioEnabled, deafened]) => ({
                   userId: m.userId,
                   speaking,
                   audioEnabled,
+                  deafened,
                 })),
               ),
             ),
@@ -92,6 +98,7 @@ export function observeParticipantActivity$(
       const users = new Set(media.map((m) => m.userId));
       return {
         speaking: new Set(media.filter((m) => m.speaking).map((m) => m.userId)),
+        deafened: new Set(media.filter((m) => m.deafened).map((m) => m.userId)),
         muted: new Set(
           [...users].filter((id) =>
             media.every((m) => m.userId !== id || !m.audioEnabled),

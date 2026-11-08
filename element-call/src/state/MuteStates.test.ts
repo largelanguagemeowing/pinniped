@@ -37,6 +37,51 @@ afterEach(() => {
 });
 
 describe("MuteState", () => {
+  test("a forced mute restores the mic the user had when it ends", async () => {
+    const forceMute$ = new BehaviorSubject<boolean>(false);
+    const handler = vi.fn(async (desired: boolean) => desired);
+
+    const deviceStub = {
+      available$: constant(
+        new Map<string, DeviceLabel>([
+          ["fbac11", { type: "name", name: "HD Camera" }],
+        ]),
+      ),
+      selected$: constant({ id: "fbac11" }),
+      select(): void {},
+    } as unknown as MediaDevice<DeviceLabel, SelectedDevice>;
+
+    const muteState = new MuteState(
+      testScope,
+      deviceStub,
+      true,
+      forceMute$,
+      true,
+    );
+    let lastEnabled = false;
+    muteState.enabled$.subscribe((enabled) => {
+      lastEnabled = enabled;
+    });
+    let setEnabled: ((enabled: boolean) => void) | null = null;
+    muteState.setEnabled$.subscribe((setter) => {
+      setEnabled = setter;
+    });
+    muteState.setHandler(handler);
+    await flushPromises();
+
+    // Unmuted (the default), then deafened, then undeafened.
+    expect(lastEnabled).toBe(true);
+    forceMute$.next(true);
+    await flushPromises();
+    expect(lastEnabled).toBe(false);
+    forceMute$.next(false);
+    await flushPromises();
+
+    expect(lastEnabled).toBe(true);
+    expect(handler).toHaveBeenLastCalledWith(true);
+    expect(setEnabled).not.toBeNull();
+  });
+
   test("should automatically mute if force mute is set", async () => {
     const forceMute$ = new BehaviorSubject<boolean>(false);
 

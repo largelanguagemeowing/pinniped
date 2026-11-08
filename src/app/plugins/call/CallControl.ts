@@ -150,6 +150,11 @@ export class CallControl extends EventEmitter implements CallControlState {
 
   private async setMediaState(state: ElementMediaStatePayload) {
     const data = await this.call.transport.send(ElementWidgetActions.DeviceMute, state);
+    // The change may already have arrived while the reply was on its way, so no further state
+    // update is coming to resolve the wait below.
+    if (this.microphone === !!state.audio_enabled && this.video === !!state.video_enabled) {
+      return data;
+    }
     return new Promise<typeof data>((resolve) => {
       if (this.mediaStatePromiseResolver) {
         this.mediaStatePromiseResolver();
@@ -218,8 +223,11 @@ export class CallControl extends EventEmitter implements CallControlState {
   }
 
   public toggleMicrophone() {
+    // The microphone shows as off while deafened, so unmuting while deafened also undeafens.
+    const audioEnabled = !(this.microphone && this.sound);
+    if (audioEnabled && !this.sound) this.toggleSound();
     const payload: ElementMediaStatePayload = {
-      audio_enabled: !this.microphone,
+      audio_enabled: audioEnabled,
       video_enabled: this.video,
     };
     this.emit(CallControlEvent.UserToggle, { microphone: payload.audio_enabled });
@@ -249,10 +257,6 @@ export class CallControl extends EventEmitter implements CallControlState {
     );
     this.state = state;
     this.emitStateUpdate();
-
-    if (!this.sound && this.microphone) {
-      this.toggleMicrophone();
-    }
   }
 
   public toggleScreenshare() {

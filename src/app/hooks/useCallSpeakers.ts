@@ -5,6 +5,6 @@ import { useCallJoined } from './useCallEmbed';
 export const useCallParticipantActivity = (callEmbed?: CallEmbed) => {
   const joined = useCallJoined(callEmbed);
   const activity = useCallActivity(callEmbed);
-  const { speakers, screenSharers, muted } = joined ? activity : emptyCallActivity;
-  return { speakers, screenSharers, muted };
+  const { speakers, screenSharers, muted, deafened } = joined ? activity : emptyCallActivity;
+  return { speakers, screenSharers, muted, deafened };
 };

@@ -333,6 +333,7 @@ export function mockLocalParticipant(
     audioTrackPublications: new Map(),
     publishTrack: vi.fn(),
     unpublishTracks: vi.fn().mockResolvedValue([]),
+    setAttributes: vi.fn().mockResolvedValue(undefined),
     createTracks: vi.fn(),
     setMicrophoneEnabled: vi.fn(),
     setCameraEnabled: vi.fn(),

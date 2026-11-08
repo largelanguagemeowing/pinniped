@@ -23,8 +23,6 @@ import { useFocusWithin, useHover } from 'react-aria';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
 import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
-import { useCallControlState } from '../../plugins/call';
-import { CallControl } from '../../plugins/call/CallControl';
 import { NavItem, NavItemContent, NavItemOptions, NavLink } from '../../components/nav';
 import { UnreadBadge, UnreadBadgeCenter } from '../../components/unread-badge';
 import { RoomAvatar, RoomIcon } from '../../components/room-avatar';
@@ -296,12 +294,6 @@ function CallMemberStateIcon({ src, label }: { src: IconSrc; label: string }) {
   );
 }
 
-/** Only the local user's deafen state is known: it's this client's sound toggle. */
-function SelfDeafenedIcon({ control }: { control: CallControl }) {
-  const { sound } = useCallControlState(control);
-  return sound ? null : <CallMemberStateIcon src={Icons.HeadphoneMute} label="Deafened" />;
-}
-
 type CallNavItemMembersProps = {
   room: Room;
   members: CallMembership[];
@@ -313,7 +305,7 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
   const openUserProfile = useOpenUserRoomProfile();
   const callEmbed = useCallEmbed();
   const roomCallEmbed = callEmbed?.roomId === room.roomId ? callEmbed : undefined;
-  const { speakers, screenSharers, muted } = useCallParticipantActivity(roomCallEmbed);
+  const { speakers, screenSharers, muted, deafened } = useCallParticipantActivity(roomCallEmbed);
   const myUserId = mx.getSafeUserId();
 
   return (
@@ -377,8 +369,8 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
             </Text>
             <Box shrink="No" alignItems="Center" gap="100" style={{ marginLeft: 'auto' }}>
               {muted.has(userId) && <CallMemberStateIcon src={Icons.MicMute} label="Muted" />}
-              {roomCallEmbed && userId === myUserId && (
-                <SelfDeafenedIcon control={roomCallEmbed.control} />
+              {deafened.has(userId) && (
+                <CallMemberStateIcon src={Icons.HeadphoneMute} label="Deafened" />
               )}
               {screenSharers.has(userId) && (
                 <Box shrink="No" title="Sharing screen">

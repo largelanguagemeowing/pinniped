@@ -17,6 +17,7 @@ import {
   MediaDeviceFailure,
 } from "livekit-client";
 import { observeParticipantEvents } from "@livekit/components-core";
+import { DEAFENED_ATTRIBUTE, localDeafened$ } from "../../../livekit/deafened";
 import {
   MatrixRTCSessionEvent,
   MembershipManagerEvent,
@@ -767,6 +768,16 @@ export const createLocalMembership$ = ({
       }),
     ),
   );
+
+  // Share whether this client is deafened, so other participants can show it. Client-reported.
+  combineLatest([participant$, localDeafened$])
+    .pipe(scope.bind())
+    .subscribe(([p, deafened]) => {
+      if (!p) return;
+      p.setAttributes({ [DEAFENED_ATTRIBUTE]: String(deafened) }).catch((e) =>
+        logger.error("Failed to share the deafened state", e),
+      );
+    });
 
   // Pause upstream of all local media tracks when we're disconnected from
   // MatrixRTC, because it can be an unpleasant surprise for the app to say

@@ -33,6 +33,7 @@ import {
 import { type RemoteUserMediaViewModel } from "./RemoteUserMediaViewModel";
 import { type ObservableScope } from "../ObservableScope";
 import { showConnectionStats } from "../../settings/settings";
+import { isDeafened } from "../../livekit/deafened";
 import { observeRtpStreamStats$ } from "./observeRtpStreamStats";
 import { observeBroadcastTracks$ } from "../../livekit/broadcastTracks";
 import { observeVoiceActivity$ } from "../../livekit/voiceActivity";
@@ -42,12 +43,15 @@ import { videoFit$, videoSizeFromParticipant$ } from "../../utils/videoFit.ts";
  * A participant's user media (i.e. their microphone and camera feed).
  */
 export type UserMediaViewModel =
-  LocalUserMediaViewModel | RemoteUserMediaViewModel;
+  | LocalUserMediaViewModel
+  | RemoteUserMediaViewModel;
 
 export interface BaseUserMediaViewModel extends BaseMemberMediaViewModel {
   type: "user";
   speaking$: Behavior<boolean>;
   audioEnabled$: Behavior<boolean>;
+  /** Whether the participant's client reports itself deafened. Not enforced: see DEAFENED_ATTRIBUTE. */
+  deafened$: Behavior<boolean>;
   videoEnabled$: Behavior<boolean>;
   videoFit$: Behavior<"cover" | "contain">;
   toggleCropVideo: () => void;
@@ -134,6 +138,21 @@ export function createBaseUserMedia(
           ),
         ).pipe(startWith(false)),
       ]).pipe(map(([server, voice]) => server || voice)),
+    ),
+    deafened$: scope.behavior(
+      participant$.pipe(
+        switchMap((p) =>
+          p
+            ? observeParticipantEvents(
+                p,
+                ParticipantEvent.AttributesChanged,
+              ).pipe(
+                startWith(p),
+                map((q) => isDeafened(q.attributes)),
+              )
+            : of(false),
+        ),
+      ),
     ),
     audioEnabled$: scope.behavior(
       media$.pipe(map((m) => m?.microphoneTrack?.isMuted === false)),

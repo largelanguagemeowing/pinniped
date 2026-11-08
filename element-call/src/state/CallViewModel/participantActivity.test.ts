@@ -29,11 +29,12 @@ function media(
 ): TestMedia {
   const speaking$ = new BehaviorSubject(speaking);
   const audioEnabled$ = new BehaviorSubject(audioEnabled);
+  const deafened$ = new BehaviorSubject(false);
   return {
     userId,
     speaking$,
     audioEnabled$,
-    value: { userId, speaking$, audioEnabled$ } as ActivityUserMedia,
+    value: { userId, speaking$, audioEnabled$, deafened$ } as ActivityUserMedia,
   };
 }
 

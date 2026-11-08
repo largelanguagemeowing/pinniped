@@ -33,7 +33,10 @@ export const useCallControlState = (control: CallControl): CallControlState => {
     };
   }, [control]);
 
-  return state;
+  // Deafened means the microphone is off, whatever it was set to before.
+  return state.sound
+    ? state
+    : new CallControlState(false, state.video, state.sound, state.screenshare, state.spotlight);
 };
 
 /** The embed's WebRTC sample history; re-renders on every new sample. */

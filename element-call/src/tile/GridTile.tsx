@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import {
   MicOnSolidIcon,
   MicOffSolidIcon,
+  HeadphonesOffSolidIcon,
   OverflowHorizontalIcon,
   VisibilityOnIcon,
   UserProfileIcon,
@@ -151,10 +152,17 @@ const UserMediaTile: FC<UserMediaTileProps> = ({
     }
   }, [targetWidth, targetHeight, vm]);
 
-  const AudioIcon = audioEnabled ? MicOnSolidIcon : MicOffSolidIcon;
-  const audioIconLabel = audioEnabled
-    ? t("microphone_on")
-    : t("microphone_off");
+  const deafened = useBehavior(vm.deafened$);
+  const AudioIcon = deafened
+    ? HeadphonesOffSolidIcon
+    : audioEnabled
+      ? MicOnSolidIcon
+      : MicOffSolidIcon;
+  const audioIconLabel = deafened
+    ? "Deafened"
+    : audioEnabled
+      ? t("microphone_on")
+      : t("microphone_off");
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menu = (

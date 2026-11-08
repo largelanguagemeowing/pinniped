@@ -30,6 +30,7 @@ import {
   EndCallIcon,
   ShareScreenSolidIcon,
   MicOffSolidIcon,
+  HeadphonesOffSolidIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
 import { animated } from "@react-spring/web";
 import { type Observable, map } from "rxjs";
@@ -129,6 +130,7 @@ const SpotlightUserMediaItem: FC<SpotlightUserMediaItemProps> = ({
   const videoEnabled = useBehavior(vm.videoEnabled$);
   // Cinny: show the mute state on the spotlight's name tag too, like the strip tiles.
   const audioEnabled = useBehavior(vm.audioEnabled$);
+  const deafened = useBehavior(vm.deafened$);
 
   // Whenever target bounds change, inform the viewModel
   useEffect(() => {
@@ -141,14 +143,24 @@ const SpotlightUserMediaItem: FC<SpotlightUserMediaItemProps> = ({
     RefAttributes<HTMLDivElement> = {
     videoFit,
     videoEnabled,
-    nameTagLeadingIcon: !audioEnabled ? (
-      <MicOffSolidIcon
-        width={20}
-        height={20}
-        aria-label={t("microphone_off")}
-        data-muted
-      />
-    ) : undefined,
+    nameTagLeadingIcon:
+      deafened || !audioEnabled ? (
+        deafened ? (
+          <HeadphonesOffSolidIcon
+            width={20}
+            height={20}
+            aria-label="Deafened"
+            data-muted
+          />
+        ) : (
+          <MicOffSolidIcon
+            width={20}
+            height={20}
+            aria-label={t("microphone_off")}
+            data-muted
+          />
+        )
+      ) : undefined,
     targetWidth,
     targetHeight,
     ...props,

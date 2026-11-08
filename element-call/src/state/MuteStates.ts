@@ -18,6 +18,7 @@ import {
   merge,
   Observable,
   of,
+  startWith,
   Subject,
   switchMap,
   withLatestFrom,
@@ -26,7 +27,8 @@ import {
 import { type MediaDevices, type MediaDevice } from "../state/MediaDevices";
 import { ElementWidgetActions, widget } from "../widget";
 import { type ObservableScope } from "./ObservableScope";
-import { type Behavior, constant } from "./Behavior";
+import { setAudioEnabled$ } from "../controls";
+import { type Behavior } from "./Behavior";
 
 interface MuteStateData {
   enabled$: Observable<boolean>;
@@ -44,6 +46,10 @@ const defaultHandler: Handler = async (desired) => Promise.resolve(desired);
  */
 export class MuteState<Label, Selected> {
   private readonly handler$ = new BehaviorSubject(defaultHandler);
+  /** Whether the device was last forced off (see forceMute$). */
+  private forced = false;
+  /** The last mute state the user had, restored once a forced mute ends. */
+  private lastEnabled: boolean | undefined;
 
   public setHandler(handler: Handler): void {
     if (this.handler$.value !== defaultHandler)
@@ -77,6 +83,7 @@ export class MuteState<Label, Selected> {
           );
           // We need to sync the mute state with the handler
           // to ensure nothing is beeing published.
+          this.forced = true;
           this.handler$.value(false).catch((err) => {
             logger.error("MuteState-disable: handler error", err);
           });
@@ -88,15 +95,24 @@ export class MuteState<Label, Selected> {
           };
         }
 
-        // Assume the default value only once devices are actually connected
-        let enabled = this.enabledByDefault;
+        // Assume the default value only once devices are actually connected. When a forced
+        // mute has ended, the device is off, and the user's own setting is restored.
+        const wasForced = this.forced;
+        this.forced = false;
+        const restoring = this.restoreAfterForce && wasForced;
+        const restored = this.restoreAfterForce
+          ? (this.lastEnabled ?? this.enabledByDefault)
+          : this.enabledByDefault;
+        let enabled = restoring ? false : restored;
         const set$ = new Subject<boolean>();
         const toggle$ = new Subject<void>();
         const syncing$ = new BehaviorSubject(false);
         const desired$ = merge(set$, toggle$.pipe(map(() => !enabled)));
         const enabled$ = new Observable<boolean>((subscriber) => {
+          // A forced mute's "off" is not the user's choice, so it is not remembered.
+          if (!wasForced) this.lastEnabled = enabled;
           subscriber.next(enabled);
-          let latestDesired = this.enabledByDefault;
+          let latestDesired = restoring ? restored : enabled;
 
           const sync = async (): Promise<void> => {
             if (enabled === latestDesired) {
@@ -112,6 +128,7 @@ export class MuteState<Label, Selected> {
               if (enabled === previouslyEnabled) {
                 syncing$.next(false);
               } else {
+                this.lastEnabled = enabled;
                 subscriber.next(enabled);
                 syncing$.next(true);
                 sync().catch((err) => {
@@ -132,6 +149,13 @@ export class MuteState<Label, Selected> {
               });
             }
           });
+          // After a forced mute the device is off but the user wants it as it was: sync to that.
+          if (restoring && enabled !== latestDesired) {
+            syncing$.next(true);
+            sync().catch((err) => {
+              logger.error("MuteState: handler error", err);
+            });
+          }
           return (): void => {
             s.unsubscribe();
             syncing$.complete();
@@ -176,6 +200,12 @@ export class MuteState<Label, Selected> {
      * @private
      */
     private readonly forceMute$: Observable<boolean>,
+    /**
+     * Whether the user's own setting comes back when a forced mute ends. Otherwise the
+     * setting is the default again, as for video in earpiece mode.
+     * @private
+     */
+    private readonly restoreAfterForce = false,
   ) {}
 }
 
@@ -196,11 +226,16 @@ export class MuteStates {
     }),
   );
 
+  // Deafening (output off) always mutes the microphone too.
   public readonly audio = new MuteState(
     this.scope,
     this.mediaDevices.audioInput,
     this.initialMuteState.audioEnabled,
-    constant(false),
+    setAudioEnabled$.pipe(
+      startWith(true),
+      map((outputEnabled) => !outputEnabled),
+    ),
+    true,
   );
   public readonly video = new MuteState(
     this.scope,
