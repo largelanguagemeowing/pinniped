@@ -40,6 +40,9 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
       className={css.CallMemberCard}
       variant="SurfaceVariant"
       radii="500"
+      // Each card stands alone, so it keeps all four corners whatever comes before or after it.
+      firstChild
+      lastChild
       onClick={(evt: any) =>
         openUserProfile(
           room.roomId,

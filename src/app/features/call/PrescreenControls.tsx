@@ -35,6 +35,9 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
       variant="SurfaceVariant"
       gap="400"
       radii="500"
+      // Standalone: it follows the member card, so without these it would lose its top corners.
+      firstChild
+      lastChild
       alignItems="Center"
       justifyContent="SpaceBetween"
       wrap="Wrap"

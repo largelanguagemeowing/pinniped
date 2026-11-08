@@ -1,5 +1,5 @@
 import React, { RefObject, useRef } from 'react';
-import { Badge, Box, color, Header, Text, toRem } from 'folds';
+import { Box, color, Text, toRem } from 'folds';
 import {
   useCallEmbed,
   useCallJoined,
@@ -20,6 +20,10 @@ import * as css from './styles.css';
 import { CallControls } from './CallControls';
 import { useLivekitSupport } from '../../hooks/useLivekitSupport';
 import { webRTCSupported } from '../../utils/rtc';
+import { getMemberDisplayName } from '../../utils/room';
+import { getMxIdLocalPart } from '../../utils/matrix';
+import { type Room } from 'matrix-js-sdk';
+import { type CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 
 function LivekitServerMissingMessage() {
   return (
@@ -61,6 +65,17 @@ function JoinMessage({
       No one is currently in voice
     </Text>
   );
+}
+
+/** "A and B are currently in voice", or "A, B and N others are currently in voice". */
+function voiceSummary(room: Room, members: CallMembership[]): string {
+  const names = members
+    .map((m) => m.userId)
+    .filter((id): id is string => !!id)
+    .map((id) => getMemberDisplayName(room, id) ?? getMxIdLocalPart(id) ?? id);
+  if (names.length === 1) return `${names[0]} is currently in voice`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} are currently in voice`;
+  return `${names[0]}, ${names[1]} and ${names.length - 2} others are currently in voice`;
 }
 
 function NoPermissionMessage() {
@@ -115,16 +130,9 @@ function CallPrescreen() {
           {room.name}
         </Text>
         {hasParticipant && (
-          <Header size="300" style={{ width: '100%' }}>
-            <Box grow="Yes" alignItems="Center">
-              <Text size="L400">Participant</Text>
-            </Box>
-            <Badge variant="Critical" fill="Solid" size="400">
-              <Text as="span" size="L400" truncate>
-                {callMembers.length} Live
-              </Text>
-            </Badge>
-          </Header>
+          <Text size="B400" align="Center" priority="300">
+            {voiceSummary(room, callMembers)}
+          </Text>
         )}
         <CallMemberRenderer members={callMembers} />
         <PrescreenControls canJoin={canJoin} />
