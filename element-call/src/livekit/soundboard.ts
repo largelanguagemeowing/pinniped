@@ -12,7 +12,7 @@ import {
   Track,
 } from "livekit-client";
 import { type Logger } from "matrix-js-sdk/lib/logger";
-import { Subject } from "rxjs";
+import { Subject, type Subscription } from "rxjs";
 
 import { soundboardVolume } from "../settings/settings";
 
@@ -21,9 +21,20 @@ import { soundboardVolume } from "../settings/settings";
  * `url` is a same-origin (blob:) URL of an audio file the client has already downloaded.
  */
 export type SoundboardCommand =
-  { op: "play"; url: string; mode?: "cut" | "add" } | { op: "stop" };
+  | { op: "play"; url: string; mode?: "cut" | "add" }
+  | { op: "stop" };
 
 export const soundboardCommand$ = new Subject<SoundboardCommand>();
+
+/** A mono output for the soundboard track, so its Opus parameters match the microphone's. */
+function createMonoDestination(
+  ctx: AudioContext,
+): MediaStreamAudioDestinationNode {
+  const destination = ctx.createMediaStreamDestination();
+  destination.channelCount = 1;
+  destination.channelCountMode = "explicit";
+  return destination;
+}
 
 /**
  * Plays client-supplied sounds to the call: mixed into an audio track of its
@@ -46,11 +57,22 @@ export class Soundboard {
   private publication: Promise<LocalTrackPublication | undefined> | undefined;
   // Bumped by stop(), so sounds still loading when it is called do not start.
   private stopGeneration = 0;
+  // The listener's own copy of each sound still playing, so the soundboard volume
+  // applies to sounds already playing as well as new ones.
+  private readonly monitors = new Set<GainNode>();
+  private readonly volumeSub: Subscription;
 
   public constructor(
     private readonly room: LivekitRoom,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.volumeSub = soundboardVolume.value$.subscribe((volume) => {
+      const level = Math.max(0, Math.min(volume, 1));
+      this.monitors.forEach((monitor) => {
+        monitor.gain.value = level;
+      });
+    });
+  }
 
   private get ctx(): AudioContext {
     return this.output.ctx;
@@ -62,7 +84,7 @@ export class Soundboard {
   } {
     if (!this.audio) {
       const ctx = new AudioContext({ latencyHint: "interactive" });
-      this.audio = { ctx, destination: ctx.createMediaStreamDestination() };
+      this.audio = { ctx, destination: createMonoDestination(ctx) };
     }
     return this.audio;
   }
@@ -87,13 +109,16 @@ export class Soundboard {
     const cached = await this.publication;
     if (cached && cached.track?.mediaStreamTrack.readyState === "ended") {
       this.publication = undefined;
-      this.output.destination = this.output.ctx.createMediaStreamDestination();
+      this.output.destination = createMonoDestination(this.output.ctx);
     }
     this.publication ??= this.room.localParticipant
       .publishTrack(this.output.destination.stream.getAudioTracks()[0], {
         source: Track.Source.Unknown,
         name: "soundboard",
-        dtx: true,
+        // Mono, DTX off: the microphone's Opus parameters. Chrome refuses a call when the two
+        // audio tracks disagree on them (a BUNDLE codec collision).
+        dtx: false,
+        forceStereo: false,
         red: false,
         audioPreset: AudioPresets.musicHighQuality,
       })
@@ -142,8 +167,10 @@ export class Soundboard {
     gain.connect(monitor);
     monitor.connect(this.ctx.destination);
     this.playing.set(source, url);
+    this.monitors.add(monitor);
     source.addEventListener("ended", () => {
       this.playing.delete(source);
+      this.monitors.delete(monitor);
       source.disconnect();
       gain.disconnect();
       monitor.disconnect();
@@ -158,6 +185,7 @@ export class Soundboard {
   }
 
   public async dispose(): Promise<void> {
+    this.volumeSub.unsubscribe();
     this.stop();
     const publication = await this.publication;
     if (publication?.track) {

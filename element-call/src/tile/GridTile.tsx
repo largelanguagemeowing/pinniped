@@ -21,13 +21,9 @@ import { useTranslation } from "react-i18next";
 import {
   MicOnSolidIcon,
   MicOffSolidIcon,
-  MicOffIcon,
   OverflowHorizontalIcon,
-  VolumeOnIcon,
-  VolumeOffIcon,
   VisibilityOnIcon,
   UserProfileIcon,
-  VolumeOffSolidIcon,
   SwitchCameraSolidIcon,
   VideoCallSolidIcon,
   VoiceCallSolidIcon,
@@ -42,7 +38,6 @@ import {
 import { useObservableEagerState } from "observable-hooks";
 
 import styles from "./GridTile.module.css";
-import { Slider } from "../Slider";
 import { MediaView } from "./MediaView";
 import { useLatest } from "../useLatest";
 import { type GridTileViewModel } from "../state/TileViewModel";
@@ -106,7 +101,6 @@ interface UserMediaTileProps extends TileProps {
   vm: UserMediaViewModel;
   showSpeakingIndicators: boolean;
   mirror: boolean;
-  playbackMuted: boolean;
   waitingForMedia?: boolean;
   primaryButton?: ReactNode;
   menuStart?: ReactNode;
@@ -118,7 +112,6 @@ const UserMediaTile: FC<UserMediaTileProps> = ({
   ref,
   vm,
   showSpeakingIndicators,
-  playbackMuted,
   waitingForMedia,
   primaryButton,
   menuStart,
@@ -158,16 +151,10 @@ const UserMediaTile: FC<UserMediaTileProps> = ({
     }
   }, [targetWidth, targetHeight, vm]);
 
-  const AudioIcon = playbackMuted
-    ? VolumeOffSolidIcon
-    : audioEnabled
-      ? MicOnSolidIcon
-      : MicOffSolidIcon;
-  const audioIconLabel = playbackMuted
-    ? t("video_tile.muted_for_me")
-    : audioEnabled
-      ? t("microphone_on")
-      : t("microphone_off");
+  const AudioIcon = audioEnabled ? MicOnSolidIcon : MicOffSolidIcon;
+  const audioIconLabel = audioEnabled
+    ? t("microphone_on")
+    : t("microphone_off");
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menu = (
@@ -204,7 +191,7 @@ const UserMediaTile: FC<UserMediaTileProps> = ({
           width={20}
           height={20}
           aria-label={audioIconLabel}
-          data-muted={playbackMuted || !audioEnabled}
+          data-muted={!audioEnabled}
           className={styles.muteIcon}
         />
       }
@@ -291,7 +278,6 @@ const LocalUserMediaTile: FC<LocalUserMediaTileProps> = ({
     <UserMediaTile
       ref={ref}
       vm={vm}
-      playbackMuted={false}
       mirror={mirror}
       primaryButton={
         switchCamera === null ? undefined : (
@@ -348,57 +334,23 @@ const RemoteUserMediaTile: FC<RemoteUserMediaTileProps> = ({
   vm,
   ...props
 }) => {
-  const { t } = useTranslation();
   const waitingForMedia = useBehavior(vm.waitingForMedia$);
-  const playbackMuted = useBehavior(vm.playbackMuted$);
-  const playbackVolume = useBehavior(vm.playbackVolume$);
   const focusUrl = useBehavior(vm.focusUrl$);
-
-  const onSelectMute = useCallback(
-    (e: Event) => {
-      e.preventDefault();
-      vm.togglePlaybackMuted();
-    },
-    [vm],
-  );
-
-  const VolumeIcon = playbackMuted ? VolumeOffIcon : VolumeOnIcon;
 
   return (
     <UserMediaTile
       ref={ref}
       vm={vm}
       waitingForMedia={waitingForMedia}
-      playbackMuted={playbackMuted}
       mirror={false}
       menuStart={
-        <>
-          {/* Cinny: the tile menu leads with View Profile. */}
-          <MenuItem
-            Icon={UserProfileIcon}
-            label="View Profile"
-            onSelect={() => viewProfileInHost(vm.userId)}
-          />
-          <ToggleMenuItem
-            Icon={MicOffIcon}
-            label={t("video_tile.mute_for_me")}
-            checked={playbackMuted}
-            onSelect={onSelectMute}
-          />
-          {/* TODO: Figure out how to make this slider keyboard accessible */}
-          <MenuItem as="div" Icon={VolumeIcon} label={null} onSelect={null}>
-            <Slider
-              className={styles.volumeSlider}
-              label={t("video_tile.volume")}
-              value={playbackVolume}
-              onValueChange={vm.adjustPlaybackVolume}
-              onValueCommit={vm.commitPlaybackVolume}
-              min={0}
-              max={1}
-              step={0.01}
-            />
-          </MenuItem>
-        </>
+        /* Cinny: the tile menu leads with View Profile. Volume and mute for a
+           participant live in Cinny's member menu, not on the tile. */
+        <MenuItem
+          Icon={UserProfileIcon}
+          label="View Profile"
+          onSelect={() => viewProfileInHost(vm.userId)}
+        />
       }
       focusUrl={focusUrl}
       {...props}

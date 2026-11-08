@@ -7,10 +7,9 @@ Please see LICENSE in the repository root for full details.
 */
 
 import { type RemoteParticipant } from "livekit-client";
-import { combineLatest, map, of, switchMap } from "rxjs";
+import { combineLatest, of, switchMap } from "rxjs";
 
 import { type Behavior } from "../Behavior";
-import { createVolumeControls, type VolumeControls } from "../VolumeControls";
 import {
   type BaseUserMediaInputs,
   type BaseUserMediaViewModel,
@@ -18,8 +17,7 @@ import {
 } from "./UserMediaViewModel";
 import { type ObservableScope } from "../ObservableScope";
 
-export interface RemoteUserMediaViewModel
-  extends BaseUserMediaViewModel, VolumeControls {
+export interface RemoteUserMediaViewModel extends BaseUserMediaViewModel {
   local: false;
   /**
    * Whether we are waiting for this user's LiveKit participant to exist. This
@@ -45,14 +43,10 @@ export function createRemoteUserMedia(
     statsType: "inbound-rtp",
   });
 
+  // Per-participant volume and mute are Cinny's (the member menu), applied on the audio side,
+  // so the tile does not drive the participant's volume.
   return {
     ...baseUserMedia,
-    ...createVolumeControls(scope, {
-      pretendToBeDisconnected$,
-      sink$: scope.behavior(
-        inputs.participant$.pipe(map((p) => (volume) => p?.setVolume(volume))),
-      ),
-    }),
     local: false,
     speaking$: scope.behavior(
       pretendToBeDisconnected$.pipe(

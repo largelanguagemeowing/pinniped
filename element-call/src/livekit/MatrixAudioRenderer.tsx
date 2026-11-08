@@ -8,7 +8,7 @@ Please see LICENSE in the repository root for full details.
 import { getTrackReferenceId } from "@livekit/components-core";
 import { type Room as LivekitRoom } from "livekit-client";
 import { type RemoteAudioTrack, Track } from "livekit-client";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   useTracks,
   AudioTrack,
@@ -178,21 +178,25 @@ export function LivekitRoomAudioRenderer({
           )
             ? 0
             : soundboardVolumeLevel;
+          // Soundboard sounds have their own volume, so the participant's level skips them.
+          const level = isSoundboard
+            ? soundboardLevel
+            : levelOf(trackRef.participant.identity);
+          const useContext = Boolean(shouldUseAudioContext && audioContext);
           return (
             <AudioTrackWithAudioNodes
               key={getTrackReferenceId(trackRef)}
               trackRef={trackRef}
               muted={muted}
-              // Plain audio elements (no audio context) take their volume from here. With the
-              // audio context the element is muted and silent, so `level` below does the work.
-              volume={isSoundboard ? soundboardLevel : undefined}
-              // Soundboard sounds have their own volume, so the participant's level skips them.
-              level={
-                isSoundboard
-                  ? soundboardLevel
-                  : levelOf(trackRef.participant.identity)
-              }
-              audioContext={shouldUseAudioContext ? audioContext : undefined}
+              // Silent at level 0, but the track stays subscribed (so it still shows as speaking).
+              silent={level === 0}
+              // Only one place applies the level, or it is applied twice. Through the audio
+              // context the level is the gain node (`level`), and LiveKit would route this
+              // volume into the same track's gain. Plain audio elements take it here, capped
+              // at 100% (the element cannot go past it).
+              volume={useContext ? undefined : Math.min(level, 1)}
+              level={level}
+              audioContext={useContext ? audioContext : undefined}
               audioNodes={audioNodes}
             />
           );
@@ -203,6 +207,8 @@ export function LivekitRoomAudioRenderer({
 
 interface StereoPanAudioTrackProps {
   muted?: boolean;
+  /** Silence the plain audio element, keeping the track subscribed. */
+  silent?: boolean;
   /** This listener's own gain for the participant: 0 muted, 1 unchanged, up to 2. */
   level: number;
   audioContext?: AudioContext;
@@ -227,6 +233,7 @@ interface StereoPanAudioTrackProps {
 function AudioTrackWithAudioNodes({
   trackRef,
   muted,
+  silent,
   level,
   audioContext,
   audioNodes,
@@ -252,6 +259,14 @@ function AudioTrackWithAudioNodes({
     if (levelNode) levelNode.gain.value = muted ? 0 : level;
   }, [levelNode, level, muted]);
 
+  const audioRef = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    // Plain elements only: with the audio context LiveKit keeps the element muted itself,
+    // and unmuting it here would play the voice twice.
+    if (audioContext || !audioRef.current) return;
+    audioRef.current.muted = Boolean(silent);
+  }, [audioContext, silent, trackReady]);
+
   useEffect(() => {
     if (!trackRef || trackReady) return;
     const track = trackRef.publication.track as RemoteAudioTrack;
@@ -273,6 +288,8 @@ function AudioTrackWithAudioNodes({
   ]);
 
   return (
-    trackReady && <AudioTrack trackRef={trackRef} muted={muted} {...props} />
+    trackReady && (
+      <AudioTrack ref={audioRef} trackRef={trackRef} muted={muted} {...props} />
+    )
   );
 }

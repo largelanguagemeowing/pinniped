@@ -49,7 +49,6 @@ import { useReactiveState } from "../useReactiveState";
 import { useLatest } from "../useLatest";
 import { type SpotlightTileViewModel } from "../state/TileViewModel";
 import { useBehavior } from "../useBehavior";
-import { constant } from "../state/Behavior";
 import { type MemberMediaViewModel } from "../state/media/MemberMediaViewModel";
 import { type LocalUserMediaViewModel } from "../state/media/LocalUserMediaViewModel";
 import { type RemoteUserMediaViewModel } from "../state/media/RemoteUserMediaViewModel";
@@ -60,8 +59,6 @@ import { type MediaViewModel } from "../state/media/MediaViewModel";
 import { Slider } from "../Slider";
 import { platform } from "../Platform";
 import { type RingingMediaViewModel } from "../state/media/RingingMediaViewModel";
-
-const notPlaybackMuted = constant(false);
 
 interface SpotlightItemBaseProps {
   ref?: Ref<HTMLDivElement>;
@@ -132,10 +129,6 @@ const SpotlightUserMediaItem: FC<SpotlightUserMediaItemProps> = ({
   const videoEnabled = useBehavior(vm.videoEnabled$);
   // Cinny: show the mute state on the spotlight's name tag too, like the strip tiles.
   const audioEnabled = useBehavior(vm.audioEnabled$);
-  const playbackMuted = useBehavior(
-    vm.local ? notPlaybackMuted : vm.playbackMuted$,
-  );
-  const MuteIcon = playbackMuted ? VolumeOffSolidIcon : MicOffSolidIcon;
 
   // Whenever target bounds change, inform the viewModel
   useEffect(() => {
@@ -148,17 +141,14 @@ const SpotlightUserMediaItem: FC<SpotlightUserMediaItemProps> = ({
     RefAttributes<HTMLDivElement> = {
     videoFit,
     videoEnabled,
-    nameTagLeadingIcon:
-      playbackMuted || !audioEnabled ? (
-        <MuteIcon
-          width={20}
-          height={20}
-          aria-label={
-            playbackMuted ? t("video_tile.muted_for_me") : t("microphone_off")
-          }
-          data-muted
-        />
-      ) : undefined,
+    nameTagLeadingIcon: !audioEnabled ? (
+      <MicOffSolidIcon
+        width={20}
+        height={20}
+        aria-label={t("microphone_off")}
+        data-muted
+      />
+    ) : undefined,
     targetWidth,
     targetHeight,
     ...props,
