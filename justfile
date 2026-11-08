@@ -5,7 +5,7 @@ dev_port := env_var_or_default("PINNIPED_DEV_PORT", "5173")
 
 build:
     npm run build
-    npx electron-builder --config electron/electron-builder.yml --linux rpm
+    npx electron-builder --config electron/electron-builder.yml --linux rpm $(node scripts/fork/electron/electron-dist.mjs)
 
 install: build
     sudo rpm -Uvh --force "$(ls -t electron/out/[Pp]inniped-*.rpm | head -1)"
