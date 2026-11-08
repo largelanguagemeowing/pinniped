@@ -169,32 +169,34 @@ export function LivekitRoomAudioRenderer({
     <div style={{ display: "none" }}>
       {/* Wait for the context, so the tracks do not first play through plain elements. */}
       {(audioContext || !shouldUseAudioContext) &&
-        tracks.map((trackRef) => (
-          <AudioTrackWithAudioNodes
-            key={getTrackReferenceId(trackRef)}
-            trackRef={trackRef}
-            muted={muted}
-            // Soundboard sounds are sent at full level; the listener sets how loud they are.
-            // Their sounds are silent when the listener muted that participant's soundboard.
-            volume={
-              trackRef.publication.trackName === "soundboard"
-                ? mutedSoundboardUsers.includes(
-                    userIds?.[trackRef.participant.identity] ?? "",
-                  )
-                  ? 0
-                  : soundboardVolumeLevel
-                : undefined
-            }
-            // Soundboard sounds have their own mute, so the participant's level skips them.
-            level={
-              trackRef.publication.trackName === "soundboard"
-                ? 1
-                : levelOf(trackRef.participant.identity)
-            }
-            audioContext={shouldUseAudioContext ? audioContext : undefined}
-            audioNodes={audioNodes}
-          />
-        ))}
+        tracks.map((trackRef) => {
+          const isSoundboard = trackRef.publication.trackName === "soundboard";
+          // Soundboard sounds are sent at full level; the listener sets how loud they are.
+          // Silent when the listener muted that participant's soundboard.
+          const soundboardLevel = mutedSoundboardUsers.includes(
+            userIds?.[trackRef.participant.identity] ?? "",
+          )
+            ? 0
+            : soundboardVolumeLevel;
+          return (
+            <AudioTrackWithAudioNodes
+              key={getTrackReferenceId(trackRef)}
+              trackRef={trackRef}
+              muted={muted}
+              // Plain audio elements (no audio context) take their volume from here. With the
+              // audio context the element is muted and silent, so `level` below does the work.
+              volume={isSoundboard ? soundboardLevel : undefined}
+              // Soundboard sounds have their own volume, so the participant's level skips them.
+              level={
+                isSoundboard
+                  ? soundboardLevel
+                  : levelOf(trackRef.participant.identity)
+              }
+              audioContext={shouldUseAudioContext ? audioContext : undefined}
+              audioNodes={audioNodes}
+            />
+          );
+        })}
     </div>
   );
 }
