@@ -27,8 +27,7 @@ import {
   mockRtcMembership,
 } from "../utils/test";
 import { CallEventAudioRenderer } from "./CallEventAudioRenderer";
-import { useAudioContext } from "../useAudioContext";
-import { prefetchSounds } from "../soundUtils";
+import { playCallSound } from "../livekit/callSounds";
 import { getBasicCallViewModelEnvironment } from "../utils/test-viewmodel";
 import {
   alice,
@@ -42,8 +41,7 @@ import { MAX_PARTICIPANT_COUNT_FOR_SOUND } from "../state/CallViewModel/CallView
 import { initializeWidget } from "../widget";
 initializeWidget();
 vitest.mock("livekit-client/e2ee-worker?worker");
-vitest.mock("../useAudioContext");
-vitest.mock("../soundUtils");
+vitest.mock("../livekit/callSounds");
 vitest.mock("../rtcSessionHelpers", async (importOriginal) => ({
   ...(await importOriginal()),
   makeTransport: (): [LivekitTransport] => [exampleTransport],
@@ -53,20 +51,10 @@ afterEach(() => {
   vitest.clearAllMocks();
 });
 
-let playSound: MockedFunction<
-  NonNullable<ReturnType<typeof useAudioContext>>["playSound"]
->;
+let playSound: MockedFunction<typeof playCallSound>;
 
 beforeEach(() => {
-  (prefetchSounds as MockedFunction<typeof prefetchSounds>).mockResolvedValue({
-    sound: new ArrayBuffer(0),
-  });
-  playSound = vitest.fn();
-  (useAudioContext as MockedFunction<typeof useAudioContext>).mockReturnValue({
-    playSound,
-    playSoundLooping: vitest.fn(),
-    soundDuration: {},
-  });
+  playSound = playCallSound as MockedFunction<typeof playCallSound>;
 });
 
 /**

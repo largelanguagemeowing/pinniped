@@ -30,6 +30,8 @@ export enum ElementWidgetActions {
   CallSettings = 'io.cinny.call_settings',
   /** Fork: start a screen share with the chosen quality and audio, see {@link ScreenShareStart}. */
   ScreenShare = 'io.cinny.screenshare',
+  /** Fork, from the widget: a call sound to play, see {@link CallSoundCommand}. */
+  CallSound = 'io.cinny.call_sound',
   /** Fork: play or stop a soundboard sound in the call, see {@link SoundboardCommand}. */
   Soundboard = 'io.cinny.soundboard',
   /** Fork, from the widget: a CallStatsSample once a second. */
@@ -87,14 +89,18 @@ export type ElementCallSettings = {
   userVolumes: Record<string, number>;
   /** Participants whose soundboard sounds are muted for this client. */
   mutedSoundboards: string[];
-  /** Names of the call's own sounds that are switched off. */
-  mutedSounds: string[];
   audioInput: string;
   audioOutput: string;
 };
 
 /** Start a screen share with these options; `quality` is `<resolution>:<fps>`, `audio` a screenShareAudioSource value. */
 export type ScreenShareStart = { quality: string; audio: string };
+
+/** A sound the call widget asks the client to play. `loop` repeats until `stop` with its id; `intro` plays first. */
+export type CallSoundCommand =
+  | { op: 'play'; sound: string }
+  | { op: 'loop'; sound: string; intro?: string; id: number }
+  | { op: 'stop'; id: number };
 
 /** `url` is a blob: URL of the audio, which the same-origin call widget can read. */
 export type SoundboardCommand = { op: 'play'; url: string; mode?: 'cut' | 'add' } | { op: 'stop' };

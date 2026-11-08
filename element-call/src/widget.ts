@@ -45,6 +45,7 @@ import {
   soundboardCommand$,
 } from "./livekit/soundboard";
 import { screenShareStart$ } from "./livekit/screenShareStart";
+import { callSoundCommand$ } from "./livekit/callSounds";
 import {
   audioInput,
   audioOutput,
@@ -77,6 +78,8 @@ export enum ElementWidgetActions {
   CallSettings = "io.cinny.call_settings",
   // toWidget (fork): start a screen share with the given options, see ScreenShareStart
   ScreenShare = "io.cinny.screenshare",
+  // fromWidget (fork): a call sound for the client to play, see CallSoundCommand
+  CallSound = "io.cinny.call_sound",
   // toWidget (fork): play or stop a soundboard sound, see SoundboardCommand
   Soundboard = "io.cinny.soundboard",
   // fromWidget (fork): a CallStatsSample once a second while in a call
@@ -169,6 +172,12 @@ export const initializeWidget = (
       const api = new WidgetApi(widgetId, parentOrigin);
       api.requestCapability(MatrixCapabilities.AlwaysOnScreen);
       api.requestCapability(MatrixCapabilities.MSC4039DownloadFile);
+      // Call sounds are played by the client, which chooses them: the widget only reports them.
+      callSoundCommand$.subscribe((command) => {
+        api.transport
+          .send(ElementWidgetActions.CallSound, command)
+          .catch(() => undefined);
+      });
 
       // Set up the lazy action emitter, but only for select actions that we
       // intend for the app to handle

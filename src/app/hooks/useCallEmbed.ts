@@ -22,7 +22,7 @@ import {
 import { CallControlEvent } from '../plugins/call/CallControl';
 import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
-import { getMutedCallSounds, playCallEndSound } from '../sound/play';
+import { playCallEndSound } from '../sound/play';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useTheme } from './useTheme';
 import { callEmbedAtom, callIdleAtom } from '../state/callEmbed';
@@ -131,7 +131,7 @@ export const useCallHangupEvent = (embed: CallEmbed, callback: () => void) => {
     ElementWidgetActions.Close,
     useCallback(
       (evt) => {
-        // The call closes without playing its end sound (see getCallSoundHandoff): play it here.
+        // The call closes without playing its end sound: play it here.
         playCallEndSound(evt.detail?.data?.reason);
         logAndCallback('close')(evt);
       },
@@ -203,9 +203,7 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
   const [callUserVolumes] = useSetting(settingsAtom, 'callUserVolumes');
   const [callMutedUsers] = useSetting(settingsAtom, 'callMutedUsers');
   const [callSoundboardMutedUsers] = useSetting(settingsAtom, 'callSoundboardMutedUsers');
-  const allSettings = useAtomValue(settingsAtom);
   // Joined so the effect below compares by value; the array is new every render.
-  const mutedSounds = getMutedCallSounds(allSettings).join(',');
   const [audioInput] = useSetting(settingsAtom, 'callAudioInput');
   const [audioOutput] = useSetting(settingsAtom, 'callAudioOutput');
 
@@ -224,7 +222,6 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
         soundboardVolume,
         userVolumes: getCallUserVolumes({ callUserVolumes, callMutedUsers }),
         mutedSoundboards: callSoundboardMutedUsers,
-        mutedSounds: mutedSounds ? mutedSounds.split(',') : [],
         audioInput,
         audioOutput,
       })
@@ -245,7 +242,6 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
     callUserVolumes,
     callMutedUsers,
     callSoundboardMutedUsers,
-    mutedSounds,
     audioInput,
     audioOutput,
     embed,

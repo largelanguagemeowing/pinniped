@@ -251,14 +251,6 @@ export interface UrlConfiguration {
   soundOverrides?: Record<string, string>;
 
   /**
-   * Call end reasons ("timeout", "decline", "user") whose end-of-call sound the
-   * embedding client plays itself. The call then closes right away, instead of
-   * staying on screen until its own sound has finished, and reports the reason
-   * in the close action.
-   */
-  soundHandoff?: string[];
-
-  /**
    * Whether to run neural noise suppression (DeepFilterNet) on the microphone.
    * The embedding client owns this preference; it can change it mid-call with
    * the `io.cinny.denoise` widget action.
@@ -551,7 +543,6 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
     noiseSuppression: parser.getFlagParam("noiseSuppression", true),
     echoCancellation: parser.getFlagParam("echoCancellation", true),
     soundOverrides: parseSoundOverrides(parser.getParam("soundOverrides")),
-    soundHandoff: parser.getParam("soundHandoff")?.split(",").filter(Boolean),
     denoise: parser.getFlagParam("denoise", false),
     voiceGate: parser.getFlagParam("voiceGate", false),
     voiceGateAuto: parser.getFlagParam("voiceGateAuto", true),

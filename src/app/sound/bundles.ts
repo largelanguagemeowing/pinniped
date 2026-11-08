@@ -1,6 +1,13 @@
 import DefaultMessage from '../../../public/sound/notification.ogg';
 import DefaultInvite from '../../../public/sound/invite.ogg';
 import DefaultCall from '../../../public/sound/call.ogg';
+import DefaultRingback from '../../../public/sound/call-default/ringtone.ogg';
+import DefaultJoin from '../../../public/sound/call-default/join_call.ogg';
+import DefaultLeave from '../../../public/sound/call-default/left_call.ogg';
+import DefaultDeclined from '../../../public/sound/call-default/call_declined.ogg';
+import DefaultTimeout from '../../../public/sound/call-default/call_timeout.ogg';
+import DefaultRaiseHand from '../../../public/sound/call-default/raise_hand.ogg';
+import DefaultScreenshareStarted from '../../../public/sound/call-default/screen_share_started.ogg';
 
 /** Sounds every bundle can fall back to the default for. */
 export type CoreSoundKind = 'message' | 'invite' | 'call';
@@ -19,7 +26,9 @@ export type EventSoundKind =
   | 'callJoin'
   | 'callLeave'
   | 'callDeclined'
-  | 'callTimeout';
+  | 'callTimeout'
+  | 'raiseHand'
+  | 'screenshareStarted';
 export type SoundKind = CoreSoundKind | EventSoundKind;
 
 export const DEFAULT_SOUND_BUNDLE = 'default';
@@ -40,12 +49,23 @@ const files = import.meta.glob<string>('./bundles/*/*.{ogg,mp3,wav}', {
 });
 
 const bundles: Record<string, SoundUrls> = {
-  [DEFAULT_SOUND_BUNDLE]: { message: DefaultMessage, invite: DefaultInvite, call: DefaultCall },
+  [DEFAULT_SOUND_BUNDLE]: {
+    message: DefaultMessage,
+    invite: DefaultInvite,
+    call: DefaultCall,
+    ringback: DefaultRingback,
+    callJoin: DefaultJoin,
+    callLeave: DefaultLeave,
+    callDeclined: DefaultDeclined,
+    callTimeout: DefaultTimeout,
+    raiseHand: DefaultRaiseHand,
+    screenshareStarted: DefaultScreenshareStarted,
+  },
 };
 
 Object.entries(files).forEach(([path, url]) => {
   const match = path.match(
-    /^\.\/bundles\/([^/]+)\/(message|invite|call|sent|signin|signout|online|offline|callStart|callEnd|ringback|callJoin|callLeave|callDeclined|callTimeout)\.[^.]+$/
+    /^\.\/bundles\/([^/]+)\/(message|invite|call|sent|signin|signout|online|offline|callStart|callEnd|ringback|callJoin|callLeave|callDeclined|callTimeout|raiseHand|screenshareStarted)\.[^.]+$/
   );
   if (!match) return;
   const [, bundle, kind] = match;

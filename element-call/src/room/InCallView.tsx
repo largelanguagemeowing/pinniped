@@ -48,7 +48,6 @@ import {
   createCallViewModel$,
 } from "../state/CallViewModel/CallViewModel.ts";
 import { Grid, type TileProps } from "../grid/Grid";
-import { useInitial } from "../useInitial";
 import { SpotlightTile } from "../tile/SpotlightTile";
 import { type EncryptionSystem } from "../e2ee/sharedKeyManagement";
 import { E2eeType } from "../e2ee/e2eeType";
@@ -79,14 +78,10 @@ import { Toast } from "../Toast.tsx";
 import { type ElementCallError } from "../utils/errors.ts";
 import { ErrorSolidIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
 import overlayStyles from "../Overlay.module.css";
-import { prefetchSounds } from "../soundUtils";
-import { useAudioContext } from "../useAudioContext";
-import ringtoneMp3 from "../sound/ringtone.mp3?url";
-import ringtoneOgg from "../sound/ringtone.ogg?url";
+import { loopCallSound } from "../livekit/callSounds";
 import { useTrackProcessorObservable$ } from "../livekit/TrackProcessorContext.tsx";
 import { type Layout } from "../state/layout-types.ts";
 import { ObservableScope } from "../state/ObservableScope.ts";
-import { useLatest } from "../useLatest.ts";
 import { CallFooter, type FooterSnapshot } from "../components/CallFooter.tsx";
 import { FocusMediaContext, isTileBodyClick } from "../grid/FocusMedia.ts";
 import { SettingsIconButton } from "../button/Button.tsx";
@@ -244,27 +239,10 @@ export const InCallView: FC<InCallViewProps> = ({
   // Merge the refs so they can attach to the same element
   const containerRef = useMergedRefs(containerRef1, containerRef2);
 
-  const { showControls, header: headerStyle, soundOverrides } = useUrlParams();
+  const { showControls, header: headerStyle } = useUrlParams();
 
   const muteAllAudio = useBehavior(muteAllAudio$);
-  const hasWaitingIntro = soundOverrides?.waitingIntro !== undefined;
 
-  // Preload a waiting and decline sounds
-  const pickupPhaseSoundCache = useInitial(async () => {
-    return prefetchSounds({
-      waiting: { mp3: ringtoneMp3, ogg: ringtoneOgg },
-      // Played once before the loop, but only if the embedding client supplies one
-      // (a sound override); this default is never played.
-      waitingIntro: { mp3: ringtoneMp3, ogg: ringtoneOgg },
-    });
-  });
-
-  const pickupPhaseAudio = useAudioContext({
-    sounds: pickupPhaseSoundCache,
-    latencyHint: "interactive",
-    muted: muteAllAudio,
-  });
-  const latestPickupPhaseAudio = useLatest(pickupPhaseAudio);
   const toggleAudio = useBehavior(muteStates.audio.toggle$);
   const toggleVideo = useBehavior(muteStates.video.toggle$);
   const setAudioEnabled = useBehavior(muteStates.audio.setEnabled$);
@@ -300,30 +278,10 @@ export const InCallView: FC<InCallViewProps> = ({
     throw fatalCallError;
   }
 
-  // While ringing, loop the ringtone
+  // While ringing, the client loops the ringtone (after its intro, if it has one).
   useEffect((): void | (() => void) => {
-    const audio = latestPickupPhaseAudio.current;
-    if (ringing && audio) {
-      let cancelled = false;
-      let endSound: (() => Promise<void>) | undefined;
-      void (async (): Promise<void> => {
-        if (hasWaitingIntro) {
-          await audio.playSound("waitingIntro");
-        }
-        if (cancelled) return;
-        endSound = audio.playSoundLooping(
-          "waiting",
-          audio.soundDuration["waiting"] ?? 1,
-        );
-      })();
-      return () => {
-        cancelled = true;
-        void endSound?.().catch((e) => {
-          logger.error("Failed to stop ringing sound", e);
-        });
-      };
-    }
-  }, [ringing, latestPickupPhaseAudio, hasWaitingIntro]);
+    if (ringing) return loopCallSound("waiting", "waitingIntro");
+  }, [ringing]);
 
   // iOS Safari doesn't reliably fire `click` on plain <div>s, so we listen
   // for `pointerup` instead. Scrolls end in `pointercancel`, not `pointerup`,
@@ -679,6 +637,7 @@ export const InCallView: FC<InCallViewProps> = ({
         .send(ElementWidgetActions.CallActivity, {
           speaking: [...activity.speaking],
           muted: [...activity.muted],
+          deafened: [...activity.deafened],
           screenSharing: [...activity.screenSharing],
         })
         .catch(() => {});
@@ -741,7 +700,7 @@ export const InCallView: FC<InCallViewProps> = ({
       <FocusMediaContext value={focusMediaContext}>
         {renderContent()}
       </FocusMediaContext>
-      <CallEventAudioRenderer vm={vm} muted={muteAllAudio} />
+      <CallEventAudioRenderer vm={vm} />
       <ReactionsAudioRenderer vm={vm} muted={muteAllAudio} />
       {reconnectingToast}
       {publishErrorToast}

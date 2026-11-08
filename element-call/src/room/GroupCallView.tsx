@@ -53,11 +53,7 @@ import {
   useUrlParams,
 } from "../UrlParams";
 import { E2eeType } from "../e2ee/e2eeType";
-import { useAudioContext } from "../useAudioContext";
-import {
-  callEventAudioSounds,
-  type CallEventSounds,
-} from "./CallEventAudioRenderer";
+import {} from "./CallEventAudioRenderer";
 import { useLatest } from "../useLatest";
 import { usePageTitle } from "../usePageTitle";
 import {
@@ -66,9 +62,7 @@ import {
   UnknownCallError,
 } from "../utils/errors.ts";
 import { GroupCallErrorBoundary } from "./GroupCallErrorBoundary.tsx";
-import { muteAllAudio$ } from "../state/MuteAllAudioModel.ts";
 import { useAppBarTitle } from "../AppBar.tsx";
-import { useBehavior } from "../useBehavior.ts";
 
 /**
  * If there already are this many participants in the call, we automatically mute
@@ -111,14 +105,6 @@ export const GroupCallView: FC<Props> = ({
   );
   const memberships = useMatrixRTCSessionMemberships(rtcSession);
 
-  const muteAllAudio = useBehavior(muteAllAudio$);
-  const leaveSoundContext = useLatest(
-    useAudioContext<CallEventSounds>({
-      sounds: callEventAudioSounds,
-      latencyHint: "interactive",
-      muted: muteAllAudio,
-    }),
-  );
   // This should use `useEffectEvent` (only available in experimental versions)
   useEffect(() => {
     if (memberships.length >= MUTE_PARTICIPANT_COUNT)
@@ -306,31 +292,8 @@ export const GroupCallView: FC<Props> = ({
     (
       reason: "timeout" | "user" | "allOthersLeft" | "decline" | "error",
     ): void => {
-      let audioPromise: Promise<void> | undefined = undefined;
-      // The client plays this reason's sound itself, so there is nothing to
-      // wait for: closing right away is what makes the call disappear promptly.
-      const soundHandedOff =
-        widget !== null && !!getUrlParams().soundHandoff?.includes(reason);
-      if (soundHandedOff) {
-        logger.info(`[sound] skip ${reason} end sound (the client plays it)`);
-      } else {
-        switch (reason) {
-          case "allOthersLeft":
-            // When "allOthersLeft", the leaveSoundEffect$ in CallEventAudioRenderer
-            // already plays the "left" sound when the remote participant's media
-            // disappears. We play it here silenced (volumeOverwrite = 0) so we have the right duration in the audioPromise.
-            // (used to destory the widget)
-            audioPromise = leaveSoundContext.current?.playSound("left", 0);
-            break;
-          case "timeout":
-          case "decline":
-            audioPromise = leaveSoundContext.current?.playSound(reason);
-            break;
-          default:
-            audioPromise = leaveSoundContext.current?.playSound("left");
-        }
-      }
-
+      // The client plays the end sound after the call has closed, so there is nothing to wait
+      // for: closing right away is what makes the call disappear promptly.
       setJoined(false);
       setLeft(true);
 
@@ -353,13 +316,8 @@ export const GroupCallView: FC<Props> = ({
         window.setTimeout(resolve, 10);
       });
 
-      void Promise.all([audioPromise, posthogRequest])
-        .catch((e) =>
-          logger.error(
-            "Failed to play leave audio and/or send PostHog leave event",
-            e,
-          ),
-        )
+      void posthogRequest
+        .catch((e) => logger.error("Failed to send PostHog leave event", e))
         .then(async () => {
           if (!confineToRoom && !PosthogAnalytics.instance.isEnabled())
             void navigate("/");
@@ -389,15 +347,7 @@ export const GroupCallView: FC<Props> = ({
           }
         });
     },
-    [
-      setJoined,
-      leaveSoundContext,
-      widget,
-      room.roomId,
-      rtcSession,
-      confineToRoom,
-      navigate,
-    ],
+    [setJoined, widget, room.roomId, rtcSession, confineToRoom, navigate],
   );
 
   useEffect(() => {

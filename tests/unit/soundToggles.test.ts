@@ -47,33 +47,3 @@ describe('isSoundEnabled', () => {
     expect(new Set(kinds).size).toBe(kinds.length);
   });
 });
-
-describe('call sounds', () => {
-  it('replaces the call sounds the bundle has, except switched-off ones, which are muted', () => {
-    const s = settings({ soundToggles: { callJoin: false } });
-    expect(Object.keys(play.getCallSoundOverrides(s))).not.toContain('join');
-    expect(Object.keys(play.getCallSoundOverrides(s))).toContain('left');
-    expect(play.getMutedCallSounds(s)).toEqual(['join']);
-  });
-
-  it('leaves the call to play its own sounds when notification sounds are off', () => {
-    const s = settings({ isNotificationSounds: false, soundToggles: { callJoin: false } });
-    expect(play.getCallSoundOverrides(s)).toEqual({});
-    expect(play.getMutedCallSounds(s)).toEqual([]);
-  });
-});
-
-describe('end sound handoff', () => {
-  const store = (over: Partial<Settings>) =>
-    stored.set('settings', JSON.stringify({ isNotificationSounds: true, ...over }));
-
-  it('hands off the end sounds Cinny plays, and the muted ones, so the call closes at once', () => {
-    store({ notificationSoundBundle: 'skype', soundToggles: { callTimeout: false } });
-    expect(play.getCallSoundHandoff().sort()).toEqual(['decline', 'timeout', 'user']);
-  });
-
-  it('hands off only the muted ones when the bundle has no end sounds', () => {
-    store({ notificationSoundBundle: 'default', soundToggles: { callDeclined: false } });
-    expect(play.getCallSoundHandoff()).toEqual(['decline']);
-  });
-});

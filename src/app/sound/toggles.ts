@@ -89,6 +89,18 @@ export const SOUND_TOGGLES: readonly SoundToggle[] = [
     description: 'Your call times out.',
   },
   { kind: 'callEnd', group: 'Calls', title: 'Call Ended', description: 'You leave a call.' },
+  {
+    kind: 'raiseHand',
+    group: 'Calls',
+    title: 'Hand Raised',
+    description: 'Someone in your call raises a hand.',
+  },
+  {
+    kind: 'screenshareStarted',
+    group: 'Calls',
+    title: 'Screen Share Started',
+    description: 'Someone in your call starts sharing their screen.',
+  },
 ];
 
 /** Before each sound had a switch, these shared the "Event Sounds" one. */

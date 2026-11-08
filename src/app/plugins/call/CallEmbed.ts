@@ -27,8 +27,9 @@ import {
   ElementWidgetActions,
   getCallUserVolumes,
   screenShareAudioSource,
+  CallSoundCommand,
 } from './types';
-import { getCallSoundHandoff, getCallSoundOverrides, getMutedCallSounds } from '../../sound/play';
+import { handleCallSound } from '../../sound/callSounds';
 import { getSettings } from '../../state/settings';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
@@ -158,20 +159,11 @@ export class CallEmbed {
     );
     params.append('screenShareAudio', screenShareAudioSource(settings.callScreenShareAudio));
     params.append('soundVolume', settings.soundVolume.toString());
-    params.append('mutedSounds', getMutedCallSounds(settings).join(','));
     params.append('soundboardVolume', settings.soundboardVolume.toString());
     params.append('userVolumes', JSON.stringify(getCallUserVolumes(settings)));
     params.append('mutedSoundboards', settings.callSoundboardMutedUsers.join(','));
     params.append('audioInput', settings.callAudioInput);
     params.append('audioOutput', settings.callAudioOutput);
-
-    const soundHandoff = getCallSoundHandoff();
-    if (soundHandoff.length > 0) params.append('soundHandoff', soundHandoff.join(','));
-
-    const soundOverrides = getCallSoundOverrides();
-    if (Object.keys(soundOverrides).length > 0) {
-      params.append('soundOverrides', JSON.stringify(soundOverrides));
-    }
 
     const widgetUrl = new URL(
       `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
@@ -249,6 +241,15 @@ export class CallEmbed {
           return;
         }
         this.control.onMediaState(evt);
+      })
+    );
+
+    this.disposables.push(
+      this.listenAction<IWidgetApiRequest>(ElementWidgetActions.CallSound, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail, {});
+        // Deafened, the call is silent, so its sounds are too.
+        if (this.control.sound) handleCallSound(evt.detail.data as unknown as CallSoundCommand);
       })
     );
 

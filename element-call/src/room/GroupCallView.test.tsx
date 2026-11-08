@@ -248,7 +248,7 @@ test.skip("GroupCallView plays a leave sound synchronously in widget mode", asyn
   expect(leaveRTCSession).toHaveBeenCalledOnce();
 });
 
-test("Should close widget when all other left and have time to play a sound", async () => {
+test("Should close widget when all other left, without waiting for a sound", async () => {
   const user = userEvent.setup();
   let widgetClosedCalled = false;
   const { promise: widgetClosedPromise, resolve: widgetClosedResolver } =
@@ -271,24 +271,12 @@ test("Should close widget when all other left and have time to play a sound", as
     } as Partial<WidgetHelpers["api"]>,
     lazyActions: new LazyEventEmitter(),
   };
-  const resolvePlaySound = Promise.withResolvers<void>();
-  playSound = vi.fn().mockReturnValue(resolvePlaySound.promise);
-  (useAudioContext as MockedFunction<typeof useAudioContext>).mockReturnValue({
-    playSound,
-    playSoundLooping: vitest.fn(),
-    soundDuration: {},
-  });
 
   const { getByText } = createGroupCallView(widget as WidgetHelpers);
   const leaveButton = getByText("SimulateOtherLeft");
   await user.click(leaveButton);
   await flushPromises();
-  expect(widgetClosedCalled).toBeFalsy();
-  resolvePlaySound.resolve();
-
-  // Expect the leave sound to be played but silent (volumeOverwrite = 0)
-  // The allOthersLeft effect should already play a leave sound for the last user in the call.
-  expect(playSound).toHaveBeenCalledWith("left", 0);
+  // The client plays the leave sound; the widget does not wait for it.
   await widgetClosedPromise;
   await flushPromises();
   expect(widgetClosedCalled).toBeTruthy();
