@@ -44,6 +44,7 @@ import {
   type SoundboardCommand,
   soundboardCommand$,
 } from "./livekit/soundboard";
+import { screenShareStart$ } from "./livekit/screenShareStart";
 import {
   audioInput,
   audioOutput,
@@ -74,6 +75,8 @@ export enum ElementWidgetActions {
   // `{ denoise?, voiceGate?, voiceGateAuto?, voiceGateThreshold?, voiceTuning?, simulcast?, screenShare?, screenShareAudio?, soundVolume?, soundboardVolume?, userVolumes?, mutedSoundboards?, mutedSounds?, audioInput?, audioOutput? }`.
   // An empty device ID means the system default.
   CallSettings = "io.cinny.call_settings",
+  // toWidget (fork): start a screen share with the given options, see ScreenShareStart
+  ScreenShare = "io.cinny.screenshare",
   // toWidget (fork): play or stop a soundboard sound, see SoundboardCommand
   Soundboard = "io.cinny.soundboard",
   // fromWidget (fork): a CallStatsSample once a second while in a call
@@ -204,6 +207,16 @@ export const initializeWidget = (
         soundboardVolume.setValue(soundboardVolumeParam);
       audioInput.setValue(audioInputId);
       audioOutput.setValue(audioOutputId);
+      api.on(
+        `action:${ElementWidgetActions.ScreenShare}`,
+        (ev: CustomEvent<IWidgetApiRequest>) => {
+          ev.preventDefault();
+          const data = ev.detail.data as { quality: string; audio: string };
+          screenShareQuality.setValue(data.quality);
+          screenShareAudio.setValue(data.audio);
+          screenShareStart$.next();
+        },
+      );
       api.on(
         `action:${ElementWidgetActions.CallSettings}`,
         (ev: CustomEvent<IWidgetApiRequest>) => {
