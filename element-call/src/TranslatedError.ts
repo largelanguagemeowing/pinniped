@@ -29,12 +29,3 @@ export abstract class TranslatedError extends Error {
     this.translatedMessage = translationFn(messageKey);
   }
 }
-
-class TranslatedErrorImpl extends TranslatedError {}
-
-// i18next-parser can't detect calls to a constructor, so we expose a bare
-// function instead
-export const translatedError = (
-  messageKey: ParseKeys<DefaultNamespace, TOptions>,
-  t: TFunction<"app", undefined>,
-): TranslatedError => new TranslatedErrorImpl(messageKey, t);

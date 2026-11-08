@@ -46,12 +46,6 @@ export interface CallStatsConnection {
   inbound: CallStatsStream[];
 }
 
-export interface CallStatsSample {
-  /** Epoch ms. */
-  time: number;
-  connections: CallStatsConnection[];
-}
-
 type Stat = Record<string, unknown>;
 
 const num = (v: unknown): number | undefined =>

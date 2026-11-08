@@ -20,11 +20,9 @@ import { PosthogAnalytics } from "../analytics/PosthogAnalytics";
 import { FieldRow, InputField } from "../input/Input";
 import { StarRatingInput } from "../input/StarRatingInput";
 import { Link } from "../button/Link";
-import { LinkButton } from "../button";
 
 interface Props {
   client: MatrixClient;
-  isPasswordlessUser: boolean;
   hideHeader: boolean;
   confineToRoom: boolean;
   endedCallId: string;
@@ -32,7 +30,6 @@ interface Props {
 
 export const CallEndedView: FC<Props> = ({
   client,
-  isPasswordlessUser,
   hideHeader,
   confineToRoom,
   endedCallId,
@@ -41,7 +38,6 @@ export const CallEndedView: FC<Props> = ({
   const navigate = useNavigate();
 
   const { displayName } = useProfile(client);
-  const [surveySubmitted, setSurveySubmitted] = useState(false);
   const [starRating, setStarRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitDone, setSubmitDone] = useState(false);
@@ -63,10 +59,7 @@ export const CallEndedView: FC<Props> = ({
         setSubmitDone(true);
 
         setTimeout(() => {
-          if (isPasswordlessUser) {
-            // setting this renders the callEndedView with the invitation to create an account
-            setSurveySubmitted(true);
-          } else if (!confineToRoom) {
+          if (!confineToRoom) {
             // if the user already has an account immediately go back to the home screen
             navigate("/")?.catch((error) => {
               logger.error("Failed to navigate to /", error);
@@ -75,22 +68,7 @@ export const CallEndedView: FC<Props> = ({
         }, 1000);
       }, 1000);
     },
-    [endedCallId, navigate, isPasswordlessUser, confineToRoom, starRating],
-  );
-
-  const createAccountDialog = isPasswordlessUser && (
-    <div className={styles.callEndedContent}>
-      <Trans i18nKey="call_ended_view.create_account_prompt">
-        <p>Why not finish by setting up a password to keep your account?</p>
-        <p>
-          You'll be able to keep your name and set an avatar for use on future
-          calls
-        </p>
-      </Trans>
-      <LinkButton className={styles.callEndedButton} to="/register">
-        {t("call_ended_view.create_account_button")}
-      </LinkButton>
-    </div>
+    [endedCallId, navigate, confineToRoom, starRating],
   );
 
   const qualitySurveyDialog = (
@@ -144,16 +122,11 @@ export const CallEndedView: FC<Props> = ({
       <div className={styles.container}>
         <main className={styles.main}>
           <Heading size="xl" weight="semibold" className={styles.headline}>
-            {surveySubmitted
-              ? t("call_ended_view.headline", { displayName })
-              : t("call_ended_view.headline", { displayName }) +
-                "\n" +
-                t("call_ended_view.survey_prompt")}
+            {t("call_ended_view.headline", { displayName }) +
+              "\n" +
+              t("call_ended_view.survey_prompt")}
           </Heading>
-          {(!surveySubmitted || confineToRoom) &&
-          PosthogAnalytics.instance.isEnabled()
-            ? qualitySurveyDialog
-            : createAccountDialog}
+          {PosthogAnalytics.instance.isEnabled() ? qualitySurveyDialog : null}
         </main>
         {!confineToRoom && (
           <Text className={styles.footer}>

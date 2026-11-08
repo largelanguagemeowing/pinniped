@@ -84,7 +84,6 @@ declare global {
 
 interface Props {
   client: MatrixClient;
-  isPasswordlessUser: boolean;
   confineToRoom: boolean;
   preload: UrlParams["preload"];
   skipLobby: UrlParams["skipLobby"];
@@ -97,7 +96,6 @@ interface Props {
 
 export const GroupCallView: FC<Props> = ({
   client,
-  isPasswordlessUser,
   confineToRoom,
   preload,
   skipLobby,
@@ -363,11 +361,7 @@ export const GroupCallView: FC<Props> = ({
           ),
         )
         .then(async () => {
-          if (
-            !isPasswordlessUser &&
-            !confineToRoom &&
-            !PosthogAnalytics.instance.isEnabled()
-          )
+          if (!confineToRoom && !PosthogAnalytics.instance.isEnabled())
             void navigate("/");
 
           if (widget) {
@@ -401,7 +395,6 @@ export const GroupCallView: FC<Props> = ({
       widget,
       room.roomId,
       rtcSession,
-      isPasswordlessUser,
       confineToRoom,
       navigate,
     ],
@@ -492,15 +485,11 @@ export const GroupCallView: FC<Props> = ({
     // least for now), because we don't yet have designs that would allow widget
     // users to dismiss the feedback prompt and close the call window without
     // submitting anything.
-    if (
-      isPasswordlessUser ||
-      (PosthogAnalytics.instance.isEnabled() && widget === null)
-    ) {
+    if (PosthogAnalytics.instance.isEnabled() && widget === null) {
       body = (
         <CallEndedView
           endedCallId={rtcSession.room.roomId}
           client={client}
-          isPasswordlessUser={isPasswordlessUser}
           hideHeader={header === HeaderStyle.None}
           confineToRoom={confineToRoom}
         />

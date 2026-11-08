@@ -171,7 +171,6 @@ function createGroupCallView(
           <ProcessorProvider>
             <GroupCallView
               client={client}
-              isPasswordlessUser={false}
               confineToRoom={false}
               preload={false}
               skipLobby={false}
