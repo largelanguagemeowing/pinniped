@@ -178,6 +178,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         if (
           (isKeyHotkey('mod+enter', evt) ||
             (isKeyHotkey('enter', evt) &&
+              // On mobile, Enter is a newline; the save button saves.
+              !mobileOrTablet() &&
               // Like Discord: Enter inside an unclosed ``` block adds a new line.
               !isInOpenCodeBlock(editor))) &&
           !isComposing(evt)
