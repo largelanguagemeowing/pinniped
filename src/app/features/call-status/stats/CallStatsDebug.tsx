@@ -26,7 +26,8 @@ import {
 } from '../../../plugins/call';
 import { stopPropagation } from '../../../utils/keyboard';
 import { StatChartTile } from './StatChart';
-import { StatRow, StreamStats, streamsOf } from './StreamStats';
+import { StatRow, StreamStats } from './StreamStats';
+import { streamsOf } from './streams';
 
 type Direction = 'outbound' | 'inbound';
 /** `transport`, or one stream as `outbound:<ssrc>` / `inbound:<ssrc>`. */

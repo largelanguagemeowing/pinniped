@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, color, Text } from 'folds';
 import {
-  CallStatsConnection,
   CallStatsSample,
   CallStatsStream,
   findStream,
@@ -205,8 +204,3 @@ export function StreamStats({ samples, connIdx, direction, stream }: StreamStats
     </Box>
   );
 }
-
-export const streamsOf = (
-  connection: CallStatsConnection | undefined,
-  direction: 'outbound' | 'inbound'
-): CallStatsStream[] => connection?.[direction] ?? [];

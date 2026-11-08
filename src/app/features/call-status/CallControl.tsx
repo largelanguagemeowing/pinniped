@@ -1,10 +1,10 @@
 import { Box, Icon, IconButton, Icons, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { CallEmbed, useCallControlState } from '../../plugins/call';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { SoundboardButton } from '../soundboard/SoundboardButton';
-import { useScreenShareQualityMenu } from '../call/ScreenShareQualityMenu';
+import { ScreenSharePicker } from '../call/ScreenSharePicker';
 import { callEmbedAtom } from '../../state/callEmbed';
 
 type MicrophoneButtonProps = {
@@ -126,10 +126,9 @@ function VideoButton({ enabled, onToggle, disabled }: VideoButtonProps) {
 type ScreenShareButtonProps = {
   enabled: boolean;
   onToggle: () => void;
-  onQuality: (button: HTMLElement) => void;
   disabled?: boolean;
 };
-function ScreenShareButton({ enabled, onToggle, onQuality, disabled }: ScreenShareButtonProps) {
+function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareButtonProps) {
   return (
     <Box grow="Yes" gap="100">
       <TooltipProvider
@@ -156,18 +155,6 @@ function ScreenShareButton({ enabled, onToggle, onQuality, disabled }: ScreenSha
           </IconButton>
         )}
       </TooltipProvider>
-      <IconButton
-        variant={enabled ? 'Success' : 'Surface'}
-        fill="Soft"
-        radii="300"
-        size="300"
-        onClick={(evt) => onQuality(evt.currentTarget)}
-        aria-label="Stream quality"
-        outlined
-        disabled={disabled}
-      >
-        <Icon size="100" src={Icons.ChevronTop} />
-      </IconButton>
     </Box>
   );
 }
@@ -240,7 +227,7 @@ export function CallControl({
     [callEmbed]
   );
   const handleVideoToggle = useCallback(() => callEmbed.control.toggleVideo(), [callEmbed]);
-  const [openQuality, qualityMenu] = useScreenShareQualityMenu(callEmbed, screenshare);
+  const [pickingShare, setPickingShare] = useState(false);
 
   return (
     <Box grow="Yes" gap="100">
@@ -264,11 +251,17 @@ export function CallControl({
       <Box grow="Yes">
         <ScreenShareButton
           enabled={screenshare}
-          onToggle={() => callEmbed.control.toggleScreenshare()}
-          onQuality={openQuality}
+          // Starting a share asks for its options first, as in the call bar.
+          onToggle={() =>
+            screenshare ? callEmbed.control.toggleScreenshare() : setPickingShare(true)
+          }
           disabled={!callJoined}
         />
-        {qualityMenu}
+        <ScreenSharePicker
+          callEmbed={callEmbed}
+          open={pickingShare}
+          requestClose={() => setPickingShare(false)}
+        />
       </Box>
       <Box grow="Yes">
         <SoundboardButton callEmbed={callEmbed} variant="panel" disabled={!callJoined} />

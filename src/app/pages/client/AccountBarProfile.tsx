@@ -1,5 +1,6 @@
 import React, { MouseEventHandler, useEffect, useRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
+import { useAtom } from 'jotai';
 import {
   Avatar,
   Box,
@@ -24,6 +25,7 @@ import { UserHero, UserHeroName } from '../../components/user-profile/UserHero';
 import { UserBiography } from '../../components/user-profile/UserBiography';
 import { UserRichPresence } from '../../components/user-profile/UserRichPresence';
 import { Settings, SettingsPages } from '../../features/settings';
+import { settingsModalAtom } from '../../state/settingsModal';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { Presence, useUserPresence } from '../../hooks/useUserPresence';
@@ -160,7 +162,7 @@ export function AccountBarProfile() {
   const userId = mx.getSafeUserId();
   const profile = useUserProfile(userId);
   const richPresence = useUserRichPresence(userId);
-  const [settings, setSettings] = useState<{ page?: SettingsPages } | undefined>();
+  const [settings, setSettings] = useAtom(settingsModalAtom);
   const [menuCords, setMenuCords] = useState<RectCords>();
 
   const displayName = profile.displayName ?? getMxIdLocalPart(userId) ?? userId;
