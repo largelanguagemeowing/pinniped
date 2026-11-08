@@ -6,6 +6,7 @@ import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { SoundboardButton } from '../soundboard/SoundboardButton';
 import { ScreenSharePicker } from '../call/ScreenSharePicker';
 import { callEmbedAtom } from '../../state/callEmbed';
+import { VideoButton } from '../call/Controls';
 
 type MicrophoneButtonProps = {
   enabled: boolean;
@@ -75,47 +76,6 @@ function SoundButton({ enabled, onToggle, disabled }: SoundButtonProps) {
             size="100"
             src={enabled ? Icons.Headphone : Icons.HeadphoneMute}
             filled={!enabled}
-          />
-        </IconButton>
-      )}
-    </TooltipProvider>
-  );
-}
-
-type VideoButtonProps = {
-  enabled: boolean;
-  onToggle: () => Promise<unknown>;
-  disabled?: boolean;
-};
-function VideoButton({ enabled, onToggle, disabled }: VideoButtonProps) {
-  const [videoState, toggleVideo] = useAsyncCallback(onToggle);
-  const loading = videoState.status === AsyncStatus.Loading;
-
-  return (
-    <TooltipProvider
-      position="Top"
-      tooltip={
-        <Tooltip>
-          <Text size="T200">{enabled ? 'Stop Camera' : 'Start Camera'}</Text>
-        </Tooltip>
-      }
-    >
-      {(anchorRef) => (
-        <IconButton
-          ref={anchorRef}
-          variant={enabled ? 'Success' : 'Surface'}
-          fill="Soft"
-          radii="300"
-          size="300"
-          style={{ width: '100%' }}
-          onClick={toggleVideo}
-          outlined
-          disabled={disabled || loading}
-        >
-          <Icon
-            size="100"
-            src={enabled ? Icons.VideoCamera : Icons.VideoCameraMute}
-            filled={enabled}
           />
         </IconButton>
       )}
@@ -246,7 +206,7 @@ export function CallControl({
         />
       </Box>
       <Box grow="Yes">
-        <VideoButton enabled={video} onToggle={handleVideoToggle} disabled={!callJoined} />
+        <VideoButton enabled={video} onToggle={handleVideoToggle} disabled={!callJoined} compact />
       </Box>
       <Box grow="Yes">
         <ScreenShareButton

@@ -2,6 +2,7 @@ import React from 'react';
 import { Icon, IconButton, Icons, Line, Text, Tooltip, TooltipProvider } from 'folds';
 import * as css from './styles.css';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
+import { useCameraAvailable } from '../../hooks/useCameraAvailable';
 
 export function ControlDivider() {
   return (
@@ -84,10 +85,15 @@ export function SoundButton({ enabled, onToggle }: SoundButtonProps) {
 type VideoButtonProps = {
   enabled: boolean;
   onToggle: () => Promise<unknown>;
+  disabled?: boolean;
+  /** The smaller, full-width button of the call status popout. */
+  compact?: boolean;
 };
-export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
+export function VideoButton({ enabled, onToggle, disabled, compact }: VideoButtonProps) {
   const [videoState, toggleVideo] = useAsyncCallback(onToggle);
   const loading = videoState.status === AsyncStatus.Loading;
+  const cameraAvailable = useCameraAvailable();
+  const unavailable = !cameraAvailable;
 
   return (
     <TooltipProvider
@@ -95,7 +101,9 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
       delay={500}
       tooltip={
         <Tooltip>
-          <Text size="T200">{enabled ? 'Stop Camera' : 'Start Camera'}</Text>
+          <Text size="T200">
+            {unavailable ? 'Camera Unavailable' : enabled ? 'Stop Camera' : 'Start Camera'}
+          </Text>
         </Tooltip>
       }
     >
@@ -104,14 +112,15 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
           ref={anchorRef}
           variant={enabled ? 'Success' : 'Surface'}
           fill="Soft"
-          radii="400"
-          size="400"
+          radii={compact ? '300' : '400'}
+          size={compact ? '300' : '400'}
+          style={compact ? { width: '100%' } : undefined}
           onClick={toggleVideo}
           outlined
-          disabled={loading}
+          disabled={disabled || loading || unavailable}
         >
           <Icon
-            size="400"
+            size={compact ? '100' : '400'}
             src={enabled ? Icons.VideoCamera : Icons.VideoCameraMute}
             filled={enabled}
           />
