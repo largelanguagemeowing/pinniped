@@ -21,8 +21,7 @@ import { soundboardVolume } from "../settings/settings";
  * `url` is a same-origin (blob:) URL of an audio file the client has already downloaded.
  */
 export type SoundboardCommand =
-  | { op: "play"; url: string; mode?: "cut" | "add" }
-  | { op: "stop" };
+  { op: "play"; url: string; mode?: "cut" | "add" } | { op: "stop" };
 
 export const soundboardCommand$ = new Subject<SoundboardCommand>();
 

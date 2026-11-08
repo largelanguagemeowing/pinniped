@@ -43,8 +43,7 @@ import { videoFit$, videoSizeFromParticipant$ } from "../../utils/videoFit.ts";
  * A participant's user media (i.e. their microphone and camera feed).
  */
 export type UserMediaViewModel =
-  | LocalUserMediaViewModel
-  | RemoteUserMediaViewModel;
+  LocalUserMediaViewModel | RemoteUserMediaViewModel;
 
 export interface BaseUserMediaViewModel extends BaseMemberMediaViewModel {
   type: "user";

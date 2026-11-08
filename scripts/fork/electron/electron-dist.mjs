@@ -12,17 +12,17 @@ Please see LICENSE in the repository root for full details.
 // so a GitHub 504 fails the build. Prints nothing when there's no cached archive (the normal
 // download then runs).
 
-import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
-const root = new URL("../../..", import.meta.url).pathname;
-const { devDependencies } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const root = new URL('../../..', import.meta.url).pathname;
+const { devDependencies } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const version = devDependencies.electron;
 const archiveName = `electron-v${version}-linux-x64.zip`;
 
-const cacheRoot = process.env.ELECTRON_CACHE ?? join(homedir(), ".cache", "electron");
+const cacheRoot = process.env.ELECTRON_CACHE ?? join(homedir(), '.cache', 'electron');
 
 const findArchive = (dir) => {
   if (!existsSync(dir)) return undefined;
@@ -40,12 +40,14 @@ const findArchive = (dir) => {
 const archive = findArchive(cacheRoot);
 if (!archive) process.exit(0);
 
-const target = join(homedir(), ".cache", "electron-unpacked", version);
-if (!existsSync(join(target, "electron"))) {
+const target = join(homedir(), '.cache', 'electron-unpacked', version);
+if (!existsSync(join(target, 'electron'))) {
   // Unpack beside the target and rename, so an interrupted unpack never looks complete.
   const staging = `${target}.partial`;
   rmSync(staging, { recursive: true, force: true });
-  const result = spawnSync("unzip", ["-q", archive, "-d", staging], { stdio: ["ignore", "ignore", "inherit"] });
+  const result = spawnSync('unzip', ['-q', archive, '-d', staging], {
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
   if (result.status !== 0) {
     rmSync(staging, { recursive: true, force: true });
     process.exit(0);
