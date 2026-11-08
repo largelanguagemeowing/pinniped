@@ -40,23 +40,6 @@ export class CallControl extends EventEmitter implements CallControlState {
     return leaveBtn ?? undefined;
   }
 
-  private get settingsButton(): HTMLElement | undefined {
-    const settingsButtonLeft = this.document?.querySelector(
-      '[data-testid="settings-bottom-left"]'
-    ) as HTMLButtonElement | undefined;
-    const settingsButtonCenter = this.document?.querySelector(
-      '[data-testid="settings-bottom-center"]'
-    ) as HTMLButtonElement | undefined;
-
-    return settingsButtonLeft ?? settingsButtonCenter ?? undefined;
-  }
-
-  private get reactionsButton(): HTMLElement | undefined {
-    const reactionsButton = this.leaveButton?.previousElementSibling as HTMLElement | null;
-
-    return reactionsButton ?? undefined;
-  }
-
   private get spotlightButton(): HTMLInputElement | undefined {
     const spotlightButton = this.document?.querySelector(
       'input[value="spotlight"]'
@@ -282,14 +265,6 @@ export class CallControl extends EventEmitter implements CallControlState {
       return;
     }
     this.spotlightButton?.click();
-  }
-
-  public toggleReactions() {
-    this.reactionsButton?.click();
-  }
-
-  public toggleSettings() {
-    this.settingsButton?.click();
   }
 
   public dispose() {

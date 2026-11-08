@@ -15,17 +15,19 @@ import {
   Tooltip,
   TooltipProvider,
 } from 'folds';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { callFullscreenAtom, callIdleAtom } from '../../state/callEmbed';
+import { settingsModalAtom } from '../../state/settingsModal';
+import { SettingsPages } from '../settings';
 import * as css from './styles.css';
 import { MicrophoneButton, ScreenShareButton, SoundButton, VideoButton } from './Controls';
 import { SoundboardButton } from '../soundboard/SoundboardButton';
-import { useScreenShareQualityMenu } from './ScreenShareQualityMenu';
 import { CallEmbed, useCallControlState } from '../../plugins/call';
 import { stopPropagation } from '../../utils/keyboard';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
+import { ScreenSharePicker } from './ScreenSharePicker';
 
 type CallControlsProps = {
   callEmbed: CallEmbed;
@@ -34,6 +36,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
   const controlRef = useRef<HTMLDivElement>(null);
   const idle = useAtomValue(callIdleAtom);
   const [invitePrompt, setInvitePrompt] = useState(false);
+  const [pickingShare, setPickingShare] = useState(false);
   const [fullscreen, setFullscreen] = useAtom(callFullscreenAtom);
 
   useEffect(() => {
@@ -55,8 +58,6 @@ export function CallControls({ callEmbed }: CallControlsProps) {
     callEmbed.control
   );
 
-  const [openQuality, qualityMenu] = useScreenShareQualityMenu(callEmbed, screenshare);
-
   const [cords, setCords] = useState<RectCords>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -68,13 +69,9 @@ export function CallControls({ callEmbed }: CallControlsProps) {
     setCords(undefined);
   };
 
-  const handleReactionsClick = () => {
-    callEmbed.control.toggleReactions();
-    setCords(undefined);
-  };
-
+  const setSettingsModal = useSetAtom(settingsModalAtom);
   const handleSettingsClick = () => {
-    callEmbed.control.toggleSettings();
+    setSettingsModal({ page: SettingsPages.CallsPage });
     setCords(undefined);
   };
 
@@ -172,10 +169,16 @@ export function CallControls({ callEmbed }: CallControlsProps) {
       <Box className={css.ControlGroup} alignItems="Center" gap="100">
         <ScreenShareButton
           enabled={screenshare}
-          onToggle={() => callEmbed.control.toggleScreenshare()}
-          onQuality={openQuality}
+          // Starting a share asks for its options first; stopping one is immediate.
+          onToggle={() =>
+            screenshare ? callEmbed.control.toggleScreenshare() : setPickingShare(true)
+          }
         />
-        {qualityMenu}
+        <ScreenSharePicker
+          callEmbed={callEmbed}
+          open={pickingShare}
+          requestClose={() => setPickingShare(false)}
+        />
         <SoundboardButton callEmbed={callEmbed} variant="bar" />
         <PopOut
           anchor={cords}
@@ -199,14 +202,15 @@ export function CallControls({ callEmbed }: CallControlsProps) {
                       {spotlight ? 'Grid View' : 'Spotlight View'}
                     </Text>
                   </MenuItem>
-                  <MenuItem size="300" variant="Surface" radii="300" onClick={handleReactionsClick}>
+                  <MenuItem
+                    size="300"
+                    variant="Surface"
+                    radii="300"
+                    onClick={handleSettingsClick}
+                    before={<Icon size="100" src={Icons.Setting} />}
+                  >
                     <Text size="B300" truncate>
-                      Reactions
-                    </Text>
-                  </MenuItem>
-                  <MenuItem size="300" variant="Surface" radii="300" onClick={handleSettingsClick}>
-                    <Text size="B300" truncate>
-                      Settings
+                      Voice & Video Settings
                     </Text>
                   </MenuItem>
                 </Box>

@@ -1,12 +1,6 @@
 import { style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
 
-export const CallViewContent = style({
-  padding: config.space.S400,
-  paddingRight: 0,
-  minHeight: '100%',
-});
-
 export const ControlCard = style({
   padding: config.space.S300,
 });
@@ -60,3 +54,24 @@ export const EndButton = style({
 });
 
 export const MenuSlider = style({ width: '100%' });
+
+/** The voice channel's empty view: the theme's primary colour, lit from below, fading to the background. */
+export const PrescreenBackground = style({
+  minHeight: '100%',
+  overflow: 'auto',
+  padding: config.space.S400,
+});
+
+/** Behind the whole voice room before joining, header included. */
+export const PrescreenGradient = style({
+  background: `radial-gradient(120% 90% at 50% 110%, ${color.Primary.Main} 0%, ${color.Primary.Container} 45%, ${color.Background.Container} 100%)`,
+});
+
+/** The Join action: a white pill, as Discord's join button. */
+export const JoinVoiceButton = style({
+  background: '#ffffff',
+  color: '#1e1f22',
+  selectors: {
+    '&:hover': { background: '#e3e5e8' },
+  },
+});

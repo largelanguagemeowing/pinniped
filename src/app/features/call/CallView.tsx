@@ -1,5 +1,5 @@
 import React, { RefObject, useRef } from 'react';
-import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
+import { Badge, Box, color, Header, Text, toRem } from 'folds';
 import {
   useCallEmbed,
   useCallJoined,
@@ -58,7 +58,7 @@ function JoinMessage({
 
   return (
     <Text style={{ margin: 'auto' }} size="L400" align="Center">
-      Voice chat’s empty — Be the first to hop in!
+      No one is currently in voice
     </Text>
   );
 }
@@ -104,39 +104,45 @@ function CallPrescreen() {
   const canJoin = hasPermission && livekitSupported && rtcSupported;
 
   return (
-    <Scroll variant="Surface" hideTrack>
-      <Box className={css.CallViewContent} alignItems="Center" justifyContent="Center">
-        <Box style={{ maxWidth: toRem(382), width: '100%' }} direction="Column" gap="100">
-          {hasParticipant && (
-            <Header size="300">
-              <Box grow="Yes" alignItems="Center">
-                <Text size="L400">Participant</Text>
-              </Box>
-              <Badge variant="Critical" fill="Solid" size="400">
-                <Text as="span" size="L400" truncate>
-                  {callMembers.length} Live
-                </Text>
-              </Badge>
-            </Header>
-          )}
-          <CallMemberRenderer members={callMembers} />
-          <PrescreenControls canJoin={canJoin} />
-          <Box className={css.PrescreenMessage} alignItems="Center">
-            {!inOtherCall &&
-              (hasPermission ? (
-                <JoinMessage
-                  hasParticipant={hasParticipant}
-                  livekitSupported={livekitSupported}
-                  rtcSupported={rtcSupported}
-                />
-              ) : (
-                <NoPermissionMessage />
-              ))}
-            {inOtherCall && <AlreadyInCallMessage />}
-          </Box>
+    <Box className={css.PrescreenBackground} grow="Yes" alignItems="Center" justifyContent="Center">
+      <Box
+        style={{ maxWidth: toRem(420), width: '100%' }}
+        direction="Column"
+        gap="300"
+        alignItems="Center"
+      >
+        <Text size="H3" align="Center" truncate>
+          {room.name}
+        </Text>
+        {hasParticipant && (
+          <Header size="300" style={{ width: '100%' }}>
+            <Box grow="Yes" alignItems="Center">
+              <Text size="L400">Participant</Text>
+            </Box>
+            <Badge variant="Critical" fill="Solid" size="400">
+              <Text as="span" size="L400" truncate>
+                {callMembers.length} Live
+              </Text>
+            </Badge>
+          </Header>
+        )}
+        <CallMemberRenderer members={callMembers} />
+        <PrescreenControls canJoin={canJoin} />
+        <Box className={css.PrescreenMessage} alignItems="Center">
+          {!inOtherCall &&
+            (hasPermission ? (
+              <JoinMessage
+                hasParticipant={hasParticipant}
+                livekitSupported={livekitSupported}
+                rtcSupported={rtcSupported}
+              />
+            ) : (
+              <NoPermissionMessage />
+            ))}
+          {inOtherCall && <AlreadyInCallMessage />}
         </Box>
       </Box>
-    </Scroll>
+    </Box>
   );
 }
 
@@ -148,7 +154,8 @@ function CallJoined({ joined, containerRef }: CallJoinedProps) {
   const callEmbed = useCallEmbed();
 
   return (
-    <Box grow="Yes" direction="Column">
+    // Takes no room until joined, so the prescreen can fill the view.
+    <Box grow={joined ? 'Yes' : 'No'} direction="Column">
       <Box grow="Yes" ref={containerRef} />
       {callEmbed && joined && <CallControls callEmbed={callEmbed} />}
     </Box>
@@ -169,7 +176,7 @@ export function CallView() {
   return (
     <Box
       className={ContainerColor({ variant: 'Surface' })}
-      style={{ minWidth: toRem(280), background: '#000' }}
+      style={{ minWidth: toRem(280), background: currentJoined ? '#000' : 'transparent' }}
       grow="Yes"
     >
       {!currentJoined && <CallPrescreen />}

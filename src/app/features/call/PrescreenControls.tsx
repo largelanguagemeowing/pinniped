@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { Box, Button, Icon, Icons, Spinner, Text } from 'folds';
 import { SequenceCard } from '../../components/sequence-card';
 import * as css from './styles.css';
-import { ChatButton, ControlDivider, MicrophoneButton, SoundButton, VideoButton } from './Controls';
+import { ControlDivider, MicrophoneButton, SoundButton, VideoButton } from './Controls';
 import { useIsDirectRoom, useRoom } from '../../hooks/useRoom';
 import { useCallEmbed, useCallJoined, useCallStart } from '../../hooks/useCallEmbed';
 import { useCallPreferences } from '../../state/hooks/callPreferences';
@@ -46,10 +46,10 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
       <ControlDivider />
       <Box shrink="No" alignItems="Inherit" justifyContent="SpaceBetween" gap="200">
         <VideoButton enabled={video} onToggle={handleVideoToggle} />
-        <ChatButton />
       </Box>
       <Box grow="Yes" direction="Column">
         <Button
+          className={disabled ? undefined : css.JoinVoiceButton}
           variant={disabled ? 'Secondary' : 'Success'}
           fill={disabled ? 'Soft' : 'Solid'}
           onClick={() => startCall(room, { microphone, video, sound })}
@@ -62,7 +62,7 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
             )
           }
         >
-          <Text size="B400">Join</Text>
+          <Text size="B400">Join Voice</Text>
         </Button>
       </Box>
     </SequenceCard>

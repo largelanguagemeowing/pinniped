@@ -28,6 +28,8 @@ export enum ElementWidgetActions {
   DeviceMute = 'io.element.device_mute',
   /** Fork: sets the call audio preferences, see {@link ElementCallSettings}. */
   CallSettings = 'io.cinny.call_settings',
+  /** Fork: start a screen share with the chosen quality and audio, see {@link ScreenShareStart}. */
+  ScreenShare = 'io.cinny.screenshare',
   /** Fork: play or stop a soundboard sound in the call, see {@link SoundboardCommand}. */
   Soundboard = 'io.cinny.soundboard',
   /** Fork, from the widget: a CallStatsSample once a second. */
@@ -90,6 +92,9 @@ export type ElementCallSettings = {
   audioInput: string;
   audioOutput: string;
 };
+
+/** Start a screen share with these options; `quality` is `<resolution>:<fps>`, `audio` a screenShareAudioSource value. */
+export type ScreenShareStart = { quality: string; audio: string };
 
 /** `url` is a blob: URL of the audio, which the same-origin call widget can read. */
 export type SoundboardCommand = { op: 'play'; url: string; mode?: 'cut' | 'add' } | { op: 'stop' };

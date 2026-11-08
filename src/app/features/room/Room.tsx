@@ -15,7 +15,8 @@ import { CallView } from '../call/CallView';
 import { RoomViewHeader } from './RoomViewHeader';
 import { callChatAtom } from '../../state/callEmbed';
 import { CallChatView } from './CallChatView';
-import { useCallEmbed } from '../../hooks/useCallEmbed';
+import { useCallEmbed, useCallJoined } from '../../hooks/useCallEmbed';
+import * as callCss from '../call/styles.css';
 import { useCallMembers, useCallSession } from '../../hooks/useCall';
 import { DmCallSplit } from './DmCallSplit';
 
@@ -27,6 +28,7 @@ export function Room() {
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(callSession);
   const callEmbed = useCallEmbed();
+  const callJoined = useCallJoined(callEmbed);
 
   const [isDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
   const screenSize = useScreenSizeContext();
@@ -44,7 +46,15 @@ export function Room() {
     <PowerLevelsContextProvider value={powerLevels}>
       <Box grow="Yes">
         {!dmSplit && callView && (screenSize === ScreenSize.Desktop || !chat) && (
-          <Box grow="Yes" direction="Column">
+          <Box
+            grow="Yes"
+            direction="Column"
+            className={
+              callEmbed?.roomId === room.roomId && callJoined
+                ? undefined
+                : callCss.PrescreenGradient
+            }
+          >
             <RoomViewHeader callView />
             <Box grow="Yes">
               <CallView />

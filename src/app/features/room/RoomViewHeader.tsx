@@ -85,7 +85,12 @@ import { roomSearchDrawerActiveAtom } from '../../state/roomSearch';
 import { RoomSearchBar } from '../message-search/RoomSearchBar';
 import { useCallParticipantActivity } from '../../hooks/useCallSpeakers';
 import { CallEmbed } from '../../plugins/call/CallEmbed';
-import { useCallEmbed, useCallStart, useCallStartPreferences } from '../../hooks/useCallEmbed';
+import {
+  useCallEmbed,
+  useCallJoined,
+  useCallStart,
+  useCallStartPreferences,
+} from '../../hooks/useCallEmbed';
 import { useLivekitSupport } from '../../hooks/useLivekitSupport';
 import { webRTCSupported } from '../../utils/rtc';
 
@@ -468,6 +473,9 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
   const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
   const callIdle = useAtomValue(callIdleAtom);
   const embed = useCallEmbed();
+  // The black call bar and its idle fade apply only while this room's call is joined.
+  const callJoined = useCallJoined(embed);
+  const inCall = callView && embed?.roomId === room.roomId && callJoined;
   const { screenSharers } = useCallParticipantActivity(
     embed?.roomId === room.roomId ? embed : undefined
   );
@@ -542,16 +550,21 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
   return (
     <PageHeader
+      // The voice room's header has no divider line: it sits on the gradient.
+      outlined={!callView}
       className={ContainerColor({ variant: 'Surface' })}
       style={
-        callView
+        inCall
           ? {
               background: '#000',
               opacity: callIdle ? 0 : 1,
               pointerEvents: callIdle ? 'none' : undefined,
               transition: 'opacity 0.3s ease',
             }
-          : undefined
+          : // Before joining, the voice room's gradient shows through the header.
+            callView
+            ? { background: 'transparent' }
+            : undefined
       }
       balance={screenSize === ScreenSize.Mobile}
     >
@@ -755,7 +768,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
             </Box>
           )}
           {callView && <CallChatToggleButton />}
-          {screenSize === ScreenSize.Desktop && (
+          {!callView && screenSize === ScreenSize.Desktop && (
             <TooltipProvider
               position="Bottom"
               offset={4}
@@ -773,47 +786,51 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
             </TooltipProvider>
           )}
 
-          <TooltipProvider
-            position="Bottom"
-            align="End"
-            offset={4}
-            tooltip={
-              <Tooltip>
-                <Text>More Options</Text>
-              </Tooltip>
-            }
-          >
-            {(triggerRef) => (
-              <IconButton
-                fill="None"
-                onClick={handleOpenMenu}
-                ref={triggerRef}
-                aria-pressed={!!menuAnchor}
+          {!callView && (
+            <>
+              <TooltipProvider
+                position="Bottom"
+                align="End"
+                offset={4}
+                tooltip={
+                  <Tooltip>
+                    <Text>More Options</Text>
+                  </Tooltip>
+                }
               >
-                <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
-              </IconButton>
-            )}
-          </TooltipProvider>
-          <PopOut
-            anchor={menuAnchor}
-            position="Bottom"
-            align="End"
-            content={
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  returnFocusOnDeactivate: false,
-                  onDeactivate: () => setMenuAnchor(undefined),
-                  clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <RoomMenu room={room} requestClose={() => setMenuAnchor(undefined)} />
-              </FocusTrap>
-            }
-          />
+                {(triggerRef) => (
+                  <IconButton
+                    fill="None"
+                    onClick={handleOpenMenu}
+                    ref={triggerRef}
+                    aria-pressed={!!menuAnchor}
+                  >
+                    <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
+                  </IconButton>
+                )}
+              </TooltipProvider>
+              <PopOut
+                anchor={menuAnchor}
+                position="Bottom"
+                align="End"
+                content={
+                  <FocusTrap
+                    focusTrapOptions={{
+                      initialFocus: false,
+                      returnFocusOnDeactivate: false,
+                      onDeactivate: () => setMenuAnchor(undefined),
+                      clickOutsideDeactivates: true,
+                      isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+                      isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                      escapeDeactivates: stopPropagation,
+                    }}
+                  >
+                    <RoomMenu room={room} requestClose={() => setMenuAnchor(undefined)} />
+                  </FocusTrap>
+                }
+              />
+            </>
+          )}
           {!callView && screenSize === ScreenSize.Desktop && (
             <Box
               onFocusCapture={() => {

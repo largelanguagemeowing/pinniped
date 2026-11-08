@@ -1,8 +1,6 @@
 import React from 'react';
-import { Box, Icon, IconButton, Icons, Line, Text, Tooltip, TooltipProvider } from 'folds';
-import { useAtom } from 'jotai';
+import { Icon, IconButton, Icons, Line, Text, Tooltip, TooltipProvider } from 'folds';
 import * as css from './styles.css';
-import { callChatAtom } from '../../state/callEmbed';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 
 export function ControlDivider() {
@@ -126,73 +124,29 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
 type ScreenShareButtonProps = {
   enabled: boolean;
   onToggle: () => void;
-  onQuality: (button: HTMLElement) => void;
 };
-export function ScreenShareButton({ enabled, onToggle, onQuality }: ScreenShareButtonProps) {
-  return (
-    <Box gap="100" alignItems="Center">
-      <TooltipProvider
-        position="Top"
-        delay={500}
-        tooltip={
-          <Tooltip>
-            <Text size="T200">{enabled ? 'Stop Screenshare' : 'Start Screenshare'}</Text>
-          </Tooltip>
-        }
-      >
-        {(anchorRef) => (
-          <IconButton
-            ref={anchorRef}
-            variant={enabled ? 'Success' : 'Surface'}
-            fill="Soft"
-            radii="400"
-            size="400"
-            onClick={() => onToggle()}
-            outlined
-          >
-            <Icon size="400" src={Icons.ScreenShare} filled={enabled} />
-          </IconButton>
-        )}
-      </TooltipProvider>
-      <IconButton
-        variant={enabled ? 'Success' : 'Surface'}
-        fill="Soft"
-        radii="400"
-        size="300"
-        onClick={(evt) => onQuality(evt.currentTarget)}
-        aria-label="Stream quality"
-        outlined
-      >
-        <Icon size="200" src={Icons.ChevronTop} />
-      </IconButton>
-    </Box>
-  );
-}
-
-export function ChatButton() {
-  const [chat, setChat] = useAtom(callChatAtom);
-
+export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps) {
   return (
     <TooltipProvider
       position="Top"
       delay={500}
       tooltip={
         <Tooltip>
-          <Text size="T200">{chat ? 'Close Chat' : 'Open Chat'}</Text>
+          <Text size="T200">{enabled ? 'Stop Screenshare' : 'Start Screenshare'}</Text>
         </Tooltip>
       }
     >
       {(anchorRef) => (
         <IconButton
           ref={anchorRef}
-          variant={chat ? 'Success' : 'Surface'}
+          variant={enabled ? 'Success' : 'Surface'}
           fill="Soft"
           radii="400"
           size="400"
-          onClick={() => setChat(!chat)}
+          onClick={() => onToggle()}
           outlined
         >
-          <Icon size="400" src={Icons.Message} filled={chat} />
+          <Icon size="400" src={Icons.ScreenShare} filled={enabled} />
         </IconButton>
       )}
     </TooltipProvider>

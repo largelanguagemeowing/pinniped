@@ -303,6 +303,10 @@ export class CallEmbed {
     return this.call.transport.send(ElementWidgetActions.CallSettings, audio);
   }
 
+  public startScreenshare(quality: string, audio: string) {
+    return this.call.transport.send(ElementWidgetActions.ScreenShare, { quality, audio });
+  }
+
   public soundboard(command: SoundboardCommand) {
     return this.call.transport.send(ElementWidgetActions.Soundboard, command);
   }
