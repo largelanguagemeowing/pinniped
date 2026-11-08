@@ -1,15 +1,7 @@
 import { useAtomValue } from 'jotai';
 import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  MatrixEvent,
-  MatrixEventEvent,
-  Room,
-  RoomEvent,
-  RoomEventHandlerMap,
-  RoomStateEvent,
-  EventType,
-} from 'matrix-js-sdk';
+import { MatrixEvent, MatrixEventEvent, Room, RoomEvent, RoomEventHandlerMap } from 'matrix-js-sdk';
 import { logSound } from '../../sound/log';
 import { useSoundToggle } from '../../hooks/useSoundToggle';
 import { useSoundVolume } from '../../hooks/useSoundVolume';
@@ -35,9 +27,7 @@ import {
 } from '../../utils/room';
 import { NotificationType } from '../../../types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
-import { useSelectedRoom, useRouteSelectedRoom } from '../../hooks/router/useSelectedRoom';
-import { useRouteSelectedSpace } from '../../hooks/router/useSelectedSpace';
-import { subscribeVisibleRooms } from '../../../client/slidingSync';
+import { useSelectedRoom } from '../../hooks/router/useSelectedRoom';
 import { useInboxNotificationsSelected } from '../../hooks/router/useInbox';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
@@ -423,33 +413,6 @@ type ClientNonUIFeaturesProps = {
   children: ReactNode;
 };
 
-/**
- * With sliding sync only the rooms in list windows are synced; subscribe the open space, its children
- * and the open room so they are fully loaded. A no-op on servers that only offer classic /sync.
- */
-function SlidingSyncSubscriptions() {
-  const mx = useMatrixClient();
-  const spaceId = useRouteSelectedSpace();
-  const roomId = useRouteSelectedRoom();
-
-  useEffect(() => {
-    subscribeVisibleRooms(mx, spaceId, roomId);
-    if (!spaceId) return undefined;
-    // the space's child list arrives (or changes) after the subscription is first sent
-    const onState = (event: MatrixEvent) => {
-      if (event.getRoomId() === spaceId && event.getType() === EventType.SpaceChild) {
-        subscribeVisibleRooms(mx, spaceId, roomId);
-      }
-    };
-    mx.on(RoomStateEvent.Events, onState);
-    return () => {
-      mx.off(RoomStateEvent.Events, onState);
-    };
-  }, [mx, spaceId, roomId]);
-
-  return null;
-}
-
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   return (
     <>
@@ -464,7 +427,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SpaceAutoJoinFeature />
       <RoomNavShortcutsFeature />
       <RoomNavHistoryFeature />
-      <SlidingSyncSubscriptions />
       {children}
     </>
   );

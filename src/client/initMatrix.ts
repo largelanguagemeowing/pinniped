@@ -18,7 +18,6 @@ import { pushSessionToSW } from '../sw-session';
 import { compactServerAcls } from './compactServerAcl';
 import { USER_PROFILE_FIELDS } from '../types/matrix/profile';
 import { reportClientStorageError, resetClientStorageError } from './storageStatus';
-import { createSlidingSync } from './slidingSync';
 
 type Session = {
   baseUrl: string;
@@ -148,10 +147,7 @@ export const startClient = async (mx: MatrixClient) => {
   pushSessionToSW(mx.baseUrl, mx.getAccessToken() ?? undefined);
   refreshWellKnownCache(mx);
   compactServerAcls(mx);
-  // Sliding sync (MSC4186) when the homeserver offers it; classic /sync otherwise.
-  const slidingSync = await createSlidingSync(mx);
   await mx.startClient({
-    slidingSync,
     lazyLoadMembers: true,
     unstableMSC4429SyncUserProfileFields: USER_PROFILE_FIELDS,
   });
