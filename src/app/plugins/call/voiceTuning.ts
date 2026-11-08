@@ -11,7 +11,6 @@ export type VoiceTuning = {
   fadeOutMs: number;
   lookaheadMs: number;
   autoMarginDb: number;
-  indicatorSensitivity: number;
   indicatorHoldMs: number;
 };
 
@@ -22,7 +21,6 @@ export const defaultVoiceTuning: VoiceTuning = {
   fadeOutMs: 50,
   lookaheadMs: 20,
   autoMarginDb: 12,
-  indicatorSensitivity: 0.56,
   indicatorHoldMs: 250,
 };
 
@@ -109,17 +107,6 @@ export const autoTuningSpecs: VoiceTuningSpec[] = [
 
 /** The speaking indicator is independent of the gate. */
 export const indicatorTuningSpecs: VoiceTuningSpec[] = [
-  {
-    key: 'indicatorSensitivity',
-    title: 'Sensitivity',
-    description:
-      'How quiet a voice can be and still light up the speaking indicator. Higher needs a louder voice.',
-    min: 0,
-    max: 1,
-    step: 0.01,
-    unit: '%',
-    percent: true,
-  },
   {
     key: 'indicatorHoldMs',
     title: 'Hold Time',

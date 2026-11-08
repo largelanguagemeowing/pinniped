@@ -23,8 +23,6 @@ export const VOICE_OPEN_LEVEL = 0.008;
 export const VOICE_CLOSE_LEVEL = 0.005;
 /** How long to keep showing speech after the last loud moment, bridging gaps between words. */
 export const VOICE_HOLD_MS = 250;
-/** The speaking indicator's own gap between its open and close levels. */
-const INDICATOR_HYSTERESIS_DB = 4;
 
 /**
  * Decides from a stream of audio levels whether someone is speaking: opens
@@ -170,11 +168,11 @@ const context = (): AudioContext | undefined => {
 const SENT_OPEN_LEVEL = 10 ** (-75 / 20);
 const SENT_CLOSE_LEVEL = 10 ** (-80 / 20);
 
-/** Emits whether the audio in `track` is currently loud enough to be speech, or, if we send it, being broadcast. */
-function observeTrackVoice$({
-  track,
-  sentByUs,
-}: BroadcastTrack): Observable<boolean> {
+/**
+ * Emits whether the track carries sound: any audio above digital silence counts, for every
+ * participant, so the ring shows whenever someone is sending anything.
+ */
+function observeTrackVoice$({ track }: BroadcastTrack): Observable<boolean> {
   return new Observable<boolean>((subscriber) => {
     const ctx = context();
     if (ctx === undefined) {
@@ -190,14 +188,7 @@ function observeTrackVoice$({
     subscriber.next(false);
     const id = setInterval(() => {
       const tuning = voiceTuning.getValue();
-      if (sentByUs) gate.setLevels(SENT_OPEN_LEVEL, SENT_CLOSE_LEVEL);
-      else {
-        const levels = voiceGateLevels(
-          tuning.indicatorSensitivity,
-          INDICATOR_HYSTERESIS_DB,
-        );
-        gate.setLevels(levels.open, levels.close);
-      }
+      gate.setLevels(SENT_OPEN_LEVEL, SENT_CLOSE_LEVEL);
       gate.holdMs = tuning.indicatorHoldMs;
       subscriber.next(gate.update(measureLevel(analyser, samples), Date.now()));
     }, POLL_MS);

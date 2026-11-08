@@ -25,8 +25,6 @@ export interface VoiceTuning {
   lookaheadMs: number;
   /** In automatic mode, dB above the noise floor that opens the gate. */
   autoMarginDb: number;
-  /** 0-1: how quiet a voice may be and still light the speaking indicator. */
-  indicatorSensitivity: number;
   /** ms the speaking indicator stays on after the last loud moment. */
   indicatorHoldMs: number;
 }
@@ -38,7 +36,6 @@ export const defaultVoiceTuning: VoiceTuning = {
   fadeOutMs: 50,
   lookaheadMs: 20,
   autoMarginDb: 12,
-  indicatorSensitivity: 0.56,
   indicatorHoldMs: 250,
 };
 
@@ -49,7 +46,6 @@ const ranges: Record<keyof VoiceTuning, [min: number, max: number]> = {
   fadeOutMs: [5, 300],
   lookaheadMs: [0, 50],
   autoMarginDb: [6, 24],
-  indicatorSensitivity: [0, 1],
   indicatorHoldMs: [0, 1000],
 };
 

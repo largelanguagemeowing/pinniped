@@ -21,5 +21,5 @@ it('fills in values an older save lacks and formats them with their unit', () =>
   expect(withDefaultTuning({ holdMs: 500 })).toEqual({ ...defaultVoiceTuning, holdMs: 500 });
   expect(withDefaultTuning(undefined)).toEqual(defaultVoiceTuning);
   expect(formatTuningValue(gateTuningSpecs[0], 300)).toBe('300 ms');
-  expect(formatTuningValue(indicatorTuningSpecs[0], 0.56)).toBe('56%');
+  expect(formatTuningValue(indicatorTuningSpecs[0], 250)).toBe('250 ms');
 });
