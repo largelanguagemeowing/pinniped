@@ -103,6 +103,7 @@ import {
 } from '../../state/upload';
 import { getImageUrlBlob, loadImageElement } from '../../utils/dom';
 import { safeFile } from '../../utils/mimeTypes';
+import { stripMetadata } from '../../utils/stripMetadata';
 import { fulfilledPromiseSettledResult } from '../../utils/common';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
@@ -237,7 +238,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const handleFiles = useCallback(
       async (files: File[]) => {
         setUploadBoard(true);
-        const safeFiles = files.map(safeFile);
+        const safeFiles = await Promise.all(files.map((f) => stripMetadata(safeFile(f))));
         const fileItems: TUploadItem[] = [];
 
         if (room.hasEncryptionStateEvent()) {
