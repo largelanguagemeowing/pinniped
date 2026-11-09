@@ -20,6 +20,9 @@ description: Desktop build of the Pinniped Matrix client.
 rpm:
   summary: Yet another Matrix client
   compression: xz
+  scripts:
+    # Runs after the whole upgrade, including the old package's post-remove script.
+    posttrans: electron/linux/after-transaction.sh
 
 # Same runtime libraries electron-builder declared for the fpm package.
 depends:

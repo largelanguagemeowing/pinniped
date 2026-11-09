@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# RPM passes the number of versions still installed: 0 when the package is removed, 1 or more when
+# it is replaced by an upgrade. An upgrade keeps the link and the AppArmor profile.
+if [ "${1:-0}" -ge 1 ] 2>/dev/null; then
+    exit 0
+fi
+
 # Delete the link to the binary
 # update-alternatives --remove <name> <path>: 'path' must be the registered alternative binary,
 # not the generic symlink — see https://man7.org/linux/man-pages/man1/update-alternatives.1.html
