@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type RefObject, useRef } from "react";
+import { type RefObject, useLayoutEffect, useRef } from "react";
 
 export interface LatestRef<T> extends RefObject<T> {
   current: T; // Always defined, unlike RefObject["current"]
@@ -18,6 +18,9 @@ export interface LatestRef<T> extends RefObject<T> {
  */
 export function useLatest<T>(value: T): LatestRef<T> {
   const ref = useRef<T>(value);
-  ref.current = value;
+  // Updated after commit, not during render, so an uncommitted render cannot leak in.
+  useLayoutEffect(() => {
+    ref.current = value;
+  });
   return ref;
 }

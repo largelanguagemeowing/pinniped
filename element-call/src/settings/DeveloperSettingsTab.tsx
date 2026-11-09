@@ -361,7 +361,10 @@ export const DeveloperSettingsTab: FC<Props> = ({
         </InlineField>
       </Form>
       {livekitRooms?.map((livekitRoom) => (
-        <div className={styles.livekit_room_box}>
+        <div
+          key={`${livekitRoom.livekitAlias ?? ""}|${livekitRoom.url}`}
+          className={styles.livekit_room_box}
+        >
           <h4>
             {t("developer_mode.livekit_sfu", {
               url: livekitRoom.url || "unknown",

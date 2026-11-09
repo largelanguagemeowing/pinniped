@@ -26,6 +26,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -523,7 +524,9 @@ export function Grid<
   };
 
   const onTileDragRef = useRef(onTileDrag);
-  onTileDragRef.current = onTileDrag;
+  useLayoutEffect(() => {
+    onTileDragRef.current = onTileDrag;
+  });
 
   const scrollOffset = useRef(0);
 
