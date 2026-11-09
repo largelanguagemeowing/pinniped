@@ -2,6 +2,7 @@ import React, { MutableRefObject, ReactNode, useImperativeHandle, useRef } from 
 import { Badge, Box, Chip, Header, Icon, Icons, Spinner, Text, as, percent } from 'folds';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
+import { IContent } from 'matrix-js-sdk';
 
 import * as css from './UploadBoard.css';
 import { TUploadFamilyObserverAtom, Upload, UploadStatus, UploadSuccess } from '../../state/upload';
@@ -24,14 +25,14 @@ export const UploadBoard = as<'div', UploadBoardProps>(({ header, children, ...p
   </Box>
 ));
 
-export type UploadBoardImperativeHandlers = { handleSend: () => Promise<void> };
+export type UploadBoardImperativeHandlers = { handleSend: (caption?: IContent) => Promise<void> };
 
 type UploadBoardHeaderProps = {
   open: boolean;
   onToggle: () => void;
   uploadFamilyObserverAtom: TUploadFamilyObserverAtom;
   onCancel: (uploads: Upload[]) => void;
-  onSend: (uploads: UploadSuccess[]) => Promise<void>;
+  onSend: (uploads: UploadSuccess[], caption?: IContent) => Promise<void>;
   imperativeHandlerRef: MutableRefObject<UploadBoardImperativeHandlers | undefined>;
 };
 
@@ -62,11 +63,12 @@ export function UploadBoardHeader({
     { loaded: 0, total: 0 }
   );
 
-  const handleSend = async () => {
+  const handleSend = async (caption?: IContent) => {
     if (sendingRef.current) return;
     sendingRef.current = true;
     await onSend(
-      uploads.filter((upload) => upload.status === UploadStatus.Success) as UploadSuccess[]
+      uploads.filter((upload) => upload.status === UploadStatus.Success) as UploadSuccess[],
+      caption
     );
     sendingRef.current = false;
   };
@@ -94,7 +96,7 @@ export function UploadBoardHeader({
         {isSuccess && (
           <Chip
             as="button"
-            onClick={handleSend}
+            onClick={() => handleSend()}
             variant="Primary"
             radii="Pill"
             outlined

@@ -334,7 +334,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       handleRemoveUpload(uploads.map((upload) => upload.file));
     };
 
-    const handleSendUpload = async (uploads: UploadSuccess[]) => {
+    const handleSendUpload = async (uploads: UploadSuccess[], caption?: IContent) => {
       const contentsPromises = uploads.map(async (upload) => {
         const fileItem = selectedFiles.find((f) => f.file === upload.file);
         if (!fileItem) throw new Error('Broken upload');
@@ -352,8 +352,25 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
       handleCancelUpload(uploads);
       const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
+      // The typed text goes out as the caption of the first file, so it reads as
+      // one message. With no file to carry it, it is sent as plain text.
+      const outgoing: IContent[] = caption
+        ? contents.length > 0
+          ? [
+              {
+                ...contents[0],
+                body: caption.body,
+                ...(caption.format
+                  ? { format: caption.format, formatted_body: caption.formatted_body }
+                  : {}),
+                'm.mentions': caption['m.mentions'],
+              },
+              ...contents.slice(1),
+            ]
+          : [caption]
+        : contents;
       const sendResults = await Promise.allSettled(
-        contents.map((content) =>
+        outgoing.map((content) =>
           mx.sendMessage(roomId, addReplyRelation(content, replyDraft) as any)
         )
       );
@@ -366,8 +383,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const submit = useCallback(() => {
-      uploadBoardHandlers.current?.handleSend();
-
       const commandName = getBeginCommand(editor);
       let plainText = toPlainText(editor.children, true).trim();
       let customHtml = trimCustomHtml(
@@ -397,6 +412,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
       } else if (commandName) {
+        uploadBoardHandlers.current?.handleSend();
         const commandContent = commands[commandName as Command];
         if (commandContent) {
           commandContent.exe(plainText);
@@ -407,7 +423,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return;
       }
 
-      if (plainText === '') return;
+      if (plainText === '') {
+        uploadBoardHandlers.current?.handleSend();
+        return;
+      }
 
       const body = plainText;
       const formattedBody = customHtml;
@@ -430,15 +449,29 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         content.formatted_body = formattedBody;
       }
       setSendError(undefined);
-      mx.sendMessage(roomId, addReplyRelation(content, replyDraft) as any).catch(() =>
-        setSendError(SEND_FAILURE_MESSAGE)
-      );
+      if (selectedFiles.length > 0) {
+        uploadBoardHandlers.current?.handleSend(content);
+      } else {
+        mx.sendMessage(roomId, addReplyRelation(content, replyDraft) as any).catch(() =>
+          setSendError(SEND_FAILURE_MESSAGE)
+        );
+      }
       resetEditor(editor);
       resetEditorHistory(editor);
       setReplyDraft(undefined);
       sendTypingStatus(false);
       if (isMobile) safeFocusEditor(editor);
-    }, [mx, roomId, editor, replyDraft, sendTypingStatus, setReplyDraft, commands, isMobile]);
+    }, [
+      mx,
+      roomId,
+      editor,
+      replyDraft,
+      sendTypingStatus,
+      setReplyDraft,
+      commands,
+      isMobile,
+      selectedFiles,
+    ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
