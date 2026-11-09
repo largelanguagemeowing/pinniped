@@ -17,14 +17,15 @@ import {
   EventTimelineSet,
   EventTimelineSetHandlerMap,
   IContent,
+  M_POLL_END,
+  M_POLL_START,
   MatrixClient,
   MatrixEvent,
+  MsgType,
+  RelationType,
   Room,
   RoomEvent,
   RoomEventHandlerMap,
-  M_POLL_END,
-  M_POLL_START,
-  RelationType,
 } from 'matrix-js-sdk';
 import { HTMLReactParserOptions } from 'html-react-parser';
 import classNames from 'classnames';
@@ -66,7 +67,9 @@ import {
   MSticker,
   ImageContent,
   EventContent,
+  AlbumGrid,
 } from '../../components/message';
+import { getAlbumId } from '../../utils/album';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,
@@ -1196,6 +1199,34 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     );
   };
 
+  // Album helpers (see utils/album.ts). An album is consecutive events from one
+  // sender that carry the same album id; its first event is drawn as the grid.
+  const getEventAtItem = (item: number): MatrixEvent | undefined => {
+    const [eventTimeline, baseIndex] = getTimelineAndBaseIndex(timeline.linkedTimelines, item);
+    if (!eventTimeline) return undefined;
+    return getTimelineEvent(eventTimeline, getTimelineRelativeIndex(item, baseIndex));
+  };
+  const isSameAlbum = (a: MatrixEvent | undefined, b: MatrixEvent | undefined): boolean => {
+    if (!a || !b) return false;
+    const albumId = getAlbumId(a.getContent());
+    return (
+      albumId !== undefined &&
+      albumId === getAlbumId(b.getContent()) &&
+      a.getSender() === b.getSender()
+    );
+  };
+  const getAlbumMembers = (item: number, mEvent: MatrixEvent): MatrixEvent[] => {
+    const members = [mEvent];
+    let next = getEventAtItem(item + 1);
+    while (next && isSameAlbum(members[members.length - 1], next)) {
+      members.push(next);
+      next = getEventAtItem(item + members.length);
+    }
+    return members;
+  };
+  const isAlbumContinuation = (item: number, mEvent: MatrixEvent): boolean =>
+    item > 0 && isSameAlbum(getEventAtItem(item - 1), mEvent);
+
   const renderMatrixEvent = useMatrixEventRenderer<
     [string, MatrixEvent, number, EventTimelineSet, boolean]
   >(
@@ -1214,6 +1245,38 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         const senderId = mEvent.getSender() ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId) ?? getMxIdLocalPart(senderId) ?? senderId;
+        const albumMembers = getAlbumId(mEvent.getContent())
+          ? getAlbumMembers(item, mEvent)
+          : [mEvent];
+        // The album's caption is the first file's body when it differs from the
+        // filename. It renders as a normal text message, above the grid.
+        const albumCaptionContent = (() => {
+          if (albumMembers.length < 2) return undefined;
+          const content = albumMembers[0].getContent();
+          if (typeof content.filename !== 'string' || content.filename === content.body) {
+            return undefined;
+          }
+          return {
+            msgtype: MsgType.Text,
+            body: content.body,
+            format: content.format,
+            formatted_body: content.formatted_body,
+            'm.mentions': content['m.mentions'],
+          } as IContent;
+        })();
+        const albumCaption = albumCaptionContent && (
+          <RenderMessageContent
+            displayName={senderDisplayName}
+            msgType={MsgType.Text}
+            ts={mEvent.getTs()}
+            edited={false}
+            getContent={(() => albumCaptionContent) as GetContentCallback}
+            mediaAutoLoad={mediaAutoLoad}
+            urlPreview={showUrlPreview}
+            htmlReactParserOptions={htmlReactParserOptions}
+            linkifyOpts={linkifyOpts}
+          />
+        );
 
         return (
           <Message
@@ -1273,6 +1336,36 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
           >
             {mEvent.isRedacted() ? (
               <RedactedContent reason={mEvent.getUnsigned().redacted_because?.content.reason} />
+            ) : albumMembers.length > 1 ? (
+              <AlbumGrid
+                caption={albumCaption}
+                items={albumMembers.map((member) => {
+                  // The caption moves below the grid, so the cell renders without it.
+                  const memberContent = member.getContent();
+                  const cellContent = {
+                    ...memberContent,
+                    body: memberContent.filename ?? memberContent.body,
+                  };
+                  return {
+                    key: member.getId() ?? member.getTs().toString(),
+                    node: (
+                      <RenderMessageContent
+                        displayName={senderDisplayName}
+                        msgType={memberContent.msgtype ?? ''}
+                        ts={member.getTs()}
+                        edited={false}
+                        getContent={(() => cellContent) as GetContentCallback}
+                        mediaAutoLoad={mediaAutoLoad}
+                        urlPreview={false}
+                        htmlReactParserOptions={htmlReactParserOptions}
+                        linkifyOpts={linkifyOpts}
+                        outlineAttachment={messageLayout === MessageLayout.Bubble}
+                        fill
+                      />
+                    ),
+                  };
+                })}
+              />
             ) : (
               <RenderMessageContent
                 displayName={senderDisplayName}
@@ -1972,17 +2065,18 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       prevEvent.getType() === mEvent.getType() &&
       minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
 
-    const eventJSX = reactionOrEditEvent(mEvent)
-      ? null
-      : renderMatrixEvent(
-          mEvent.getType(),
-          typeof mEvent.getStateKey() === 'string',
-          mEventId,
-          mEvent,
-          item,
-          timelineSet,
-          collapsed
-        );
+    const eventJSX =
+      reactionOrEditEvent(mEvent) || isAlbumContinuation(item, mEvent)
+        ? null
+        : renderMatrixEvent(
+            mEvent.getType(),
+            typeof mEvent.getStateKey() === 'string',
+            mEventId,
+            mEvent,
+            item,
+            timelineSet,
+            collapsed
+          );
     prevEvent = mEvent;
     isPrevRendered = !!eventJSX;
 

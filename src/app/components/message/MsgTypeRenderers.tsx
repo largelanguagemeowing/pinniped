@@ -188,8 +188,10 @@ type MImageProps = {
   content: IImageContent;
   renderImageContent: (props: RenderImageContentProps) => ReactNode;
   outlined?: boolean;
+  /** Fill the parent box instead of sizing to the image (album grid cells). */
+  fill?: boolean;
 };
-export function MImage({ content, renderImageContent, outlined }: MImageProps) {
+export function MImage({ content, renderImageContent, outlined, fill }: MImageProps) {
   const imgInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
   if (typeof mxcUrl !== 'string') {
@@ -205,14 +207,14 @@ export function MImage({ content, renderImageContent, outlined }: MImageProps) {
   const MAX_H = isGif ? 350 : 600;
   const [width, height] = fitWithin(imgInfo?.w, imgInfo?.h, MAX_W, MAX_H);
 
+  const attachmentStyle = fill ? { width: '100%', height: '100%' } : { width: toRem(width) };
+  const boxStyle = fill
+    ? { width: '100%', height: '100%' }
+    : { width: toRem(width), height: toRem(height < 48 ? 48 : height) };
+
   return (
-    <Attachment outlined={outlined} style={{ width: toRem(width) }}>
-      <AttachmentBox
-        style={{
-          width: toRem(width),
-          height: toRem(height < 48 ? 48 : height),
-        }}
-      >
+    <Attachment outlined={outlined} style={attachmentStyle}>
+      <AttachmentBox style={boxStyle}>
         {renderImageContent({
           body: content.body || 'Image',
           info: imgInfo,

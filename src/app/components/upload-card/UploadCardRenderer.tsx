@@ -1,6 +1,7 @@
-import React, { ReactNode, useEffect } from 'react';
-import { Box, Chip, Icon, IconButton, Icons, Text, color, config, toRem } from 'folds';
-import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
+import React, { useEffect } from 'react';
+import { Box, Icon, IconButton, Icons, ProgressBar, Text, color } from 'folds';
+import * as css from './UploadCard.css';
+import { UploadCardError } from './UploadCard';
 import { UploadStatus, UploadSuccess, useBindUploadAtom } from '../../state/upload';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { TUploadContent } from '../../utils/matrix';
@@ -13,89 +14,23 @@ import {
 import { useObjectURL } from '../../hooks/useObjectURL';
 import { useMediaConfig } from '../../hooks/useMediaConfig';
 
-type PreviewImageProps = {
+type PreviewMediaProps = {
   fileItem: TUploadItem;
 };
-function PreviewImage({ fileItem }: PreviewImageProps) {
+function PreviewMedia({ fileItem }: PreviewMediaProps) {
   const { originalFile, metadata } = fileItem;
   const fileUrl = useObjectURL(originalFile);
+  if (!fileUrl) return null;
 
+  const style = {
+    filter: metadata.markedAsSpoiler ? 'blur(22px)' : undefined,
+  };
+  if (originalFile.type.startsWith('video')) {
+    return <video className={css.UploadTileMedia} style={style} src={fileUrl} muted />;
+  }
   return (
-    <img
-      style={{
-        objectFit: 'contain',
-        width: '100%',
-        height: toRem(152),
-        filter: metadata.markedAsSpoiler ? 'blur(44px)' : undefined,
-      }}
-      alt={originalFile.name}
-      src={fileUrl}
-    />
+    <img className={css.UploadTileMedia} style={style} alt={originalFile.name} src={fileUrl} />
   );
-}
-
-type PreviewVideoProps = {
-  fileItem: TUploadItem;
-};
-function PreviewVideo({ fileItem }: PreviewVideoProps) {
-  const { originalFile, metadata } = fileItem;
-  const fileUrl = useObjectURL(originalFile);
-
-  return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
-    <video
-      style={{
-        objectFit: 'contain',
-        width: '100%',
-        height: toRem(152),
-        filter: metadata.markedAsSpoiler ? 'blur(44px)' : undefined,
-      }}
-      src={fileUrl}
-    />
-  );
-}
-
-type MediaPreviewProps = {
-  fileItem: TUploadItem;
-  onSpoiler: (marked: boolean) => void;
-  children: ReactNode;
-};
-function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
-  const { originalFile, metadata } = fileItem;
-  const fileUrl = useObjectURL(originalFile);
-
-  return fileUrl ? (
-    <Box
-      style={{
-        borderRadius: config.radii.R300,
-        overflow: 'hidden',
-        backgroundColor: 'black',
-        position: 'relative',
-      }}
-    >
-      {children}
-      <Box
-        justifyContent="End"
-        style={{
-          position: 'absolute',
-          bottom: config.space.S100,
-          left: config.space.S100,
-          right: config.space.S100,
-        }}
-      >
-        <Chip
-          variant={metadata.markedAsSpoiler ? 'Warning' : 'Secondary'}
-          fill="Soft"
-          radii="Pill"
-          aria-pressed={metadata.markedAsSpoiler}
-          before={<Icon src={Icons.EyeBlind} size="50" />}
-          onClick={() => onSpoiler(!metadata.markedAsSpoiler)}
-        >
-          <Text size="B300">Spoiler</Text>
-        </Chip>
-      </Box>
-    </Box>
-  ) : null;
 }
 
 type UploadCardRendererProps = {
@@ -126,8 +61,12 @@ export function UploadCardRenderer({
     startUpload();
   }
 
-  const handleSpoiler = (marked: boolean) => {
-    setMetadata(fileItem, { ...metadata, markedAsSpoiler: marked });
+  const isMedia =
+    fileItem.originalFile.type.startsWith('image') ||
+    fileItem.originalFile.type.startsWith('video');
+
+  const handleSpoiler = () => {
+    setMetadata(fileItem, { ...metadata, markedAsSpoiler: !metadata.markedAsSpoiler });
   };
 
   const removeUpload = () => {
@@ -142,75 +81,79 @@ export function UploadCardRenderer({
   }, [upload, onComplete]);
 
   return (
-    <UploadCard
-      radii="300"
-      before={<Icon src={getFileTypeIcon(Icons, file.type)} />}
-      after={
-        <>
+    <Box className={css.UploadTile} direction="Column" gap="100">
+      <Box className={css.UploadTileFrame}>
+        {isMedia ? (
+          <PreviewMedia fileItem={fileItem} />
+        ) : (
+          <Icon src={getFileTypeIcon(Icons, file.type)} size="400" />
+        )}
+        {upload.status === UploadStatus.Loading && (
+          <Box className={css.UploadTileProgress}>
+            <ProgressBar
+              variant="Secondary"
+              size="300"
+              min={0}
+              max={file.size}
+              value={upload.progress.loaded}
+            />
+          </Box>
+        )}
+        {upload.status === UploadStatus.Success && (
+          <Box className={css.UploadTileDone}>
+            <Icon style={{ color: color.Success.Main }} src={Icons.Check} size="100" />
+          </Box>
+        )}
+        <Box className={css.UploadTileActions}>
+          {isMedia && upload.status !== UploadStatus.Error && (
+            <IconButton
+              onClick={handleSpoiler}
+              aria-label="Mark as spoiler"
+              aria-pressed={metadata.markedAsSpoiler}
+              variant={metadata.markedAsSpoiler ? 'Warning' : 'SurfaceVariant'}
+              radii="300"
+              size="300"
+            >
+              <Icon src={Icons.EyeBlind} size="100" />
+            </IconButton>
+          )}
           {upload.status === UploadStatus.Error && (
-            <Chip
-              as="button"
+            <IconButton
               onClick={startUpload}
               aria-label="Retry Upload"
-              variant="Critical"
-              radii="Pill"
-              outlined
+              variant="SurfaceVariant"
+              radii="300"
+              size="300"
             >
-              <Text size="B300">Retry</Text>
-            </Chip>
+              <Icon src={Icons.Reload} size="100" />
+            </IconButton>
           )}
           <IconButton
             onClick={removeUpload}
-            aria-label="Cancel Upload"
-            variant="SurfaceVariant"
-            radii="Pill"
+            aria-label="Remove File"
+            variant="Critical"
+            radii="300"
             size="300"
           >
-            <Icon src={Icons.Cross} size="200" />
+            <Icon src={Icons.Delete} size="100" />
           </IconButton>
-        </>
-      }
-      bottom={
-        <>
-          {fileItem.originalFile.type.startsWith('image') && (
-            <MediaPreview fileItem={fileItem} onSpoiler={handleSpoiler}>
-              <PreviewImage fileItem={fileItem} />
-            </MediaPreview>
-          )}
-          {fileItem.originalFile.type.startsWith('video') && (
-            <MediaPreview fileItem={fileItem} onSpoiler={handleSpoiler}>
-              <PreviewVideo fileItem={fileItem} />
-            </MediaPreview>
-          )}
-          {upload.status === UploadStatus.Idle && !fileSizeExceeded && (
-            <UploadCardProgress sentBytes={0} totalBytes={file.size} />
-          )}
-          {upload.status === UploadStatus.Loading && (
-            <UploadCardProgress sentBytes={upload.progress.loaded} totalBytes={file.size} />
-          )}
-          {upload.status === UploadStatus.Error && (
-            <UploadCardError>
-              <Text size="T200">{upload.error.message}</Text>
-            </UploadCardError>
-          )}
-          {upload.status === UploadStatus.Idle && fileSizeExceeded && (
-            <UploadCardError>
-              <Text size="T200">
-                The file size exceeds the limit. Maximum allowed size is{' '}
-                <b>{bytesToSize(allowSize)}</b>, but the uploaded file is{' '}
-                <b>{bytesToSize(file.size)}</b>.
-              </Text>
-            </UploadCardError>
-          )}
-        </>
-      }
-    >
-      <Text size="H6" truncate>
+        </Box>
+      </Box>
+      <Text size="T300" truncate title={file.name}>
         {file.name}
       </Text>
-      {upload.status === UploadStatus.Success && (
-        <Icon style={{ color: color.Success.Main }} src={Icons.Check} size="100" />
+      {upload.status === UploadStatus.Error && (
+        <UploadCardError>
+          <Text size="T200">{upload.error.message}</Text>
+        </UploadCardError>
       )}
-    </UploadCard>
+      {upload.status === UploadStatus.Idle && fileSizeExceeded && (
+        <UploadCardError>
+          <Text size="T200">
+            Exceeds the limit of <b>{bytesToSize(allowSize)}</b>.
+          </Text>
+        </UploadCardError>
+      )}
+    </Box>
   );
 }

@@ -92,8 +92,8 @@ import { UploadCardRenderer } from '../../components/upload-card';
 import {
   UploadBoard,
   UploadBoardContent,
-  UploadBoardHeader,
   UploadBoardImperativeHandlers,
+  UploadBoardSender,
 } from '../../components/upload-board';
 import {
   Upload,
@@ -104,7 +104,8 @@ import {
 import { getImageUrlBlob, loadImageElement } from '../../utils/dom';
 import { safeFile } from '../../utils/mimeTypes';
 import { stripMetadata } from '../../utils/stripMetadata';
-import { fulfilledPromiseSettledResult } from '../../utils/common';
+import { fulfilledPromiseSettledResult, randomStr } from '../../utils/common';
+import { ALBUM_CONTENT_KEY } from '../../utils/album';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import {
@@ -209,7 +210,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const replyUsernameColor =
       legacyUsernameColor || direct ? colorMXID(replyUserID ?? '') : replyPowerColor;
 
-    const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(roomId));
     const uploadFamilyObserverAtom = createUploadFamilyObserverAtom(
       roomUploadAtomFamily,
@@ -237,7 +237,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const handleFiles = useCallback(
       async (files: File[]) => {
-        setUploadBoard(true);
         const safeFiles = await Promise.all(files.map((f) => stripMetadata(safeFile(f))));
         const fileItems: TUploadItem[] = [];
 
@@ -351,7 +350,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return getFileMsgContent(fileItem, upload.mxc);
       });
       handleCancelUpload(uploads);
-      const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
+      const fetchedContents = fulfilledPromiseSettledResult(
+        await Promise.allSettled(contentsPromises)
+      );
+      // Several files go out as one event each, tagged with a shared album id so
+      // they show as one grid (see utils/album.ts).
+      const albumId = fetchedContents.length > 1 ? randomStr(16) : undefined;
+      const contents = albumId
+        ? fetchedContents.map((content) => ({ ...content, [ALBUM_CONTENT_KEY]: albumId }))
+        : fetchedContents;
       // The typed text goes out as the caption of the first file, so it reads as
       // one message. With no file to carry it, it is sent as plain text.
       const outgoing: IContent[] = caption
@@ -640,35 +647,27 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     return (
       <div ref={ref}>
         {selectedFiles.length > 0 && (
-          <UploadBoard
-            header={
-              <UploadBoardHeader
-                open={uploadBoard}
-                onToggle={() => setUploadBoard(!uploadBoard)}
-                uploadFamilyObserverAtom={uploadFamilyObserverAtom}
-                onSend={handleSendUpload}
-                imperativeHandlerRef={uploadBoardHandlers}
-                onCancel={handleCancelUpload}
-              />
-            }
-          >
-            {uploadBoard && (
-              <Scroll size="300" hideTrack visibility="Hover">
-                <UploadBoardContent>
-                  {Array.from(selectedFiles)
-                    .reverse()
-                    .map((fileItem, index) => (
-                      <UploadCardRenderer
-                        key={index}
-                        isEncrypted={!!fileItem.encInfo}
-                        fileItem={fileItem}
-                        setMetadata={handleFileMetadata}
-                        onRemove={handleRemoveUpload}
-                      />
-                    ))}
-                </UploadBoardContent>
-              </Scroll>
-            )}
+          <UploadBoard>
+            <UploadBoardSender
+              uploadFamilyObserverAtom={uploadFamilyObserverAtom}
+              onSend={handleSendUpload}
+              imperativeHandlerRef={uploadBoardHandlers}
+            />
+            <Scroll size="300" hideTrack visibility="Hover">
+              <UploadBoardContent>
+                {Array.from(selectedFiles)
+                  .reverse()
+                  .map((fileItem, index) => (
+                    <UploadCardRenderer
+                      key={index}
+                      isEncrypted={!!fileItem.encInfo}
+                      fileItem={fileItem}
+                      setMetadata={handleFileMetadata}
+                      onRemove={handleRemoveUpload}
+                    />
+                  ))}
+              </UploadBoardContent>
+            </Scroll>
           </UploadBoard>
         )}
         {pollCreator && <PollCreator room={room} requestClose={() => setPollCreator(false)} />}

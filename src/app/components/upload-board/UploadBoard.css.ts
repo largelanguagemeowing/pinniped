@@ -21,7 +21,6 @@ export const UploadBoardContainer = style([
 ]);
 
 export const UploadBoard = style({
-  maxWidth: toRem(400),
   width: '100%',
   maxHeight: toRem(450),
   height: '100%',
@@ -34,13 +33,9 @@ export const UploadBoard = style({
   pointerEvents: 'all',
 });
 
-export const UploadBoardHeaderContent = style({
-  height: '100%',
-  padding: `0 ${config.space.S200}`,
-});
-
 export const UploadBoardContent = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: config.space.S200,
   padding: config.space.S200,
-  paddingBottom: 0,
-  paddingRight: 0,
 });

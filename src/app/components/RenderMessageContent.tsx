@@ -52,6 +52,8 @@ type RenderMessageContentProps = {
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
+  /** Images fill their parent box instead of sizing to the image (album grid). */
+  fill?: boolean;
 };
 export function RenderMessageContent({
   displayName,
@@ -65,6 +67,7 @@ export function RenderMessageContent({
   htmlReactParserOptions,
   linkifyOpts,
   outlineAttachment,
+  fill,
 }: RenderMessageContentProps) {
   const messageContent: Record<string, unknown> = getContent();
   const trimmedContent = {
@@ -249,12 +252,20 @@ export function RenderMessageContent({
           renderImageContent={(props) => (
             <ImageContent
               {...props}
+              style={fill ? { width: '100%', height: '100%' } : undefined}
               autoPlay={mediaAutoLoad}
-              renderImage={(p) => <Image {...p} loading="lazy" />}
+              renderImage={(p) => (
+                <Image
+                  {...p}
+                  loading="lazy"
+                  style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : undefined}
+                />
+              )}
               renderViewer={(p) => <ImageViewer {...p} />}
             />
           )}
           outlined={outlineAttachment}
+          fill={fill}
         />
         {renderCaption()}
       </>
