@@ -10,12 +10,8 @@ directories:
 # and explicitly drop node_modules to keep the package lean
 files:
   - dist/**/*
-  - electron/main.cjs
-  - electron/preload.cjs
-  - electron/app-protocol.cjs
-  - electron/menu.cjs
-  - electron/rich-presence.cjs
-  - electron/screenshare-audio.cjs
+  # Every main-process module; a file left out only fails when the installed app starts.
+  - electron/*.cjs
   - electron/build/icon.png
   - package.json
   - '!node_modules/**/*'
