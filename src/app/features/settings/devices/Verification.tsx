@@ -281,7 +281,8 @@ export function DeviceVerificationOptions() {
         withSearchParam(authUrl, {
           action: accountManagementActions.crossSigningReset,
         }),
-        '_blank'
+        '_blank',
+        'noopener,noreferrer'
       );
       return;
     }

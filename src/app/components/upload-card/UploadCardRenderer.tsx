@@ -2,7 +2,12 @@ import React, { useEffect } from 'react';
 import { Box, Icon, IconButton, Icons, ProgressBar, Text, color } from 'folds';
 import * as css from './UploadCard.css';
 import { UploadCardError } from './UploadCard';
-import { UploadStatus, UploadSuccess, useBindUploadAtom } from '../../state/upload';
+import {
+  UploadStatus,
+  UploadSuccess,
+  useBindUploadAtom,
+  useStartIdleUpload,
+} from '../../state/upload';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { TUploadContent } from '../../utils/matrix';
 import { bytesToSize, getFileTypeIcon } from '../../utils/common';
@@ -57,9 +62,7 @@ export function UploadCardRenderer({
   const { file } = upload;
   const fileSizeExceeded = file.size >= allowSize;
 
-  if (upload.status === UploadStatus.Idle && !fileSizeExceeded) {
-    startUpload();
-  }
+  useStartIdleUpload(upload.status, fileSizeExceeded, startUpload);
 
   const isMedia =
     fileItem.originalFile.type.startsWith('image') ||

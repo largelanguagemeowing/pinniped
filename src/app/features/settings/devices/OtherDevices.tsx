@@ -37,7 +37,8 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
       withSearchParam(authUrl, {
         action: accountManagementActions.sessionsList,
       }),
-      '_blank'
+      '_blank',
+      'noopener,noreferrer'
     );
   }, [authMetadata, accountManagementActions]);
 
@@ -51,7 +52,8 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
           action: accountManagementActions.sessionEnd,
           device_id: deviceId,
         }),
-        '_blank'
+        '_blank',
+        'noopener,noreferrer'
       );
     },
     [authMetadata, accountManagementActions]

@@ -1,6 +1,6 @@
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   IRoomIdToTypingMembers,
   TypingReceipt,
@@ -21,6 +21,10 @@ export const useRoomTypingMember = (roomId: string) => {
     [roomId]
   );
 
-  const typing = useAtomValue(selectAtom(roomIdToTypingMembersAtom, selector, equalTypingMembers));
+  const typingAtom = useMemo(
+    () => selectAtom(roomIdToTypingMembersAtom, selector, equalTypingMembers),
+    [selector]
+  );
+  const typing = useAtomValue(typingAtom);
   return typing;
 };

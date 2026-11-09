@@ -25,7 +25,8 @@ export const useSetting = <K extends keyof Settings>(
   key: K
 ): [Settings[K], ReturnType<typeof useSetSetting<K>>] => {
   const selector = useMemo(() => (s: Settings) => s[key], [key]);
-  const setting = useAtomValue(selectAtom(settingsAtom, selector));
+  const settingAtom = useMemo(() => selectAtom(settingsAtom, selector), [settingsAtom, selector]);
+  const setting = useAtomValue(settingAtom);
 
   const setter = useSetSetting(settingsAtom, key);
   return [setting, setter];

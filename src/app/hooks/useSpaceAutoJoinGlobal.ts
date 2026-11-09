@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { RoomEvent } from 'matrix-js-sdk';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from './useMatrixClient';
@@ -59,7 +59,9 @@ export const useSpaceAutoJoinGlobal = () => {
   const [updateCount, forceUpdate] = useForceUpdate();
 
   const leftRoomsRef = useRef(leftRooms);
-  leftRoomsRef.current = leftRooms;
+  useLayoutEffect(() => {
+    leftRoomsRef.current = leftRooms;
+  }, [leftRooms]);
 
   // Remember every leave, not only the ones made through our own prompts, so a
   // room left on another device, via a kick, or in a bulk action is never

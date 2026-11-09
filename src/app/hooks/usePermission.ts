@@ -16,7 +16,9 @@ export function usePermissionState(name: PermissionName, initialValue: Permissio
   const [permissionState, setPermissionState] = useState<PermissionState>(initialValue);
 
   useEffect(() => {
-    let permissionStatus: PermissionStatus;
+    let permissionStatus: PermissionStatus | undefined;
+    // The query is async. If the component unmounts first, the status must not be listened to.
+    let disposed = false;
 
     function handlePermissionChange(this: PermissionStatus) {
       setPermissionState(this.state);
@@ -25,6 +27,7 @@ export function usePermissionState(name: PermissionName, initialValue: Permissio
     navigator.permissions
       .query({ name })
       .then((permStatus: PermissionStatus) => {
+        if (disposed) return;
         permissionStatus = permStatus;
         handlePermissionChange.apply(permStatus);
         permStatus.addEventListener('change', handlePermissionChange);
@@ -34,6 +37,7 @@ export function usePermissionState(name: PermissionName, initialValue: Permissio
       });
 
     return () => {
+      disposed = true;
       permissionStatus?.removeEventListener('change', handlePermissionChange);
     };
   }, [name]);

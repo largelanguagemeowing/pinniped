@@ -225,7 +225,9 @@ const useTimelinePagination = (
   onStalled: () => void
 ) => {
   const timelineRef = useRef(timeline);
-  timelineRef.current = timeline;
+  useLayoutEffect(() => {
+    timelineRef.current = timeline;
+  }, [timeline]);
   const alive = useAlive();
   // The timeline/direction that stalled, so jumping to another timeline
   // (permalink) is not blocked by an earlier stall. Jump to Latest rebuilds the
@@ -547,7 +549,9 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     eventId ? getEmptyTimeline() : getInitialTimeline(room)
   );
   const timelineRef = useRef(timeline);
-  timelineRef.current = timeline;
+  useLayoutEffect(() => {
+    timelineRef.current = timeline;
+  }, [timeline]);
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked =
     timeline.linkedTimelines[timeline.linkedTimelines.length - 1] === getLiveTimeline(room);
@@ -558,7 +562,9 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const rangeAtStart = timeline.range.start === 0;
   const rangeAtEnd = timeline.range.end === eventsLength;
   const atLiveEndRef = useRef(liveTimelineLinked && rangeAtEnd);
-  atLiveEndRef.current = liveTimelineLinked && rangeAtEnd;
+  useLayoutEffect(() => {
+    atLiveEndRef.current = liveTimelineLinked && rangeAtEnd;
+  }, [liveTimelineLinked, rangeAtEnd]);
 
   const [handleTimelinePagination, clearPaginationStall] = useTimelinePagination(
     mx,

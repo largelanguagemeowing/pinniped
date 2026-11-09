@@ -1,4 +1,12 @@
-import React, { FormEventHandler, useCallback, useRef, useState } from 'react';
+import React, {
+  FormEventHandler,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import { useAlive } from '../../hooks/useAlive';
 import {
   Box,
   Button,
@@ -67,9 +75,21 @@ function SoundRow({ sound, canEdit, onSave, onDelete }: SoundRowProps) {
   const [error, setError] = useState<string>();
   const [mode, setMode] = useState<SoundMode>(sound.mode);
   const previews = useRef(new Set<HTMLAudioElement>());
+  const alive = useAlive();
+  // Previews stop when the row unmounts, so a sound does not keep playing after its editor closes.
+  useEffect(
+    () => () => {
+      previews.current.forEach((a) => a.pause());
+      previews.current.clear();
+    },
+    []
+  );
 
   const preview = async () => {
-    const audio = new Audio(await getBlobUrl(sound.url, sound.file));
+    const url = await getBlobUrl(sound.url, sound.file);
+    // The row may have unmounted while the sound was loading; do not start it then.
+    if (!alive()) return;
+    const audio = new Audio(url);
     // Like in a call: 'cut' starts the sound over, 'add' plays another copy on top.
     if (sound.mode === 'cut') previews.current.forEach((a) => a.pause());
     previews.current.add(audio);
@@ -222,13 +242,16 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
   const [newEmoji, setNewEmoji] = useState<string>();
   const [newMode, setNewMode] = useState<SoundMode>('add');
   const pendingPreview = useRef<HTMLAudioElement>(undefined);
+  useEffect(() => () => pendingPreview.current?.pause(), []);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string>();
 
   // Changes are applied to the newest content when they run, one after another,
   // so an edit made during a slow upload (or a quick second edit) is not lost.
   const latest = useRef(pack.content);
-  latest.current = pack.content;
+  useLayoutEffect(() => {
+    latest.current = pack.content;
+  }, [pack.content]);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const change = useCallback(
     (apply: (content: SoundPackContent) => SoundPackContent) => {

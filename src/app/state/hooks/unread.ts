@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import { RoomToUnread, Unread } from '../../../types/matrix/room';
@@ -34,7 +34,11 @@ export const useRoomsUnread = (
     (roomToUnread: RoomToUnread) => getRoomsUnread(rooms, roomToUnread),
     [rooms]
   );
-  return useAtomValue(selectAtom(roomToUnreadAtm, selector, compareUnreadEqual));
+  const unreadAtom = useMemo(
+    () => selectAtom(roomToUnreadAtm, selector, compareUnreadEqual),
+    [roomToUnreadAtm, selector]
+  );
+  return useAtomValue(unreadAtom);
 };
 
 export const useRoomUnread = (
@@ -42,5 +46,9 @@ export const useRoomUnread = (
   roomToUnreadAtm: typeof roomToUnreadAtom
 ): Unread | undefined => {
   const selector = useCallback((roomToUnread: RoomToUnread) => roomToUnread.get(roomId), [roomId]);
-  return useAtomValue(selectAtom(roomToUnreadAtm, selector, compareUnreadEqual));
+  const unreadAtom = useMemo(
+    () => selectAtom(roomToUnreadAtm, selector, compareUnreadEqual),
+    [roomToUnreadAtm, selector]
+  );
+  return useAtomValue(unreadAtom);
 };

@@ -1,7 +1,13 @@
 import React, { useEffect } from 'react';
 import { Chip, Icon, IconButton, Icons, Text, color } from 'folds';
 import { UploadCard, UploadCardError, CompactUploadCardProgress } from './UploadCard';
-import { TUploadAtom, UploadStatus, UploadSuccess, useBindUploadAtom } from '../../state/upload';
+import {
+  TUploadAtom,
+  UploadStatus,
+  UploadSuccess,
+  useBindUploadAtom,
+  useStartIdleUpload,
+} from '../../state/upload';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { TUploadContent } from '../../utils/matrix';
 import { bytesToSize, getFileTypeIcon } from '../../utils/common';
@@ -27,9 +33,7 @@ export function CompactUploadCardRenderer({
   const { file } = upload;
   const fileSizeExceeded = file.size >= allowSize;
 
-  if (upload.status === UploadStatus.Idle && !fileSizeExceeded) {
-    startUpload();
-  }
+  useStartIdleUpload(upload.status, fileSizeExceeded, startUpload);
 
   const removeUpload = () => {
     cancelUpload();
