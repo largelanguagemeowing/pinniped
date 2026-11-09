@@ -5,7 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type Room as LivekitRoom } from "livekit-client";
+import {
+  type Room as LivekitRoom,
+  Track,
+  type TrackPublication,
+} from "livekit-client";
 
 /**
  * Raw WebRTC counters of one SFU connection, sampled once a second and sent to
@@ -27,6 +31,13 @@ export interface CallStatsStream {
   remote?: Record<string, StatValue>;
   /** The capture source feeding an outbound stream (its input frame rate, resolution). */
   source?: Record<string, StatValue>;
+  /**
+   * Matrix user ID of the participant an inbound stream comes from. Absent for
+   * outbound streams, which are always ours.
+   */
+  participant?: string;
+  /** What the track carries: "Microphone", "Camera", "Screen share", "Soundboard"... */
+  track?: string;
 }
 
 export interface CallStatsConnection {
@@ -48,6 +59,55 @@ export interface CallStatsConnection {
 
 type Stat = Record<string, unknown>;
 
+interface StreamLabel {
+  participant?: string;
+  track: string;
+}
+
+const trackLabel = (pub: TrackPublication): string => {
+  if (pub.trackName === "soundboard") return "Soundboard";
+  switch (pub.source) {
+    case Track.Source.Microphone:
+      return "Microphone";
+    case Track.Source.Camera:
+      return "Camera";
+    case Track.Source.ScreenShare:
+      return "Screen share";
+    case Track.Source.ScreenShareAudio:
+      return "Screen share audio";
+    default:
+      return pub.trackName || "Track";
+  }
+};
+
+/**
+ * Names the tracks of this connection by the ID of the MediaStreamTrack on the
+ * wire, which the stats report as `trackIdentifier` (on `inbound-rtp`, and on
+ * the `media-source` of an `outbound-rtp`). Ours are keyed by the sender's
+ * track, which differs from the captured one when a processor is applied.
+ */
+function labelTracks(
+  room: LivekitRoom,
+  userIds: Record<string, string>,
+): Map<string, StreamLabel> {
+  const labels = new Map<string, StreamLabel>();
+
+  room.localParticipant.trackPublications.forEach((pub) => {
+    const id = pub.track?.sender?.track?.id;
+    if (id) labels.set(id, { track: trackLabel(pub) });
+  });
+
+  room.remoteParticipants.forEach((participant) => {
+    const from = userIds[participant.identity] ?? participant.identity;
+    participant.trackPublications.forEach((pub) => {
+      const id = pub.track?.receiver?.track.id;
+      if (id) labels.set(id, { participant: from, track: trackLabel(pub) });
+    });
+  });
+
+  return labels;
+}
+
 const num = (v: unknown): number | undefined =>
   typeof v === "number" ? v : undefined;
 
@@ -57,10 +117,14 @@ function entries(report: RTCStatsReport | undefined): Stat[] {
   return out;
 }
 
-/** Samples one livekit room, or null while it has no peer connection. */
+/**
+ * Samples one livekit room, or null while it has no peer connection.
+ * `userIds` maps each remote LiveKit identity to its Matrix user ID.
+ */
 export async function sampleConnection(
   url: string,
   room: LivekitRoom,
+  userIds: Record<string, string> = {},
 ): Promise<CallStatsConnection | null> {
   const pcManager = room.engine.pcManager;
   if (!pcManager) return null;
@@ -68,6 +132,7 @@ export async function sampleConnection(
     pcManager.publisher.getStats().catch(() => undefined),
     pcManager.subscriber?.getStats().catch(() => undefined),
   ]);
+  const labels = labelTracks(room, userIds);
   const pubStats = entries(pub);
   const subStats = entries(sub);
 
@@ -115,14 +180,23 @@ export async function sampleConnection(
             typeof v === "boolean"),
       ),
     ) as Record<string, StatValue>);
-  const stream = (s: Stat): CallStatsStream => ({
-    kind: String(s.kind),
-    ssrc: s.ssrc as number,
-    codec: byId.get(s.codecId as string)?.mimeType as string | undefined,
-    stats: plain(s)!,
-    remote: plain(remoteInbound.get(s.ssrc as number)),
-    source: plain(byId.get(s.mediaSourceId as string)),
-  });
+  const stream = (s: Stat): CallStatsStream => {
+    const codec = byId.get(s.codecId as string);
+    const source = byId.get(s.mediaSourceId as string);
+    const label = labels.get(
+      (s.trackIdentifier ?? source?.trackIdentifier) as string,
+    );
+    return {
+      kind: String(s.kind),
+      ssrc: s.ssrc as number,
+      codec: codec?.mimeType as string | undefined,
+      stats: plain(s)!,
+      remote: plain(remoteInbound.get(s.ssrc as number)),
+      source: plain(source),
+      participant: label?.participant,
+      track: label?.track,
+    };
+  };
   const outbound = pubStats
     .filter((s) => s.type === "outbound-rtp")
     .map(stream);

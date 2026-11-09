@@ -24,6 +24,7 @@ import {
   useCallStats,
   valueSeries,
 } from '../../../plugins/call';
+import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { stopPropagation } from '../../../utils/keyboard';
 import { StatChartTile } from './StatChart';
 import { StatRow, StreamStats } from './StreamStats';
@@ -33,22 +34,29 @@ type Direction = 'outbound' | 'inbound';
 /** `transport`, or one stream as `outbound:<ssrc>` / `inbound:<ssrc>`. */
 type Page = 'transport' | `${Direction}:${number}`;
 
-const streamName = (stream: CallStatsStream): string => {
+/** Who the stream is from ("You" for ours) and what it carries, e.g. "Alice · Microphone". */
+const streamTitle = (stream: CallStatsStream, who: (userId: string) => string): string => {
+  const from = stream.participant ? who(stream.participant) : 'You';
   const kind = stream.kind === 'video' ? 'Video' : 'Audio';
+  const track = stream.track ?? kind;
   // Simulcast sends one video stream per quality layer, named by its rid.
   const { rid } = stream.stats;
-  return typeof rid === 'string' && rid ? `${kind} (${rid})` : kind;
+  const layer = typeof rid === 'string' && rid ? ` (${rid})` : '';
+  return `${from} · ${track}${layer}`;
 };
 
-const pages = (c: CallStatsConnection): { page: Page; name: string }[] => [
+const pages = (
+  c: CallStatsConnection,
+  who: (userId: string) => string
+): { page: Page; name: string }[] => [
   { page: 'transport', name: 'Transport' },
   ...c.outbound.map((st) => ({
     page: `outbound:${st.ssrc}` as Page,
-    name: `Outbound · ${streamName(st)}`,
+    name: streamTitle(st, who),
   })),
-  ...c.inbound.map((st, i) => ({
+  ...c.inbound.map((st) => ({
     page: `inbound:${st.ssrc}` as Page,
-    name: `Inbound · ${streamName(st)} ${i + 1}`,
+    name: streamTitle(st, who),
   })),
 ];
 
@@ -59,6 +67,9 @@ type CallStatsDebugProps = {
 /** Full WebRTC stats, one section per media server connection. */
 export function CallStatsDebug({ callEmbed, requestClose }: CallStatsDebugProps) {
   const samples = useCallStats(callEmbed);
+  const mx = useMatrixClient();
+  const room = mx.getRoom(callEmbed.roomId);
+  const who = (userId: string) => room?.getMember(userId)?.name ?? userId;
   const [selected, setSelected] = useState<{ conn: number; page: Page }>({
     conn: 0,
     page: 'transport',
@@ -134,6 +145,7 @@ export function CallStatsDebug({ callEmbed, requestClose }: CallStatsDebugProps)
         connIdx={selected.conn}
         direction={direction as Direction}
         stream={stream}
+        name={streamTitle(stream, who)}
       />
     );
   };
@@ -180,7 +192,7 @@ export function CallStatsDebug({ callEmbed, requestClose }: CallStatsDebugProps)
                     >
                       RTC Debug: {c.host}
                     </Text>
-                    {pages(c).map(({ page, name }) => (
+                    {pages(c, who).map(({ page, name }) => (
                       <MenuItem
                         key={page}
                         size="300"

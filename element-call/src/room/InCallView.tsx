@@ -645,6 +645,12 @@ export const InCallView: FC<InCallViewProps> = ({
     return (): void => subscription.unsubscribe();
   }, [vm]);
 
+  // The stats sampler names remote streams by Matrix user, from the latest room items.
+  const audioParticipantsRef = useRef(audioParticipants);
+  useEffect(() => {
+    audioParticipantsRef.current = audioParticipants;
+  }, [audioParticipants]);
+
   // Embedded clients (Cinny) show WebRTC stats; report raw counters to them.
   useEffect(() => {
     if (widget === null) return;
@@ -653,14 +659,15 @@ export const InCallView: FC<InCallViewProps> = ({
       void (async (): Promise<void> => {
         const connections = (
           await Promise.all(
-            allConnections
-              .getConnections()
-              .map(async (c) =>
-                sampleConnection(
-                  c.transport.livekit_service_url,
-                  c.livekitRoom,
-                ).catch(() => null),
-              ),
+            allConnections.getConnections().map(async (c) => {
+              const url = c.transport.livekit_service_url;
+              const userIds =
+                audioParticipantsRef.current.find((item) => item.url === url)
+                  ?.userIds ?? {};
+              return sampleConnection(url, c.livekitRoom, userIds).catch(
+                () => null,
+              );
+            }),
           )
         ).filter((c): c is CallStatsConnection => c !== null);
         if (connections.length > 0)

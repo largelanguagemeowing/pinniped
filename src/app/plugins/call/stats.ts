@@ -8,6 +8,10 @@ export type CallStatsStream = {
   stats: Record<string, StatValue>;
   remote?: Record<string, StatValue>;
   source?: Record<string, StatValue>;
+  /** Matrix user ID the inbound stream comes from; absent for outbound (ours). */
+  participant?: string;
+  /** What the track carries, as the widget names it, e.g. "Microphone". */
+  track?: string;
 };
 
 export type CallStatsConnection = {

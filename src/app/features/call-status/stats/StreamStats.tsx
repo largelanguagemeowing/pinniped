@@ -155,13 +155,16 @@ type StreamStatsProps = {
   connIdx: number;
   direction: 'outbound' | 'inbound';
   stream: CallStatsStream;
+  /** Human name of the stream, e.g. "Alice · Microphone". */
+  name: string;
 };
 
 /** Everything the browser reports about one RTP stream: facts, then graphs. */
-export function StreamStats({ samples, connIdx, direction, stream }: StreamStatsProps) {
+export function StreamStats({ samples, connIdx, direction, stream, name }: StreamStatsProps) {
   const rows = (direction === 'outbound' ? outboundRows(stream) : inboundRows(stream)).filter(
     (r) => r[1] !== undefined
   );
+  rows.unshift(['Stream', name]);
   const now = samples[samples.length - 1]?.time;
   const charts = (direction === 'outbound' ? OUTBOUND_CHARTS : INBOUND_CHARTS)
     .map((spec) => ({ spec, points: seriesFor(samples, connIdx, direction, stream.ssrc, spec) }))
