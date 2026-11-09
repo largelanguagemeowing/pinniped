@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Button, Icon, Icons, Text } from 'folds';
 import * as css from './UnverifiedBanner.css';
-import { GateKind, pendingKind, reopenGate } from './deviceVerificationGate';
+import { GateKind, pendingKind, reopenGate } from './verificationGateLogic';
 import { useVerificationGateState } from './useVerificationGateState';
 
 const COPY: Record<GateKind, { lead: string; rest: string; action: string }> = {

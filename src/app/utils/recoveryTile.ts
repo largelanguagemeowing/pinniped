@@ -1,4 +1,4 @@
-import type { IdentityState } from '../features/device-verification-gate/deviceVerificationGate';
+import type { IdentityState } from '../features/device-verification-gate/verificationGateLogic';
 
 /**
  * What the recovery tile in Settings should offer:

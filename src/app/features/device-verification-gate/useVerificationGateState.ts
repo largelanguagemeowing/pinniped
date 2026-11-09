@@ -7,7 +7,7 @@ import {
   IdentityState,
   isGateDismissed,
   subscribeGateDismissal,
-} from './deviceVerificationGate';
+} from './verificationGateLogic';
 
 /**
  * Whether the account has an encryption identity. Account data answers it when the keys are in

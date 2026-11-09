@@ -5,7 +5,7 @@ import { DeviceVerificationGate } from '../../src/app/features/device-verificati
 import {
   isGateDismissed,
   reopenGate,
-} from '../../src/app/features/device-verification-gate/deviceVerificationGate';
+} from '../../src/app/features/device-verification-gate/verificationGateLogic';
 import { VerificationStatus } from '../../src/app/hooks/useDeviceVerificationStatus';
 
 const state = vi.hoisted(() => ({

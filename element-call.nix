@@ -49,6 +49,8 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   pnpmBuildScript = "build:embedded";
+  # The widget build needs more heap than Node's default (was a prefix on build:full).
+  NODE_OPTIONS = "--max-old-space-size=16384";
 
   installPhase = ''
     runHook preInstall

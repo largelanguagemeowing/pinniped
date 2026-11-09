@@ -14,10 +14,16 @@ export const ELEMENT_CALL_SRC = path.join(repoRoot, 'element-call');
 export const ELEMENT_CALL_TAG = 'v0.20.1';
 
 // CI=true keeps pnpm from prompting (and aborting) when there is no TTY, as under vite.
+// NODE_OPTIONS gives the widget build the memory it needs (it used to be a prefix on
+// the build:full script, which cmd.exe cannot parse).
 // On Windows pnpm is a pnpm.cmd shim, which execFileSync cannot start (ENOENT), so
 // the command goes through the shell there. The arguments are fixed, space-free strings.
 const run = (cmd, args, cwd) => {
-  const options = { cwd, stdio: 'inherit', env: { ...process.env, CI: 'true' } };
+  const options = {
+    cwd,
+    stdio: 'inherit',
+    env: { ...process.env, CI: 'true', NODE_OPTIONS: '--max-old-space-size=16384' },
+  };
   if (process.platform === 'win32') {
     execSync([cmd, ...args].join(' '), options);
   } else {

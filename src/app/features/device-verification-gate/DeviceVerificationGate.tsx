@@ -36,7 +36,7 @@ import {
   gateKind,
   justVerified,
   shouldShowGate,
-} from './deviceVerificationGate';
+} from './verificationGateLogic';
 import { useVerificationGateState } from './useVerificationGateState';
 import { useOtherVerifiedDevices } from './otherVerifiedDevices';
 
