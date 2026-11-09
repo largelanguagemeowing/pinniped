@@ -35,7 +35,8 @@ asarUnpack:
 npmRebuild: false
 
 linux:
-  # Portal helper (global shortcuts, autostart); built by `cargo build --release` in electron/helper.
+  # Desktop helper (global shortcuts, autostart, screen share audio); built by
+  # `cargo build --release` in electron/helper.
   extraResources:
     - from: electron/helper/target/release/pinniped-helper
       to: pinniped-helper
@@ -102,5 +103,7 @@ flatpak:
     - --socket=fallback-x11
     - --socket=wayland
     - --socket=pulseaudio
+    # Native PipeWire, for the helper's screen share audio device (pulseaudio is only the Pulse socket).
+    - --filesystem=xdg-run/pipewire-0
     - --device=all
     - --talk-name=org.freedesktop.Notifications

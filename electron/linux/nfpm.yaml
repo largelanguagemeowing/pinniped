@@ -31,6 +31,8 @@ depends:
   - xdg-utils
   - at-spi2-core
   - libuuid
+  # pinniped-helper links libpipewire (screen share audio).
+  - pipewire-libs
 
 contents:
   # type: tree includes the whole app directory; without it nfpm keeps only the top level.

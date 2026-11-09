@@ -474,8 +474,8 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     isQuitting = true;
     rpServer?.stop();
-    screenShareAudio.releaseSync();
     hotkeys.unregisterAll();
+    // The helper exits when its stdin closes, and PipeWire then removes the screen share device.
     helper.stop();
   });
 }

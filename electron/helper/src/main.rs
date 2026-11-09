@@ -1,4 +1,5 @@
-//! Pinniped desktop helper. Runs the freedesktop portals that Electron cannot reach.
+//! Pinniped desktop helper. Does the Linux desktop work Electron cannot: the freedesktop portals
+//! (global shortcuts, autostart) and the PipeWire device for screen share audio.
 //!
 //! The Electron main process starts this binary and talks to it over stdio, one JSON object per
 //! line. Commands go in on stdin, events come out on stdout. Logs go to stderr.
@@ -8,11 +9,17 @@
 //!   binds global shortcuts. The desktop asks the user to confirm or change the keys.
 //! - `{"cmd":"autostart","enabled":true,"minimized":false,"command":["/usr/bin/pinniped"]}`
 //!   asks the Background portal to start the app at login.
+//! - `{"cmd":"screenshare_prepare"}` creates the virtual microphone for screen share audio.
+//! - `{"cmd":"screenshare_link","active":true,"output":"Speakers"}` starts (or with `false`
+//!   stops) feeding other applications' audio into it; see screenshare.rs.
+//! - `{"cmd":"screenshare_release"}` removes it.
 //!
 //! Events:
 //! - `{"event":"ready","shortcuts":true}` once the portals are reachable.
 //! - `{"event":"activated","id":"mute"}` when a bound shortcut is pressed.
 //! - `{"event":"result","cmd":"shortcuts","ok":true,"error":null}` answers each command.
+
+mod screenshare;
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -30,7 +37,7 @@ const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
 
 #[derive(Deserialize)]
-#[serde(tag = "cmd", rename_all = "lowercase")]
+#[serde(tag = "cmd", rename_all = "snake_case")]
 enum Command {
     Shortcuts {
         shortcuts: Vec<ShortcutSpec>,
@@ -40,6 +47,13 @@ enum Command {
         minimized: bool,
         command: Vec<String>,
     },
+    ScreensharePrepare,
+    ScreenshareLink {
+        active: bool,
+        #[serde(default)]
+        output: String,
+    },
+    ScreenshareRelease,
 }
 
 #[derive(Deserialize)]
@@ -81,6 +95,7 @@ struct Helper {
     conn: zbus::Connection,
     shortcuts: Option<GlobalShortcuts>,
     session: Option<Session<GlobalShortcuts>>,
+    screenshare: screenshare::ScreenShare,
 }
 
 impl Helper {
@@ -193,6 +208,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         conn,
         shortcuts,
         session: None,
+        screenshare: Default::default(),
     };
     let mut activated = match helper.shortcuts.as_ref() {
         Some(portal) => Some(portal.receive_activated().await?),
@@ -210,6 +226,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(Command::Autostart { enabled, minimized, command }) => {
                         ("autostart", helper.autostart_command(enabled, minimized, command).await)
                     }
+                    Ok(Command::ScreensharePrepare) => ("screenshare_prepare", helper.screenshare.prepare().await),
+                    Ok(Command::ScreenshareLink { active, output }) => ("screenshare_link", helper.screenshare.link(active, output)),
+                    Ok(Command::ScreenshareRelease) => {
+                        helper.screenshare.release();
+                        ("screenshare_release", Ok(()))
+                    }
                     Err(err) => ("invalid", Err(err.into())),
                 };
                 emit(&Event::Result { cmd, ok: result.is_ok(), error: result.err().map(|e| e.to_string()) });
@@ -217,6 +239,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             Some(signal) = async { match activated.as_mut() { Some(s) => StreamExt::next(s).await, None => std::future::pending().await } } => {
                 emit(&Event::Activated { id: signal.shortcut_id() });
             }
+            () = helper.screenshare.readable() => helper.screenshare.dispatch(),
         }
     }
     Ok(())

@@ -122,6 +122,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm flatpak flatpak-builder
+          # The helper links libpipewire; bindgen needs libclang to read its headers.
+          sudo apt-get install -y libpipewire-0.3-dev libclang-dev
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
       - run: npm ci
         env:
@@ -132,8 +134,9 @@ jobs:
           path: dist
       - uses: dtolnay/rust-toolchain@stable
         if: matrix.name == 'linux'
-      # The portal helper ships inside the Linux builds (electron-builder extraResources and nfpm).
-      - name: Build the portal helper
+      # The helper (portals, screen share audio) ships inside the Linux builds (electron-builder
+      # extraResources and nfpm).
+      - name: Build the desktop helper
         if: matrix.name == 'linux'
         run: cargo build --release --manifest-path electron/helper/Cargo.toml
       - name: Package

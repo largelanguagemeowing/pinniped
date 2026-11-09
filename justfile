@@ -18,7 +18,7 @@ install: build
     sudo rpm -Uvh --force "$(ls -t electron/out/[Pp]inniped-*.rpm | head -1)"
 
 # Fast iteration on the installed app: rebuild the bundle and repack the asar in place.
-# Run `just install` once first; this refreshes app code only, not the electron
+# Run `just install` once first; this refreshes app code and the helper, not the electron
 # runtime (re-run `just install` after a version bump or electron/ packaging change).
 sync:
     #!/usr/bin/env bash
@@ -32,11 +32,15 @@ sync:
     npx asar pack "$stage/app" "$stage/app.asar" --unpack "**/icon.png"
     sudo rsync -a "$stage/app.asar" /opt/Pinniped/resources/app.asar
     sudo rsync -a --delete "$stage/app.asar.unpacked/" /opt/Pinniped/resources/app.asar.unpacked/
+    cargo build --release --manifest-path electron/helper/Cargo.toml
+    sudo install -m 755 electron/helper/target/release/pinniped-helper /opt/Pinniped/resources/pinniped-helper
 
 # Desktop dev with HMR: vite dev server + an electron window loading it.
 dev-electron:
     #!/usr/bin/env bash
     set -euo pipefail
+    # The helper runs hotkeys, autostart and screen share audio; dev uses the cargo build output.
+    cargo build --release --manifest-path electron/helper/Cargo.toml
     PINNIPED_DEV_PORT={{dev_port}} npx vite --strictPort &
     watcher=$!
     trap 'kill $watcher 2>/dev/null || true' EXIT

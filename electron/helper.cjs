@@ -1,5 +1,6 @@
-// Client for electron/helper (pinniped-helper), the Rust process that runs the freedesktop
-// portals: global shortcuts and autostart. The helper speaks one JSON object per line on stdio.
+// Client for electron/helper (pinniped-helper), the Rust process that does the Linux desktop
+// work Electron cannot: the global shortcuts and autostart portals, and the PipeWire device for
+// screen share audio. The helper speaks one JSON object per line on stdio.
 // Commands go in on stdin, and each command gets one `result` event back, in order. Activated
 // shortcuts arrive as `activated` events at any time.
 const { app } = require('electron');
