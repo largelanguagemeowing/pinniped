@@ -298,9 +298,10 @@ function enableScreenShare() {
         .then((sources) =>
           callback(
             sources.length
-              ? // Windows can capture system audio; the call widget turns local playback off
-                // so the call is not shared back. Linux gets its audio from screenshare-audio.cjs.
-                { video: sources[0], ...(process.platform === 'win32' && { audio: 'loopback' }) }
+              ? // Video only. Windows loopback would also capture the call's own voices and send them
+                // back into the share, so no audio is sent there. Linux gets its audio from
+                // screenshare-audio.cjs, which leaves Pinniped's own output out.
+                { video: sources[0] }
               : undefined
           )
         )
