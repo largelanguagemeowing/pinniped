@@ -15,7 +15,8 @@ import {
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
-import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
+import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
+import { AttachmentLoadError } from './AttachmentLoadError';
 import { IAudioInfo } from '../../../../types/matrix/common';
 import {
   PlayTimeCallback,
@@ -75,7 +76,7 @@ export function AudioContent({
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
-  const [srcState, loadSrc] = useAsyncCallback(
+  const [srcState, loadSrc] = useAsyncLoad(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
@@ -128,6 +129,10 @@ export function AudioContent({
   const seekTime = Math.min(currentTime, seekDuration);
   const formattedSeekTime = secondsToMinutesAndSeconds(seekTime);
   const formattedDuration = secondsToMinutesAndSeconds(duration);
+
+  if (srcState.status === AsyncStatus.Error) {
+    return <AttachmentLoadError error={srcState.error} onRetry={() => loadSrc()} />;
+  }
 
   // A voice message is a compact bubble, not the full player: play, bars, time and speed.
   if (waveform) {

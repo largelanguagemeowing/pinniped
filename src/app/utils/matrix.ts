@@ -124,12 +124,49 @@ export const encryptFile = async <T extends File | Blob>(
   };
 };
 
+/**
+ * The encrypted attachment cannot be decrypted because its file info or key is malformed.
+ * Retrying will not help.
+ */
+export class AttachmentUnreadableError extends Error {
+  constructor() {
+    super('Attachment could not be decrypted');
+    this.name = 'AttachmentUnreadableError';
+  }
+}
+
+/**
+ * The ciphertext does not match the SHA-256 hash in the event. The attachment was altered after
+ * it was encrypted, or the event was tampered with. The content must not be shown.
+ */
+export class AttachmentTamperedError extends Error {
+  constructor() {
+    super('Attachment failed its integrity check');
+    this.name = 'AttachmentTamperedError';
+  }
+}
+
+// The library reports a hash mismatch with this message. The test in
+// tests/unit/decryptFile.test.ts pins it against the real library.
+const HASH_MISMATCH_MESSAGE = 'Mismatched SHA-256 digest';
+
 export const decryptFile = async (
   dataBuffer: ArrayBuffer,
   type: string,
   encInfo: EncryptedAttachmentInfo
 ): Promise<Blob> => {
-  const dataArray = await decryptAttachment(dataBuffer, encInfo);
+  let dataArray: ArrayBuffer;
+  try {
+    dataArray = await decryptAttachment(dataBuffer, encInfo);
+  } catch (e) {
+    if (e instanceof Error && e.message === HASH_MISMATCH_MESSAGE) {
+      throw new AttachmentTamperedError();
+    }
+    // Missing info, a malformed key, or any other failure to decrypt. The library's messages are
+    // not for the UI, so they are logged and the user sees the generic message.
+    console.warn('Attachment decryption failed', e instanceof Error ? e.name : 'unknown');
+    throw new AttachmentUnreadableError();
+  }
   const blob = new Blob([dataArray], { type });
   return blob;
 };

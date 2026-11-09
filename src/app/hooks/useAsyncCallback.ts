@@ -119,3 +119,23 @@ export const useAsyncCallbackValue = <TData, TError>(
 
   return [state, load];
 };
+
+/**
+ * For loads started without awaiting them (an effect, a timer, a click handler). The failure is
+ * kept in the returned state, which the component renders. The rejection is not rethrown, so it
+ * never becomes an unhandled promise rejection.
+ */
+export const useAsyncLoad = <TData, TError, TArgs extends unknown[]>(
+  asyncCallback: AsyncCallback<TArgs, TData>
+): [AsyncState<TData, TError>, (...args: TArgs) => void] => {
+  const [state, load] = useAsyncCallback<TData, TError, TArgs>(asyncCallback);
+
+  const loadDetached = useCallback(
+    (...args: TArgs) => {
+      load(...args).catch(() => undefined);
+    },
+    [load]
+  );
+
+  return [state, loadDetached];
+};

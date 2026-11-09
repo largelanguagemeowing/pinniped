@@ -18,7 +18,7 @@ import FileSaver from 'file-saver';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FocusTrap from 'focus-trap-react';
 import { IFileInfo } from '../../../../types/matrix/common';
-import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
+import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { bytesToSize } from '../../../utils/common';
 import {
@@ -29,6 +29,8 @@ import {
 } from '../../../utils/mimeTypes';
 import { stopPropagation } from '../../../utils/keyboard';
 import {
+  AttachmentTamperedError,
+  AttachmentUnreadableError,
   decryptFile,
   downloadEncryptedMedia,
   downloadMedia,
@@ -36,35 +38,39 @@ import {
 } from '../../../utils/matrix';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { ModalWide } from '../../../styles/Modal.css';
+import { AttachmentLoadError } from './AttachmentLoadError';
 
-const renderErrorButton = (retry: () => void, text: string) => (
-  <TooltipProvider
-    tooltip={
-      <Tooltip variant="Critical">
-        <Text>Failed to load file!</Text>
-      </Tooltip>
-    }
-    position="Top"
-    align="Center"
-  >
-    {(triggerRef) => (
-      <Button
-        ref={triggerRef}
-        size="400"
-        variant="Critical"
-        fill="Soft"
-        outlined
-        radii="300"
-        onClick={retry}
-        before={<Icon size="100" src={Icons.Warning} filled />}
-      >
-        <Text size="B400" truncate>
-          {text}
-        </Text>
-      </Button>
-    )}
-  </TooltipProvider>
-);
+const renderErrorButton = (error: unknown, retry: () => void, text: string) =>
+  error instanceof AttachmentTamperedError || error instanceof AttachmentUnreadableError ? (
+    <AttachmentLoadError error={error} onRetry={retry} />
+  ) : (
+    <TooltipProvider
+      tooltip={
+        <Tooltip variant="Critical">
+          <Text>Failed to load file!</Text>
+        </Tooltip>
+      }
+      position="Top"
+      align="Center"
+    >
+      {(triggerRef) => (
+        <Button
+          ref={triggerRef}
+          size="400"
+          variant="Critical"
+          fill="Soft"
+          outlined
+          radii="300"
+          onClick={retry}
+          before={<Icon size="100" src={Icons.Warning} filled />}
+        >
+          <Text size="B400" truncate>
+            {text}
+          </Text>
+        </Button>
+      )}
+    </TooltipProvider>
+  );
 
 type RenderTextViewerProps = {
   name: string;
@@ -84,7 +90,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
   const useAuthentication = useMediaAuthentication();
   const [textViewer, setTextViewer] = useState(false);
 
-  const [textState, loadText] = useAsyncCallback(
+  const [textState, loadText] = useAsyncLoad(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
@@ -130,7 +136,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
         </Overlay>
       )}
       {textState.status === AsyncStatus.Error ? (
-        renderErrorButton(loadText, 'Open File')
+        renderErrorButton(textState.error, loadText, 'Open File')
       ) : (
         <Button
           variant="Secondary"
@@ -175,7 +181,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
   const useAuthentication = useMediaAuthentication();
   const [pdfViewer, setPdfViewer] = useState(false);
 
-  const [pdfState, loadPdf] = useAsyncCallback(
+  const [pdfState, loadPdf] = useAsyncLoad(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
@@ -216,7 +222,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
         </Overlay>
       )}
       {pdfState.status === AsyncStatus.Error ? (
-        renderErrorButton(loadPdf, 'Open PDF')
+        renderErrorButton(pdfState.error, loadPdf, 'Open PDF')
       ) : (
         <Button
           variant="Secondary"
@@ -253,7 +259,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
-  const [downloadState, download] = useAsyncCallback(
+  const [downloadState, download] = useAsyncLoad(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
@@ -268,7 +274,11 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
   );
 
   return downloadState.status === AsyncStatus.Error ? (
-    renderErrorButton(download, `Retry Download (${bytesToSize(info.size ?? 0)})`)
+    renderErrorButton(
+      downloadState.error,
+      download,
+      `Retry Download (${bytesToSize(info.size ?? 0)})`
+    )
   ) : (
     <Button
       variant="Secondary"

@@ -1,12 +1,26 @@
-import { Badge, Box, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
+import {
+  Badge,
+  Box,
+  Icon,
+  IconButton,
+  Icons,
+  Spinner,
+  Text,
+  Tooltip,
+  TooltipProvider,
+  as,
+  toRem,
+} from 'folds';
 import React, { ReactNode, useCallback } from 'react';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FileSaver from 'file-saver';
 import { mimeTypeToExt } from '../../utils/mimeTypes';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
-import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
+import { AsyncStatus, useAsyncLoad } from '../../hooks/useAsyncCallback';
 import {
+  AttachmentTamperedError,
+  AttachmentUnreadableError,
   decryptFile,
   downloadEncryptedMedia,
   downloadMedia,
@@ -25,7 +39,7 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
-  const [downloadState, download] = useAsyncCallback(
+  const [downloadState, download] = useAsyncLoad(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
@@ -41,7 +55,7 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
 
   const downloading = downloadState.status === AsyncStatus.Loading;
   const hasError = downloadState.status === AsyncStatus.Error;
-  return (
+  const button = (
     <IconButton
       disabled={downloading}
       onClick={download}
@@ -55,6 +69,33 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
         <Icon size="100" src={Icons.Download} />
       )}
     </IconButton>
+  );
+  if (!hasError) return button;
+
+  // Say why the download failed. A tampered file is a warning the user must see, not a red icon.
+  const { error } = downloadState;
+  const message =
+    error instanceof AttachmentTamperedError
+      ? 'Failed its integrity check. It may have been altered and was not saved.'
+      : error instanceof AttachmentUnreadableError
+        ? "Can't be decrypted."
+        : 'Download failed. Click to retry.';
+  return (
+    <TooltipProvider
+      position="Top"
+      align="Center"
+      tooltip={
+        <Tooltip variant="Critical">
+          <Text>{message}</Text>
+        </Tooltip>
+      }
+    >
+      {(triggerRef) => (
+        <Box as="span" ref={triggerRef}>
+          {button}
+        </Box>
+      )}
+    </TooltipProvider>
   );
 }
 

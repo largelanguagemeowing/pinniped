@@ -22,7 +22,8 @@ import {
 } from '../../../../types/matrix/common';
 import * as css from './style.css';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
-import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
+import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
+import { AttachmentLoadError } from './AttachmentLoadError';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '../../../utils/common';
 import {
   decryptFile,
@@ -77,7 +78,7 @@ export const VideoContent = as<'div', VideoContentProps>(
     const [error, setError] = useState(false);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
 
-    const [srcState, loadSrc] = useAsyncCallback(
+    const [srcState, loadSrc] = useAsyncLoad(
       useCallback(async () => {
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
@@ -190,30 +191,11 @@ export const VideoContent = as<'div', VideoContentProps>(
           )}
         {(error || srcState.status === AsyncStatus.Error) && (
           <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
-            <TooltipProvider
-              tooltip={
-                <Tooltip variant="Critical">
-                  <Text>Failed to load video!</Text>
-                </Tooltip>
-              }
-              position="Top"
-              align="Center"
-            >
-              {(triggerRef) => (
-                <Button
-                  ref={triggerRef}
-                  size="300"
-                  variant="Critical"
-                  fill="Soft"
-                  outlined
-                  radii="300"
-                  onClick={handleRetry}
-                  before={<Icon size="Inherit" src={Icons.Warning} filled />}
-                >
-                  <Text size="B300">Retry</Text>
-                </Button>
-              )}
-            </TooltipProvider>
+            <AttachmentLoadError
+              error={srcState.status === AsyncStatus.Error ? srcState.error : undefined}
+              onRetry={handleRetry}
+              size="300"
+            />
           </Box>
         )}
         {!load && typeof info.size === 'number' && (
