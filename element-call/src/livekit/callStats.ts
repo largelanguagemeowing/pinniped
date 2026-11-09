@@ -27,6 +27,11 @@ export interface CallStatsStream {
   kind: string;
   ssrc: number;
   codec?: string;
+  /**
+   * The negotiated SDP fmtp line of the codec (e.g. Opus "stereo=1"). Stereo
+   * is signalled here, not by the channel count, which Opus always reports as 2.
+   */
+  sdpFmtpLine?: string;
   stats: Record<string, StatValue>;
   remote?: Record<string, StatValue>;
   /** The capture source feeding an outbound stream (its input frame rate, resolution). */
@@ -190,6 +195,7 @@ export async function sampleConnection(
       kind: String(s.kind),
       ssrc: s.ssrc as number,
       codec: codec?.mimeType as string | undefined,
+      sdpFmtpLine: codec?.sdpFmtpLine as string | undefined,
       stats: plain(s)!,
       remote: plain(remoteInbound.get(s.ssrc as number)),
       source: plain(source),

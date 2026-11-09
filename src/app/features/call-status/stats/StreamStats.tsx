@@ -87,6 +87,7 @@ const outboundRows = (s: CallStatsStream): Row[] => {
   return [
     ['SSRC', str(s.ssrc)],
     ['Codec', str(s.codec)],
+    ['Stereo Encoding', stereo(s)],
     [
       'Average Encode Time',
       frames && encodeTime !== undefined
@@ -109,9 +110,20 @@ const outboundRows = (s: CallStatsStream): Row[] => {
   ];
 };
 
+/**
+ * Whether Opus runs in stereo on our side: the encoder for an outbound stream, the decoder for
+ * an inbound one. An inbound "Yes" only says we would play stereo; whether the sender encodes
+ * it is set by its own negotiation with the media server.
+ */
+const stereo = (s: CallStatsStream): string | undefined => {
+  if (s.kind !== 'audio' || !s.codec) return undefined;
+  return s.sdpFmtpLine?.includes('stereo=1') ? 'Yes' : 'No';
+};
+
 const inboundRows = (s: CallStatsStream): Row[] => [
   ['SSRC', str(s.ssrc)],
   ['Codec', str(s.codec)],
+  ['Stereo Decoding', stereo(s)],
   ['Decoder', str(s.stats.decoderImplementation)],
   ['Frames Decoded', str(s.stats.framesDecoded)],
   ['Frames Dropped', str(s.stats.framesDropped)],

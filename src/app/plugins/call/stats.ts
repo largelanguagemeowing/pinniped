@@ -5,6 +5,8 @@ export type CallStatsStream = {
   kind: string;
   ssrc: number;
   codec?: string;
+  /** Negotiated SDP fmtp line of the codec; Opus "stereo=1" means stereo. */
+  sdpFmtpLine?: string;
   stats: Record<string, StatValue>;
   remote?: Record<string, StatValue>;
   source?: Record<string, StatValue>;
