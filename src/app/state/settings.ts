@@ -91,7 +91,6 @@ export interface Settings {
   autoJoinSpaceRooms: boolean;
   ignoreSpaceAutoJoin: boolean;
   idleDetection: boolean;
-  spaceRoleMode: boolean;
 
   developerTools: boolean;
   /** Message range export, offered under Developer Tools. */
@@ -159,7 +158,6 @@ const defaultSettings: Settings = {
   autoJoinSpaceRooms: false,
   ignoreSpaceAutoJoin: false,
   idleDetection: true,
-  spaceRoleMode: false,
 
   developerTools: false,
   messageExport: false,

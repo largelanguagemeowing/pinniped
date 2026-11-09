@@ -28,9 +28,6 @@ import {
   getProfilePronouns,
 } from '../../../types/matrix/profile';
 import { DirectMessageComposer } from './DirectMessageComposer';
-import { useSpaceOptionally } from '../../hooks/useSpace';
-import { useSetting } from '../../state/hooks/settings';
-import { settingsAtom } from '../../state/settings';
 
 type UserRoomProfileProps = {
   userId: string;
@@ -42,19 +39,14 @@ export function UserRoomProfile({ userId }: UserRoomProfileProps) {
   const ignored = ignoredUsers.includes(userId);
 
   const room = useRoom();
-  const space = useSpaceOptionally();
-  const [spaceRoleMode] = useSetting(settingsAtom, 'spaceRoleMode');
-  const powerRoom = spaceRoleMode && space ? space : room;
-  const powerRoomSpaceId = powerRoom.roomId === space?.roomId ? undefined : space?.roomId;
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
-  const powerRoomCreators = useRoomCreators(powerRoom);
 
   const permissions = useRoomPermissions(creators, powerLevels);
   const { hasMorePower } = useMemberPowerCompare(creators, powerLevels);
 
   const myUserId = mx.getSafeUserId();
-  const creator = powerRoomCreators.has(userId);
+  const creator = creators.has(userId);
 
   const canKickUser = permissions.action('kick', myUserId) && hasMorePower(myUserId, userId);
   const canBanUser = permissions.action('ban', myUserId) && hasMorePower(myUserId, userId);
@@ -95,16 +87,7 @@ export function UserRoomProfile({ userId }: UserRoomProfileProps) {
             <UserHeroName displayName={displayName} userId={userId} pronouns={pronouns} />
           </Box>
           <Box alignItems="Center" gap="200" wrap="Wrap">
-            {creator ? (
-              <CreatorChip room={powerRoom} spaceId={powerRoomSpaceId} />
-            ) : (
-              <PowerChip
-                creators={powerRoomCreators}
-                room={powerRoom}
-                spaceId={powerRoomSpaceId}
-                userId={userId}
-              />
-            )}
+            {creator ? <CreatorChip /> : <PowerChip userId={userId} />}
             {userId !== myUserId && <MutualRoomsChip userId={userId} />}
             {userId !== myUserId && (
               <OptionsChip

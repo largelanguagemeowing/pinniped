@@ -9,8 +9,6 @@ import { usePermissionGroups } from './usePermissionItems';
 import { PermissionGroups, Powers, PowersEditor } from '../../common-settings/permissions';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
-import { useSetting } from '../../../state/hooks/settings';
-import { settingsAtom } from '../../../state/settings';
 
 type PermissionsProps = {
   requestClose: () => void;
@@ -26,7 +24,6 @@ export function Permissions({ requestClose }: PermissionsProps) {
   const canEditPowers = permissions.stateEvent(StateEvent.PowerLevelTags, mx.getSafeUserId());
   const canEditPermissions = permissions.stateEvent(StateEvent.RoomPowerLevels, mx.getSafeUserId());
   const permissionGroups = usePermissionGroups();
-  const [spaceRoleMode] = useSetting(settingsAtom, 'spaceRoleMode');
 
   const [powerEditor, setPowerEditor] = useState(false);
 
@@ -34,7 +31,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
     setPowerEditor(true);
   };
 
-  if (!spaceRoleMode && canEditPowers && powerEditor) {
+  if (canEditPowers && powerEditor) {
     return <PowersEditor powerLevels={powerLevels} requestClose={() => setPowerEditor(false)} />;
   }
 
@@ -58,13 +55,11 @@ export function Permissions({ requestClose }: PermissionsProps) {
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
-              {!spaceRoleMode && (
-                <Powers
-                  powerLevels={powerLevels}
-                  onEdit={canEditPowers ? handleEditPowers : undefined}
-                  permissionGroups={permissionGroups}
-                />
-              )}
+              <Powers
+                powerLevels={powerLevels}
+                onEdit={canEditPowers ? handleEditPowers : undefined}
+                permissionGroups={permissionGroups}
+              />
               <PermissionGroups
                 canEdit={canEditPermissions}
                 powerLevels={powerLevels}

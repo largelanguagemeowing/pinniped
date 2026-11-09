@@ -21,7 +21,6 @@ import {
   toRem,
 } from 'folds';
 import React, { MouseEventHandler, useCallback, useState } from 'react';
-import { Room } from 'matrix-js-sdk';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -33,12 +32,15 @@ import { stopPropagation } from '../../utils/keyboard';
 import { StateEvent } from '../../../types/matrix/room';
 import { useOpenRoomSettings } from '../../state/hooks/roomSettings';
 import { RoomSettingsPage } from '../../state/roomSettings';
+import { useRoom } from '../../hooks/useRoom';
+import { useSpaceOptionally } from '../../hooks/useSpace';
 import { CutoutCard } from '../cutout-card';
 import { useOpenSpaceSettings } from '../../state/hooks/spaceSettings';
 import { SpaceSettingsPage } from '../../state/spaceSettings';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { BreakWord } from '../../styles/Text.css';
 import { getPowerTagIconSrc, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
+import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '../../hooks/useMemberPowerCompare';
 
@@ -142,19 +144,16 @@ function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) 
   );
 }
 
-type PowerChipProps = {
-  creators: Set<string>;
-  room: Room;
-  spaceId?: string;
-  userId: string;
-};
-export function PowerChip({ creators, room, spaceId, userId }: PowerChipProps) {
+export function PowerChip({ userId }: { userId: string }) {
   const mx = useMatrixClient();
+  const room = useRoom();
+  const space = useSpaceOptionally();
   const useAuthentication = useMediaAuthentication();
   const openRoomSettings = useOpenRoomSettings();
   const openSpaceSettings = useOpenSpaceSettings();
 
   const powerLevels = usePowerLevels(room);
+  const creators = useRoomCreators(room);
 
   const permissions = useRoomPermissions(creators, powerLevels);
   const getMemberPowerLevel = useGetMemberPowerLevel(powerLevels);
@@ -295,9 +294,17 @@ export function PowerChip({ creators, room, spaceId, userId }: PowerChipProps) {
                   radii="300"
                   onClick={() => {
                     if (room.isSpaceRoom()) {
-                      openSpaceSettings(room.roomId, spaceId, SpaceSettingsPage.PermissionsPage);
+                      openSpaceSettings(
+                        room.roomId,
+                        space?.roomId,
+                        SpaceSettingsPage.PermissionsPage
+                      );
                     } else {
-                      openRoomSettings(room.roomId, spaceId, RoomSettingsPage.PermissionsPage);
+                      openRoomSettings(
+                        room.roomId,
+                        space?.roomId,
+                        RoomSettingsPage.PermissionsPage
+                      );
                     }
                     close();
                   }}
