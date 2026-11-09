@@ -3,7 +3,7 @@
 // (voice-call-layout, sound-overrides) already applied; edit it in place.
 // Usage: node scripts/fork/element-call/build.mjs [outDir]
 // Output defaults to node_modules/.cache/cinny-element-call-fork.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,8 +14,16 @@ export const ELEMENT_CALL_SRC = path.join(repoRoot, 'element-call');
 export const ELEMENT_CALL_TAG = 'v0.20.1';
 
 // CI=true keeps pnpm from prompting (and aborting) when there is no TTY, as under vite.
-const run = (cmd, args, cwd) =>
-  execFileSync(cmd, args, { cwd, stdio: 'inherit', env: { ...process.env, CI: 'true' } });
+// On Windows pnpm is a pnpm.cmd shim, which execFileSync cannot start (ENOENT), so
+// the command goes through the shell there. The arguments are fixed, space-free strings.
+const run = (cmd, args, cwd) => {
+  const options = { cwd, stdio: 'inherit', env: { ...process.env, CI: 'true' } };
+  if (process.platform === 'win32') {
+    execSync([cmd, ...args].join(' '), options);
+  } else {
+    execFileSync(cmd, args, options);
+  }
+};
 
 const mtime = (file) => (fs.existsSync(file) ? fs.statSync(file).mtimeMs : 0);
 
