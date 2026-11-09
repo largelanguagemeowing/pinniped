@@ -9,6 +9,7 @@ import { usePermissionGroups } from './usePermissionItems';
 import { PermissionGroups, Powers, PowersEditor } from '../../common-settings/permissions';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
+import { SyncChannelsPermissions } from './SyncChannelsPermissions';
 
 type PermissionsProps = {
   requestClose: () => void;
@@ -65,6 +66,9 @@ export function Permissions({ requestClose }: PermissionsProps) {
                 powerLevels={powerLevels}
                 permissionGroups={permissionGroups}
               />
+              {room.isSpaceRoom() && canEditPowers && canEditPermissions && (
+                <SyncChannelsPermissions space={room} />
+              )}
             </Box>
           </PageContent>
         </Scroll>
