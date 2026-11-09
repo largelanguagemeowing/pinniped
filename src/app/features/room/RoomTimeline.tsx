@@ -26,6 +26,7 @@ import {
   Room,
   RoomEvent,
   RoomEventHandlerMap,
+  EventType,
 } from 'matrix-js-sdk';
 import { HTMLReactParserOptions } from 'html-react-parser';
 import classNames from 'classnames';
@@ -661,19 +662,34 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             setUnreadInfo(getRoomUnreadInfo(mx, room));
           }
 
-          scrollToBottomRef.current.count += 1;
-          scrollToBottomRef.current.smooth = true;
+          const rendersNothing =
+            reactionOrEditEvent(mEvt) || mEvt.getType() === EventType.RoomRedaction;
+          if (!rendersNothing) {
+            scrollToBottomRef.current.count += 1;
+            scrollToBottomRef.current.smooth = true;
+          }
 
           setTimeline((ct) => ({
             ...ct,
             range: {
-              start: ct.range.start + 1,
+              // Events that render nothing (reactions, edits, redactions) only
+              // grow the window; sliding it would drop real messages.
+              start: ct.range.start + (rendersNothing ? 0 : 1),
               end: ct.range.end + 1,
             },
           }));
           return;
         }
-        setTimeline((ct) => ({ ...ct }));
+        // If the rendered range already reached the end, extend it so the new
+        // event (often hidden: reaction, redaction) does not turn into bottom
+        // placeholder rows and change the scroll height.
+        setTimeline((ct) => {
+          const wasAtEnd = ct.range.end === getTimelinesEventsCount(ct.linkedTimelines) - 1;
+          const live = ct.linkedTimelines[ct.linkedTimelines.length - 1] === getLiveTimeline(room);
+          return wasAtEnd && live
+            ? { ...ct, range: { ...ct.range, end: ct.range.end + 1 } }
+            : { ...ct };
+        });
         if (!unreadInfo) {
           setUnreadInfo(getRoomUnreadInfo(mx, room));
         }
