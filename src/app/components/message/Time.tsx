@@ -37,7 +37,16 @@ export const Time = as<'span', TimeProps & ComponentProps<typeof Text>>(
     }
 
     return (
-      <Text as="time" style={{ flexShrink: 0 }} size="T200" priority="300" {...props} ref={ref}>
+      // Timestamps sit at the far right of the message row; keep them out of
+      // drag selections so they don't pull into the highlight or copied text.
+      <Text
+        as="time"
+        style={{ flexShrink: 0, userSelect: 'none' }}
+        size="T200"
+        priority="300"
+        {...props}
+        ref={ref}
+      >
         {time}
       </Text>
     );

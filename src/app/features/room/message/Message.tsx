@@ -828,24 +828,24 @@ export const Message = as<'div', MessageProps>(
             </Text>
           </Username>
           {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
+          {messageLayout === MessageLayout.Modern && (
+            <Time
+              ts={mEvent.getTs()}
+              compact={false}
+              hour24Clock={hour24Clock}
+              dateFormatString={dateFormatString}
+            />
+          )}
         </Box>
         <Box shrink="No" gap="100">
-          {messageLayout === MessageLayout.Modern && hover && (
-            <>
-              <Text as="span" size="T200" priority="300">
-                {senderId}
-              </Text>
-              <Text as="span" size="T200" priority="300">
-                |
-              </Text>
-            </>
+          {messageLayout !== MessageLayout.Modern && (
+            <Time
+              ts={mEvent.getTs()}
+              compact={messageLayout === MessageLayout.Compact}
+              hour24Clock={hour24Clock}
+              dateFormatString={dateFormatString}
+            />
           )}
-          <Time
-            ts={mEvent.getTs()}
-            compact={messageLayout === MessageLayout.Compact}
-            hour24Clock={hour24Clock}
-            dateFormatString={dateFormatString}
-          />
           {shield && <MessageShieldIcon shield={shield} />}
           {isSending && <Icon className={css.MessageStatusSending} size="100" src={Icons.Clock} />}
         </Box>
@@ -879,7 +879,11 @@ export const Message = as<'div', MessageProps>(
     );
 
     const msgContentJSX = (
-      <Box direction="Column" alignSelf="Start" style={{ maxWidth: '100%' }}>
+      <Box
+        direction="Column"
+        alignSelf={messageLayout === MessageLayout.Modern ? 'Stretch' : 'Start'}
+        style={{ maxWidth: '100%' }}
+      >
         {reply}
         {edit && onEditId ? (
           <MessageEditor
