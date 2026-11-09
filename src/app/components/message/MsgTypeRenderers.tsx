@@ -188,7 +188,7 @@ type MImageProps = {
   content: IImageContent;
   renderImageContent: (props: RenderImageContentProps) => ReactNode;
   outlined?: boolean;
-  /** Fill the parent box instead of sizing to the image (album grid cells). */
+  /** Fill the parent box instead of sizing to the image (attachment grid cells). */
   fill?: boolean;
 };
 export function MImage({ content, renderImageContent, outlined, fill }: MImageProps) {

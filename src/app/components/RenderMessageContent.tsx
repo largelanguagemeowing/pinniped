@@ -52,7 +52,7 @@ type RenderMessageContentProps = {
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
-  /** Images fill their parent box instead of sizing to the image (album grid). */
+  /** Images fill their parent box instead of sizing to the image (attachment grid). */
   fill?: boolean;
 };
 export function RenderMessageContent({

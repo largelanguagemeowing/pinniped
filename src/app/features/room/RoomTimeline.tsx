@@ -67,9 +67,9 @@ import {
   MSticker,
   ImageContent,
   EventContent,
-  AlbumGrid,
+  AttachmentGrid,
 } from '../../components/message';
-import { getAlbumId } from '../../utils/album';
+import { getAttachmentGroupId } from '../../utils/attachments';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,
@@ -1199,33 +1199,33 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     );
   };
 
-  // Album helpers (see utils/album.ts). An album is consecutive events from one
-  // sender that carry the same album id; its first event is drawn as the grid.
+  // Attachment helpers (see utils/attachments.ts). An attachment group is consecutive events from one
+  // sender that carry the same group id; its first event is drawn as the grid.
   const getEventAtItem = (item: number): MatrixEvent | undefined => {
     const [eventTimeline, baseIndex] = getTimelineAndBaseIndex(timeline.linkedTimelines, item);
     if (!eventTimeline) return undefined;
     return getTimelineEvent(eventTimeline, getTimelineRelativeIndex(item, baseIndex));
   };
-  const isSameAlbum = (a: MatrixEvent | undefined, b: MatrixEvent | undefined): boolean => {
+  const isSameGroup = (a: MatrixEvent | undefined, b: MatrixEvent | undefined): boolean => {
     if (!a || !b) return false;
-    const albumId = getAlbumId(a.getContent());
+    const groupId = getAttachmentGroupId(a.getContent());
     return (
-      albumId !== undefined &&
-      albumId === getAlbumId(b.getContent()) &&
+      groupId !== undefined &&
+      groupId === getAttachmentGroupId(b.getContent()) &&
       a.getSender() === b.getSender()
     );
   };
-  const getAlbumMembers = (item: number, mEvent: MatrixEvent): MatrixEvent[] => {
+  const getAttachmentGroup = (item: number, mEvent: MatrixEvent): MatrixEvent[] => {
     const members = [mEvent];
     let next = getEventAtItem(item + 1);
-    while (next && isSameAlbum(members[members.length - 1], next)) {
+    while (next && isSameGroup(members[members.length - 1], next)) {
       members.push(next);
       next = getEventAtItem(item + members.length);
     }
     return members;
   };
-  const isAlbumContinuation = (item: number, mEvent: MatrixEvent): boolean =>
-    item > 0 && isSameAlbum(getEventAtItem(item - 1), mEvent);
+  const isGroupContinuation = (item: number, mEvent: MatrixEvent): boolean =>
+    item > 0 && isSameGroup(getEventAtItem(item - 1), mEvent);
 
   const renderMatrixEvent = useMatrixEventRenderer<
     [string, MatrixEvent, number, EventTimelineSet, boolean]
@@ -1245,14 +1245,14 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         const senderId = mEvent.getSender() ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId) ?? getMxIdLocalPart(senderId) ?? senderId;
-        const albumMembers = getAlbumId(mEvent.getContent())
-          ? getAlbumMembers(item, mEvent)
+        const attachmentGroup = getAttachmentGroupId(mEvent.getContent())
+          ? getAttachmentGroup(item, mEvent)
           : [mEvent];
-        // The album's caption is the first file's body when it differs from the
+        // The attachment group's caption is the first file's body when it differs from the
         // filename. It renders as a normal text message, above the grid.
-        const albumCaptionContent = (() => {
-          if (albumMembers.length < 2) return undefined;
-          const content = albumMembers[0].getContent();
+        const groupCaptionContent = (() => {
+          if (attachmentGroup.length < 2) return undefined;
+          const content = attachmentGroup[0].getContent();
           if (typeof content.filename !== 'string' || content.filename === content.body) {
             return undefined;
           }
@@ -1264,13 +1264,13 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             'm.mentions': content['m.mentions'],
           } as IContent;
         })();
-        const albumCaption = albumCaptionContent && (
+        const groupCaption = groupCaptionContent && (
           <RenderMessageContent
             displayName={senderDisplayName}
             msgType={MsgType.Text}
             ts={mEvent.getTs()}
             edited={false}
-            getContent={(() => albumCaptionContent) as GetContentCallback}
+            getContent={(() => groupCaptionContent) as GetContentCallback}
             mediaAutoLoad={mediaAutoLoad}
             urlPreview={showUrlPreview}
             htmlReactParserOptions={htmlReactParserOptions}
@@ -1336,10 +1336,13 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
           >
             {mEvent.isRedacted() ? (
               <RedactedContent reason={mEvent.getUnsigned().redacted_because?.content.reason} />
-            ) : albumMembers.length > 1 ? (
-              <AlbumGrid
-                caption={albumCaption}
-                items={albumMembers.map((member) => {
+            ) : attachmentGroup.length > 1 ? (
+              <AttachmentGrid
+                stacked={attachmentGroup.every(
+                  (member) => !['m.image', 'm.video'].includes(member.getContent().msgtype ?? '')
+                )}
+                caption={groupCaption}
+                items={attachmentGroup.map((member) => {
                   // The caption moves below the grid, so the cell renders without it.
                   const memberContent = member.getContent();
                   const cellContent = {
@@ -2066,7 +2069,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
 
     const eventJSX =
-      reactionOrEditEvent(mEvent) || isAlbumContinuation(item, mEvent)
+      reactionOrEditEvent(mEvent) || isGroupContinuation(item, mEvent)
         ? null
         : renderMatrixEvent(
             mEvent.getType(),

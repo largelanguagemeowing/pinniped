@@ -105,7 +105,7 @@ import { getImageUrlBlob, loadImageElement } from '../../utils/dom';
 import { safeFile } from '../../utils/mimeTypes';
 import { stripMetadata } from '../../utils/stripMetadata';
 import { fulfilledPromiseSettledResult, randomStr } from '../../utils/common';
-import { ALBUM_CONTENT_KEY } from '../../utils/album';
+import { ATTACHMENTS_CONTENT_KEY } from '../../utils/attachments';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import {
@@ -353,11 +353,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const fetchedContents = fulfilledPromiseSettledResult(
         await Promise.allSettled(contentsPromises)
       );
-      // Several files go out as one event each, tagged with a shared album id so
-      // they show as one grid (see utils/album.ts).
-      const albumId = fetchedContents.length > 1 ? randomStr(16) : undefined;
-      const contents = albumId
-        ? fetchedContents.map((content) => ({ ...content, [ALBUM_CONTENT_KEY]: albumId }))
+      // Several files go out as one event each, tagged with a shared group id so
+      // they show as one grid (see utils/attachments.ts).
+      const groupId = fetchedContents.length > 1 ? randomStr(16) : undefined;
+      const contents = groupId
+        ? fetchedContents.map((content) => ({ ...content, [ATTACHMENTS_CONTENT_KEY]: groupId }))
         : fetchedContents;
       // The typed text goes out as the caption of the first file, so it reads as
       // one message. With no file to carry it, it is sent as plain text.

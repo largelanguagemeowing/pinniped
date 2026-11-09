@@ -9,4 +9,4 @@ export * from './MsgTypeRenderers';
 export * from './FileHeader';
 export * from './RenderBody';
 export * from './MessageShield';
-export * from './AlbumGrid';
+export * from './AttachmentGrid';
