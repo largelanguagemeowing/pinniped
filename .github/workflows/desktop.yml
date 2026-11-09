@@ -97,7 +97,8 @@ jobs:
         include:
           - name: linux
             os: ubuntu-latest
-            flags: --linux AppImage rpm flatpak
+            # The RPM is packaged with nfpm below, not electron-builder (see electron/linux/nfpm.yaml).
+            flags: --linux AppImage flatpak
             files: |
               electron/out/*.AppImage
               electron/out/*.rpm
@@ -133,6 +134,20 @@ jobs:
         run: npx electron-builder --config electron/electron-builder.yml ${{ matrix.flags }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/setup-go@v5
+        if: matrix.name == 'linux'
+        with:
+          go-version: stable
+      # Pinned to the version the justfile recipe was tested with.
+      - name: Build the RPM with nfpm
+        if: matrix.name == 'linux'
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          export VERSION="$(node -p "require('./package.json').version")"
+          chmod -R go-w electron/out/linux-unpacked
+          nfpm package --packager rpm --config electron/linux/nfpm.yaml --target "electron/out/Pinniped-${VERSION}-x86_64.rpm"
+          rpm -qpi "electron/out/Pinniped-${VERSION}-x86_64.rpm"
       - uses: actions/upload-artifact@v4
         with:
           name: pinniped-${{ matrix.name }}

@@ -3,9 +3,15 @@
 # Port for the Vite dev server; override with PINNIPED_DEV_PORT=<port> just dev-electron.
 dev_port := env_var_or_default("PINNIPED_DEV_PORT", "5173")
 
+# The RPM is packaged with nfpm (go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest),
+# not electron-builder, whose fpm step needs Ruby and libcrypt.so.1.
 build:
+    command -v nfpm >/dev/null || { echo "nfpm not found: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest" >&2; exit 1; }
     npm run build
-    npx electron-builder --config electron/electron-builder.yml --linux rpm $(node scripts/fork/electron/electron-dist.mjs)
+    npx electron-builder --config electron/electron-builder.yml --linux dir $(node scripts/fork/electron/electron-dist.mjs)
+    # electron-builder writes files as 777; ship them as 755/644 instead.
+    chmod -R go-w electron/out/linux-unpacked
+    VERSION=$(node -p "require('./package.json').version") nfpm package --packager rpm --config electron/linux/nfpm.yaml --target "electron/out/Pinniped-$(node -p "require('./package.json').version")-x86_64.rpm"
 
 install: build
     sudo rpm -Uvh --force "$(ls -t electron/out/[Pp]inniped-*.rpm | head -1)"

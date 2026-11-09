@@ -1,0 +1,45 @@
+# RPM package for the Linux desktop build, packaged with nfpm (https://nfpm.goreleaser.com).
+# Run after `electron-builder --linux dir` has written electron/out/linux-unpacked; see the
+# `build` recipe in the justfile, which sets VERSION from package.json.
+#
+# This replaces electron-builder's fpm-based RPM target, which needs Ruby and the libcrypt.so.1
+# compat library that newer Fedora releases no longer ship.
+name: pinniped
+arch: amd64
+platform: linux
+version: ${VERSION}
+release: "1"
+section: net
+priority: optional
+maintainer: largelanguagemeowing <noreply@mreow.de>
+vendor: largelanguagemeowing <noreply@mreow.de>
+homepage: https://github.com/largelanguagemeowing/pinniped
+license: AGPL-3.0-only
+description: Desktop build of the Pinniped Matrix client.
+
+rpm:
+  summary: Yet another Matrix client
+  compression: xz
+
+# Same runtime libraries electron-builder declared for the fpm package.
+depends:
+  - gtk3
+  - libnotify
+  - nss
+  - libXScrnSaver
+  - libXtst
+  - xdg-utils
+  - at-spi2-core
+  - libuuid
+
+contents:
+  - src: electron/out/linux-unpacked/
+    dst: /opt/Pinniped/
+  - src: electron/build/icon.png
+    dst: /usr/share/icons/hicolor/512x512/apps/pinniped.png
+  - src: electron/linux/pinniped.desktop
+    dst: /usr/share/applications/pinniped.desktop
+
+scripts:
+  postinstall: electron/linux/after-install.sh
+  postremove: electron/linux/after-remove.sh

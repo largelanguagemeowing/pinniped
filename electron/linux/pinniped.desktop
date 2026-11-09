@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Pinniped
+Comment=Desktop build of the Pinniped Matrix client.
+Exec=pinniped
+Icon=pinniped
+Terminal=false
+Type=Application
+Categories=Network;
