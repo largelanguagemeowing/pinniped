@@ -138,13 +138,6 @@ export function LivekitRoomAudioRenderer({
       void ctx.close();
     };
   }, []);
-  const audioNodes = useMemo(
-    () => ({
-      gain: audioContext?.createGain(),
-      pan: audioContext?.createStereoPanner(),
-    }),
-    [audioContext],
-  );
 
   // Audio played through the context follows the chosen output device, like the elements do.
   useEffect(() => {
@@ -155,14 +148,6 @@ export function LivekitRoomAudioRenderer({
       });
     }
   }, [audioContext, audioOutputId]);
-
-  // Simple effects to update the gain and pan node based on the props
-  useEffect(() => {
-    if (audioNodes.pan) audioNodes.pan.pan.value = stereoPan;
-  }, [audioNodes.pan, stereoPan]);
-  useEffect(() => {
-    if (audioNodes.gain) audioNodes.gain.gain.value = volumeFactor;
-  }, [audioNodes.gain, volumeFactor]);
 
   return (
     // We add all audio elements into one <div> for the browser developer tool experience/tidyness.
@@ -197,7 +182,8 @@ export function LivekitRoomAudioRenderer({
               volume={useContext ? undefined : Math.min(level, 1)}
               level={level}
               audioContext={useContext ? audioContext : undefined}
-              audioNodes={audioNodes}
+              stereoPan={stereoPan}
+              volumeFactor={volumeFactor}
             />
           );
         })}
@@ -212,10 +198,9 @@ interface StereoPanAudioTrackProps {
   /** This listener's own gain for the participant: 0 muted, 1 unchanged, up to 2. */
   level: number;
   audioContext?: AudioContext;
-  audioNodes: {
-    gain?: GainNode;
-    pan?: StereoPannerNode;
-  };
+  /** Earpiece emulation: stereo pan and overall volume factor, applied with the level. */
+  stereoPan: number;
+  volumeFactor: number;
 }
 
 /**
@@ -226,8 +211,11 @@ interface StereoPanAudioTrackProps {
  * @param props The component props
  * @param props.trackRef The track reference
  * @param props.muted If the track should be muted
+ * @param props.silent Silence the plain audio element, keeping the track subscribed
+ * @param props.level This listener's own gain for the participant
  * @param props.audioContext The audio context to use
- * @param props.audioNodes The audio nodes to use
+ * @param props.stereoPan The earpiece stereo pan
+ * @param props.volumeFactor The earpiece volume factor
  * @returns
  */
 function AudioTrackWithAudioNodes({
@@ -236,28 +224,49 @@ function AudioTrackWithAudioNodes({
   silent,
   level,
   audioContext,
-  audioNodes,
+  stereoPan,
+  volumeFactor,
   ...props
 }: StereoPanAudioTrackProps &
   AudioTrackProps &
   React.RefAttributes<HTMLAudioElement>): ReactNode {
-  // This track's own gain, after the shared gain and pan nodes.
-  const levelNode = useMemo(() => audioContext?.createGain(), [audioContext]);
+  // This track's own nodes. They must not be shared between tracks: LiveKit chains a track's
+  // plugin nodes after its source, so a node shared by every track would feed each track's
+  // later nodes, and every voice would play once per participant, each copy at another
+  // participant's level (a voice at 0 stayed audible through the others' gain).
+  const nodes = useMemo(
+    () =>
+      audioContext && {
+        gain: audioContext.createGain(),
+        pan: audioContext.createStereoPanner(),
+      },
+    [audioContext],
+  );
+  // LiveKit only disconnects its own source and gain nodes, not the plugins.
+  useEffect(
+    () => (): void => {
+      nodes?.gain.disconnect();
+      nodes?.pan.disconnect();
+    },
+    [nodes],
+  );
   // This is used to unmount/remount the AudioTrack component.
   // Mounting needs to happen after the audioContext is set.
   // (adding the audio context when already mounted did not work outside strict mode)
   const [trackReady, setTrackReady] = useReactiveState(
     () => false,
-    // We only want the track to reset once both (audioNodes and audioContext) are set.
-    // for unsetting the audioContext its enough if one of the two is undefined.
-    [audioContext && audioNodes && levelNode],
+    // Reset once the audio context and its nodes are set; unsetting either resets too.
+    [nodes],
   );
 
   useEffect(() => {
+    if (nodes) nodes.pan.pan.value = stereoPan;
+  }, [nodes, stereoPan]);
+  useEffect(() => {
     // Through the audio context the element's own `muted` has no effect, so deafening
     // (muted) silences the track here.
-    if (levelNode) levelNode.gain.value = muted ? 0 : level;
-  }, [levelNode, level, muted]);
+    if (nodes) nodes.gain.gain.value = muted ? 0 : level * volumeFactor;
+  }, [nodes, level, volumeFactor, muted]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   useEffect(() => {
@@ -270,22 +279,11 @@ function AudioTrackWithAudioNodes({
   useEffect(() => {
     if (!trackRef || trackReady) return;
     const track = trackRef.publication.track as RemoteAudioTrack;
-    const useContext =
-      audioContext && audioNodes.gain && audioNodes.pan && levelNode;
-    track.setAudioContext(useContext ? audioContext : undefined);
-    track.setWebAudioPlugins(
-      useContext ? [audioNodes.gain!, audioNodes.pan!, levelNode] : [],
-    );
+    track.setAudioContext(nodes ? audioContext : undefined);
+    track.setWebAudioPlugins(nodes ? [nodes.gain, nodes.pan] : []);
     setTrackReady(true);
     controls.setPlaybackStarted();
-  }, [
-    audioContext,
-    audioNodes,
-    levelNode,
-    setTrackReady,
-    trackReady,
-    trackRef,
-  ]);
+  }, [audioContext, nodes, setTrackReady, trackReady, trackRef]);
 
   return (
     trackReady && (

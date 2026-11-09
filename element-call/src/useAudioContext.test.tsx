@@ -52,6 +52,7 @@ const TestComponentWrapper: FC = () => {
 const gainNode = vi.mocked(
   {
     connect: (node: AudioNode) => node,
+    disconnect: vi.fn(),
     gain: {
       setValueAtTime: vi.fn(),
       value: 1,
@@ -62,6 +63,7 @@ const gainNode = vi.mocked(
 const panNode = vi.mocked(
   {
     connect: (node: AudioNode) => node,
+    disconnect: vi.fn(),
     pan: {
       setValueAtTime: vi.fn(),
       value: 0,

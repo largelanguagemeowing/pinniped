@@ -286,3 +286,30 @@ it("should setup audioContext gain and pan", () => {
   expect(testAudioContext.gain.gain.value).toEqual(0.1);
   expect(testAudioContext.pan.pan.value).toEqual(1);
 });
+
+it("gives every track its own gain and pan nodes", () => {
+  // LiveKit chains a track's plugin nodes after its source, so a node shared between
+  // tracks would feed every track's later nodes and mix each voice into the others'.
+  vi.spyOn(MediaDevicesContext, "useEarpieceAudioConfig").mockReturnValue({
+    pan: 1,
+    volume: 1,
+  });
+
+  renderTestComponent(
+    [
+      { userId: "@bob", deviceId: "DEV0" },
+      { userId: "@carol", deviceId: "DEV1" },
+    ],
+    ["@bob:DEV0", "@carol:DEV1"],
+  );
+
+  expect(testAudioContext.createGain).toHaveBeenCalledTimes(2);
+  expect(testAudioContext.createStereoPanner).toHaveBeenCalledTimes(2);
+  for (const ref of tracks) {
+    const track = ref.publication.track! as RemoteAudioTrack;
+    expect(track.setWebAudioPlugins).toHaveBeenCalledWith([
+      testAudioContext.gain,
+      testAudioContext.pan,
+    ]);
+  }
+});
