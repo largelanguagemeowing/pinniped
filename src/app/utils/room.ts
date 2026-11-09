@@ -213,9 +213,36 @@ export const isNotificationEvent = (mEvent: MatrixEvent) => {
   return true;
 };
 
+// Starting a call posts a ringing notification with `m.mentions.room`, which the
+// server counts as a highlight for every member. So in a call room the server's
+// highlight count can't be trusted; count the text messages that mention us.
+const countCallRoomMentions = (room: Room): number => {
+  const userId = room.myUserId;
+  const readUpToId = room.getEventReadUpTo(userId);
+  const localTs = getLocalReadTs(room.roomId);
+  const liveEvents = room.getLiveTimeline().getEvents();
+  const readIndex = readUpToId ? liveEvents.findIndex((e) => e.getId() === readUpToId) : -1;
+  const unread =
+    readIndex >= 0
+      ? liveEvents.slice(readIndex + 1)
+      : liveEvents.filter((e) => e.getTs() > localTs);
+
+  return unread.filter((e) => {
+    if (e.getType() !== 'm.room.message' || e.isRedacted()) return false;
+    if (e.getRelation()?.rel_type === 'm.replace' || e.getSender() === userId) return false;
+    const mentions = e.getContent<{ 'm.mentions'?: IMentions }>()['m.mentions'];
+    return mentions?.room === true || !!mentions?.user_ids?.includes(userId);
+  }).length;
+};
+
+const getHighlightCount = (room: Room): number =>
+  room.isCallRoom()
+    ? countCallRoomMentions(room)
+    : room.getUnreadNotificationCount(NotificationCountType.Highlight);
+
 export const roomHaveNotification = (room: Room): boolean => {
   const total = room.getUnreadNotificationCount(NotificationCountType.Total);
-  const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
+  const highlight = getHighlightCount(room);
 
   return total > 0 || highlight > 0;
 };
@@ -279,7 +306,7 @@ export const getRoomUnreadInfo = (mx: MatrixClient, room: Room, scrollTo = false
 
 export const getUnreadInfo = (room: Room): UnreadInfo => {
   const total = room.getUnreadNotificationCount(NotificationCountType.Total);
-  const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
+  const highlight = getHighlightCount(room);
   return {
     roomId: room.roomId,
     highlight,
