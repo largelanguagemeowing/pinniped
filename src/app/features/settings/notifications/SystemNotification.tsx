@@ -21,7 +21,7 @@ import { logSound } from '../../../sound/log';
 import { getCoreSoundUrl, soundBundles } from '../../../sound/bundles';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SequenceCardStyle } from '../styles.css';
-import { Slider } from '../../../components/slider';
+import { VolumeSlider } from '../../../components/slider';
 import { SettingTile } from '../../../components/setting-tile';
 import { useSetting } from '../../../state/hooks/settings';
 import { getSettings, settingsAtom } from '../../../state/settings';
@@ -241,7 +241,11 @@ export function SystemNotification() {
           description="Volume of ringing, message, invitation and call sounds."
           after={
             <Box alignItems="Center" gap="200">
-              <Slider aria-label="Sound volume" value={soundVolume} onChange={setSoundVolume} />
+              <VolumeSlider
+                aria-label="Sound volume"
+                value={soundVolume}
+                onChange={setSoundVolume}
+              />
               <Text size="T300" style={{ minWidth: '4ch', textAlign: 'right' }}>
                 {Math.round(soundVolume * 100)}%
               </Text>

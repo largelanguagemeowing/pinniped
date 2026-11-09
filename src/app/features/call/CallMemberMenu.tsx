@@ -5,7 +5,7 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
-import { Slider } from '../../components/slider';
+import { VolumeSlider } from '../../components/slider';
 import { getDMRoomFor } from '../../utils/matrix';
 import { getHomeRoomPath } from '../../pages/pathUtils';
 import { useCallControlState } from '../../plugins/call';
@@ -144,7 +144,7 @@ export function CallMemberMenu({
                 {Math.round(volume * 100)}%
               </Text>
             </Box>
-            <Slider
+            <VolumeSlider
               aria-label="User volume"
               value={volume}
               max={MAX_USER_VOLUME}

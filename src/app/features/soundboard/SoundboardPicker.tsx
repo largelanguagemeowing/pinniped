@@ -29,7 +29,7 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { mxcUrlToHttp } from '../../utils/matrix';
 import { stopPropagation } from '../../utils/keyboard';
-import { Slider } from '../../components/slider';
+import { VolumeSlider } from '../../components/slider';
 import * as css from './styles.css';
 import { useSoundPlayer } from './useSoundPlayer';
 
@@ -199,7 +199,7 @@ export function SoundboardPicker({ callEmbed, room, anchor, requestClose }: Soun
                 >
                   <Box direction="Column" gap="300">
                     <Text size="H6">Soundboard Volume</Text>
-                    <Slider
+                    <VolumeSlider
                       aria-label="Soundboard volume"
                       value={volume}
                       onChange={setVolume}
