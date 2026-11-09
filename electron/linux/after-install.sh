@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Older builds installed pinniped.desktop; remove it so the launcher is not listed twice.
+rm -f '/usr/share/applications/pinniped.desktop'
+
 if type update-alternatives >/dev/null 2>&1; then
     # Remove previous link if it doesn't use update-alternatives
     if [ -L '/usr/bin/pinniped' -a -e '/usr/bin/pinniped' -a "`readlink '/usr/bin/pinniped'`" != '/etc/alternatives/pinniped' ]; then

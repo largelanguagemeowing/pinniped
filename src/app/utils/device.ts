@@ -44,6 +44,12 @@ declare global {
         link: (active: boolean, output?: string) => Promise<void>;
         release: () => Promise<void>;
       };
+      /** Linux desktop: global shortcuts through the portal helper. Resolves when the desktop answers. */
+      bindHotkeys?: (
+        shortcuts: { id: string; description: string; trigger?: string }[]
+      ) => Promise<{ ok: boolean; error?: string | null }>;
+      /** Calls `cb` with the id of each bound shortcut when it is pressed. Returns the unsubscribe. */
+      onHotkey?: (cb: (id: string) => void) => () => void;
       supportsRichPresenceBridge?: true;
       startRichPresenceBridge?: () => Promise<RichPresenceBridgeStartResult>;
       stopRichPresenceBridge?: () => Promise<void>;

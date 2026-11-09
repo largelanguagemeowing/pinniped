@@ -45,9 +45,9 @@ let isQuitting = false;
 // so notifications and sounds still arrive. Quit from the tray menu.
 const CLOSE_TO_TRAY = process.platform === 'win32';
 
-// Ties the running window's app-id / WM_CLASS to pinniped.desktop so GNOME
+// Ties the running window's app-id / WM_CLASS to club.stablecat.pinniped.desktop so GNOME
 // associates it with the launcher entry and applies the right icon and name.
-if (process.platform === 'linux') app.setDesktopName('pinniped');
+if (process.platform === 'linux') app.setDesktopName('club.stablecat.pinniped');
 
 // Windows toasts are attributed to the AppUserModelID; it has to match the one
 // electron-builder writes into the Start menu shortcut (the appId), otherwise
@@ -106,6 +106,8 @@ const linuxAutostartFile = () =>
     'autostart',
     'club.stablecat.pinniped.desktop'
   );
+const { helper } = require('./helper.cjs');
+const { hotkeys } = require('./hotkeys.cjs');
 const startupStateFile = () => path.join(app.getPath('userData'), 'startup.json');
 const readStartupState = () => {
   try {
@@ -129,35 +131,15 @@ const quoteDesktopArg = (arg) => `"${arg.replace(/(["`$\\])/g, '\\$1').replace(/
 
 // Flatpak: RequestBackground is asynchronous and may show the user a permission dialog; we
 // record the request and trust it, as the portal offers no cheap way to read the result back.
-const requestPortalAutostart = (enabled, minimized) =>
-  new Promise((resolve) => {
-    const variant = (value) => `<${value}>`;
-    const commandline = autostartCommand(minimized).map(
-      (arg) => `'${arg.replace(/(['\\])/g, '\\$1')}'`
-    );
-    const options = [
-      `'autostart': ${variant(enabled)}`,
-      `'background': ${variant(enabled)}`,
-      `'commandline': ${variant(`[${commandline.join(', ')}]`)}`,
-      `'reason': ${variant("'Open Pinniped when you log in'")}`,
-    ].join(', ');
-    require('child_process').execFile(
-      'gdbus',
-      [
-        'call',
-        '--session',
-        '--dest',
-        'org.freedesktop.portal.Desktop',
-        '--object-path',
-        '/org/freedesktop/portal/desktop',
-        '--method',
-        'org.freedesktop.portal.Background.RequestBackground',
-        '',
-        `{${options}}`,
-      ],
-      (err) => resolve(!err)
-    );
+const requestPortalAutostart = async (enabled, minimized) => {
+  const result = await helper.request({
+    cmd: 'autostart',
+    enabled,
+    minimized,
+    command: autostartCommand(minimized),
   });
+  return result.ok;
+};
 
 const getStartup = () => {
   const { minimized, portalEnabled } = readStartupState();
@@ -194,6 +176,13 @@ const setStartup = async (enabled, minimized) => {
     );
   }
 };
+// Global shortcuts: the desktop portal on Linux, globalShortcut elsewhere (see hotkeys.cjs). The
+// renderer gets each activation as a 'hotkey:activated' message with the shortcut id.
+hotkeys.on('activated', (id) => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('hotkey:activated', id);
+});
+ipcMain.handle('hotkeys:bind', (_event, shortcuts) => hotkeys.bind(shortcuts));
+
 ipcMain.handle('startup:get', () => {
   try {
     return getStartup();
@@ -486,5 +475,7 @@ if (!app.requestSingleInstanceLock()) {
     isQuitting = true;
     rpServer?.stop();
     screenShareAudio.releaseSync();
+    hotkeys.unregisterAll();
+    helper.stop();
   });
 }

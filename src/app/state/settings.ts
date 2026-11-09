@@ -47,6 +47,8 @@ export interface Settings {
   // Call devices, as enumerateDevices ids; '' = system default.
   callAudioInput: string;
   callAudioOutput: string;
+  // Desktop global shortcuts for call actions, by action id (see features/call-hotkeys). Empty: none.
+  callHotkeys: Partial<Record<'mute' | 'deafen', string>>;
 
   isPeopleDrawer: boolean;
   showPresenceInMemberList: boolean;
@@ -122,6 +124,7 @@ const defaultSettings: Settings = {
   callScreenShareAudio: true,
   callAudioInput: '',
   callAudioOutput: '',
+  callHotkeys: {},
 
   isPeopleDrawer: true,
   showPresenceInMemberList: true,

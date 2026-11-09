@@ -130,6 +130,12 @@ jobs:
         with:
           name: dist
           path: dist
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.name == 'linux'
+      # The portal helper ships inside the Linux builds (electron-builder extraResources and nfpm).
+      - name: Build the portal helper
+        if: matrix.name == 'linux'
+        run: cargo build --release --manifest-path electron/helper/Cargo.toml
       - name: Package
         run: npx electron-builder --config electron/electron-builder.yml ${{ matrix.flags }} --publish never
         env:

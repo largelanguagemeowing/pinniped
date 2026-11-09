@@ -31,3 +31,6 @@ AGENTS.md
 .pw-browsers/
 
 .pnpm-store/
+
+# Rust build output of the desktop helper (electron/helper)
+electron/helper/target/

@@ -43,6 +43,7 @@ import {
   useCallStart,
 } from '../hooks/useCallEmbed';
 import { callChatAtom, callEmbedAtom } from '../state/callEmbed';
+import { CallHotkeys } from '../features/call-hotkeys';
 import { CallEmbed } from '../plugins/call';
 import { useSelectedRoom } from '../hooks/router/useSelectedRoom';
 import { ScreenSize, useScreenSizeContext } from '../hooks/useScreenSize';
@@ -440,6 +441,7 @@ export function CallEmbedProvider({ children }: CallEmbedProviderProps) {
   return (
     <CallEmbedContextProvider value={callEmbed}>
       {callEmbed && <CallUtils embed={callEmbed} />}
+      <CallHotkeys />
       <CallEmbedRefContextProvider value={callEmbedRef}>
         <IncomingCallListener callEmbed={callEmbed} joined={joined} />
         {children}

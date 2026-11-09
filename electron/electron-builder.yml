@@ -35,7 +35,11 @@ asarUnpack:
 npmRebuild: false
 
 linux:
-  # ties the running window (WM_CLASS / app id) to pinniped.desktop so
+  # Portal helper (global shortcuts, autostart); built by `cargo build --release` in electron/helper.
+  extraResources:
+    - from: electron/helper/target/release/pinniped-helper
+      to: pinniped-helper
+  # ties the running window (WM_CLASS / app id) to club.stablecat.pinniped.desktop so
   # taskbars show this icon instead of a generic one
   syncDesktopName: true
   target:

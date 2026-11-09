@@ -26,6 +26,7 @@ import { UserSoundPack } from '../../soundboard/UserSoundPack';
 import { useMicLevel } from '../../../hooks/useMicLevel';
 import { VoiceGateMeter } from './VoiceGateMeter';
 import { VoiceTuningControls } from './VoiceTuningControls';
+import { CallShortcuts } from './CallShortcuts';
 import {
   VoiceTuning,
   autoTuningSpecs,
@@ -360,6 +361,7 @@ export function Calls({ requestClose }: CallsProps) {
           <PageContent>
             <Box direction="Column" gap="700">
               <CallAudio />
+              <CallShortcuts />
               <CallVideo />
               <UserSoundPack />
             </Box>

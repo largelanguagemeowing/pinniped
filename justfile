@@ -8,6 +8,7 @@ dev_port := env_var_or_default("PINNIPED_DEV_PORT", "5173")
 build:
     command -v nfpm >/dev/null || { echo "nfpm not found: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest" >&2; exit 1; }
     npm run build
+    cargo build --release --manifest-path electron/helper/Cargo.toml
     npx electron-builder --config electron/electron-builder.yml --linux dir $(node scripts/fork/electron/electron-dist.mjs)
     # electron-builder writes files as 777; ship them as 755/644 instead.
     chmod -R go-w electron/out/linux-unpacked

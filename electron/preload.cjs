@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld('cinnyDesktop', {
   getAutostart: () => ipcRenderer.invoke('startup:get'),
   setAutostart: (enabled, minimized) => ipcRenderer.invoke('startup:set', enabled, minimized),
   getSystemIdleTime: () => ipcRenderer.invoke('system:idle-time'),
+  bindHotkeys: (shortcuts) => ipcRenderer.invoke('hotkeys:bind', shortcuts),
+  onHotkey: (callback) => {
+    const listener = (_event, id) => callback(id);
+    ipcRenderer.on('hotkey:activated', listener);
+    return () => ipcRenderer.removeListener('hotkey:activated', listener);
+  },
   // Linux: a virtual microphone with the other applications' audio, for screen shares.
   screenShareAudio:
     process.platform === 'linux'

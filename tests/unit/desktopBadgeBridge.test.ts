@@ -62,6 +62,10 @@ describe('Windows badge IPC', () => {
             APP_ORIGIN: 'app://pinniped',
           };
         if (name === './menu.cjs') return { buildAppMenu: vi.fn() };
+        if (name === './helper.cjs')
+          return { helper: { on: vi.fn(), request: vi.fn(), stop: vi.fn() } };
+        if (name === './hotkeys.cjs')
+          return { hotkeys: { on: vi.fn(), bind: vi.fn(), unregisterAll: vi.fn() } };
         return {};
       },
     });

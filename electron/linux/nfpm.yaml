@@ -39,8 +39,8 @@ contents:
     type: tree
   - src: electron/build/icon.png
     dst: /usr/share/icons/hicolor/512x512/apps/pinniped.png
-  - src: electron/linux/pinniped.desktop
-    dst: /usr/share/applications/pinniped.desktop
+  - src: electron/linux/club.stablecat.pinniped.desktop
+    dst: /usr/share/applications/club.stablecat.pinniped.desktop
 
 scripts:
   postinstall: electron/linux/after-install.sh
