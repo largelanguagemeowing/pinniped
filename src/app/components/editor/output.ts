@@ -12,6 +12,7 @@ import {
 import { findAndReplace } from '../../utils/findAndReplace';
 import { sanitizeForRegex } from '../../utils/regex';
 import { isUserId } from '../../utils/matrix';
+import { isMxcUrl } from '../../utils/mxc';
 
 export type OutputOptions = {
   allowTextFormatting?: boolean;
@@ -72,7 +73,7 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
       return `<a href="${encodeURI(matrixTo)}">${sanitizeText(node.name)}</a>`;
     }
     case BlockType.Emoticon:
-      return node.key.startsWith('mxc://')
+      return isMxcUrl(node.key)
         ? `<img data-mx-emoticon src="${node.key}" alt="${sanitizeText(
             node.shortcode
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
@@ -157,7 +158,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Mention:
       return node.id;
     case BlockType.Emoticon:
-      return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
+      return isMxcUrl(node.key) ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
       return `[${node.children}](${node.href})`;
     case BlockType.Command:

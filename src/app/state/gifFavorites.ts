@@ -153,7 +153,10 @@ export const migrateGifFavorites = async (mx: MatrixClient): Promise<void> => {
 
 // Extract a favouritable GIF from a timeline event: GIF image messages, GIF
 // stickers and OOYE-bridged GIF text/notice messages.
-export const getEventFavoriteGif = (mEvent: MatrixEvent): FavoriteGif | undefined => {
+export const getEventFavoriteGif = (
+  mEvent: MatrixEvent,
+  mediaEmbedHosts: readonly string[]
+): FavoriteGif | undefined => {
   const content = mEvent.getContent();
   const msgType = content.msgtype;
 
@@ -190,7 +193,7 @@ export const getEventFavoriteGif = (mEvent: MatrixEvent): FavoriteGif | undefine
   }
 
   if (msgType === MsgType.Text || msgType === MsgType.Notice) {
-    const ooye = parseOoyeGif(content);
+    const ooye = parseOoyeGif(content, mediaEmbedHosts);
     if (ooye) {
       return { kind: 'url', title: ooye.title, videoUrl: ooye.videoUrl, pageUrl: ooye.pageUrl };
     }

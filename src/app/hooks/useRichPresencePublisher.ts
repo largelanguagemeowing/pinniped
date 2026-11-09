@@ -17,6 +17,7 @@ import {
   type ActivityPayload,
 } from '../utils/discordActivity';
 import type { DiscordRichPresenceActivity } from '../utils/device';
+import { isMxcUrl } from '../utils/mxc';
 
 // Minimum interval between profile writes. Discord-RPC clients can fire
 // SET_ACTIVITY on every progress tick; coalesce to avoid hammering the HS.
@@ -117,7 +118,7 @@ export const useRichPresencePublisher = () => {
       mx.getUrlPreview(url, Date.now())
         .then((prev: { 'og:image'?: string }) => {
           const img = prev?.['og:image'];
-          const mxc = typeof img === 'string' && img.startsWith('mxc://') ? img : null;
+          const mxc = isMxcUrl(img) ? img : null;
           coverCache.set(url, mxc);
           resolving.delete(url);
           applyCover(url, mxc);

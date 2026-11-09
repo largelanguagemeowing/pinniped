@@ -19,6 +19,7 @@ import { BlockType } from './types';
 import { mxcUrlToHttp } from '../../utils/matrix';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { MarkdownLine, getMarkdownLines } from './markdown';
+import { isMxcUrl } from '../../utils/mxc';
 
 // Put this at the start and end of an inline component to work around this Chromium bug:
 // https://bugs.chromium.org/p/chromium/issues/detail?id=1249405
@@ -94,7 +95,7 @@ function RenderEmoticonElement({
         })}
         contentEditable={false}
       >
-        {element.key.startsWith('mxc://') ? (
+        {isMxcUrl(element.key) ? (
           <img
             className={css.EmoticonImg}
             src={mxcUrlToHttp(mx, element.key, useAuthentication) ?? element.key}

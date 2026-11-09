@@ -7,3 +7,4 @@ export * from './FallbackContent';
 export * from './OoyeGifContent';
 export * from './MediaAutoEmbed';
 export * from './EventContent';
+export * from './MediaEmbedAllow';

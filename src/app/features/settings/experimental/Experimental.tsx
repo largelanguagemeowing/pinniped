@@ -6,6 +6,7 @@ import { SettingTile } from '../../../components/setting-tile';
 import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
 import { SequenceCardStyle } from '../styles.css';
+import { DEFAULT_MEDIA_EMBED_HOSTS, normalizeEmbedHost } from '../../../utils/directGif';
 
 const normalizePreviewServer = (value: string): string | undefined => {
   try {
@@ -124,6 +125,120 @@ function UrlPreviewServer() {
   );
 }
 
+function MediaEmbedHosts() {
+  const [hosts, setHosts] = useSetting(settingsAtom, 'mediaEmbedHosts');
+  const [input, setInput] = useState('');
+  const normalized = normalizeEmbedHost(input);
+  const duplicate = !!normalized && hosts.includes(normalized);
+  const isDefault =
+    hosts.length === DEFAULT_MEDIA_EMBED_HOSTS.length &&
+    DEFAULT_MEDIA_EMBED_HOSTS.every((host) => hosts.includes(host));
+
+  const handleAdd: FormEventHandler<HTMLFormElement> = (evt) => {
+    evt.preventDefault();
+    if (!normalized || duplicate) return;
+    setHosts([...hosts, normalized]);
+    setInput('');
+  };
+
+  return (
+    <SettingTile
+      title="Media Embeds"
+      description="GIF and video links from these hosts are embedded in the timeline. Every other link is previewed through your homeserver or the preview server. Embedding loads the file from the host, so the host sees your IP address."
+    >
+      <Box direction="Column" gap="200" style={{ marginTop: config.space.S200 }}>
+        {hosts.length === 0 && (
+          <Text size="T300" priority="300">
+            No hosts. Links are not embedded.
+          </Text>
+        )}
+        {hosts.map((host) => (
+          <Box key={host} alignItems="Center" gap="200">
+            <Box grow="Yes" style={{ minWidth: 0 }}>
+              <Text size="B400" truncate>
+                {host}
+              </Text>
+            </Box>
+            <IconButton
+              onClick={() => setHosts(hosts.filter((h) => h !== host))}
+              aria-label={`Remove ${host}`}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+            >
+              <Icon src={Icons.Cross} size="100" />
+            </IconButton>
+          </Box>
+        ))}
+        <Box as="form" onSubmit={handleAdd} direction="Column" gap="200">
+          <Box gap="200">
+            <Box grow="Yes" direction="Column">
+              <Input
+                name="mediaEmbedHostInput"
+                value={input}
+                onChange={(evt) => setInput(evt.currentTarget.value)}
+                placeholder="example.org"
+                autoComplete="off"
+                spellCheck={false}
+                size="400"
+                variant="Secondary"
+                radii="300"
+              />
+            </Box>
+            <Button
+              size="400"
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              radii="300"
+              disabled={!normalized || duplicate}
+              type="submit"
+            >
+              <Text size="B400">Add</Text>
+            </Button>
+          </Box>
+          {input.trim() && !normalized && (
+            <Text size="T200" style={{ color: color.Critical.Main }}>
+              Enter a host name, like example.org.
+            </Text>
+          )}
+          {duplicate && (
+            <Text size="T200" priority="300">
+              Already in the list.
+            </Text>
+          )}
+        </Box>
+        {!isDefault && (
+          <Box>
+            <Button
+              size="400"
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              radii="300"
+              type="button"
+              onClick={() => setHosts([...DEFAULT_MEDIA_EMBED_HOSTS])}
+            >
+              <Text size="B400">Reset to defaults</Text>
+            </Button>
+          </Box>
+        )}
+      </Box>
+    </SettingTile>
+  );
+}
+
+function MediaEmbeds() {
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Media Embeds</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <MediaEmbedHosts />
+      </SequenceCard>
+    </Box>
+  );
+}
+
 function LinkPreviews() {
   return (
     <Box direction="Column" gap="100">
@@ -159,6 +274,7 @@ export function Experimental({ requestClose }: ExperimentalProps) {
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
+              <MediaEmbeds />
               <LinkPreviews />
             </Box>
           </PageContent>

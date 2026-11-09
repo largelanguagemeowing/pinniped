@@ -42,6 +42,7 @@ import {
 import { onEnterOrSpace } from '../utils/keyboard';
 import { copyToClipboard, tryDecodeURIComponent } from '../utils/dom';
 import { useTimeoutToggle } from '../hooks/useTimeoutToggle';
+import { isMxcUrl } from '../utils/mxc';
 
 const ReactPrism = lazy(() => import('./react-prism/ReactPrism'));
 
@@ -485,7 +486,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'img') {
           const htmlSrc = mxcUrlToHttp(mx, attribs.src, params.useAuthentication);
-          if (htmlSrc && attribs.src.startsWith('mxc://') === false) {
+          if (htmlSrc && !isMxcUrl(attribs.src)) {
             return (
               <a href={htmlSrc} target="_blank" rel="noreferrer noopener">
                 {props.alt || props.title || htmlSrc}

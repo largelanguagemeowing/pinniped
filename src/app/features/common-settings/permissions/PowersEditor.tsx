@@ -13,6 +13,7 @@ import {
   PopOut,
   Menu,
   config,
+  color,
   Spinner,
   toRem,
   TooltipProvider,
@@ -38,6 +39,8 @@ import { UseStateProvider } from '../../../components/UseStateProvider';
 import { EmojiBoard } from '../../../components/emoji-board';
 import { useImagePackRooms } from '../../../hooks/useImagePackRooms';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
+import { settingsAtom } from '../../../state/settings';
+import { useSetting } from '../../../state/hooks/settings';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useFilePicker } from '../../../hooks/useFilePicker';
@@ -49,6 +52,67 @@ import { useAlive } from '../../../hooks/useAlive';
 import { BetaNoticeBadge } from '../../../components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '../../../hooks/useMemberPowerTag';
 import { creatorsSupported } from '../../../utils/matrix';
+
+// Discord's role colour presets, shown as swatches under the picker.
+const ROLE_COLOR_PRESETS = [
+  '#1abc9c',
+  '#2ecc71',
+  '#3498db',
+  '#9b59b6',
+  '#e91e63',
+  '#f1c40f',
+  '#e67e22',
+  '#e74c3c',
+  '#95a5a6',
+  '#607d8b',
+  '#11806a',
+  '#1f8b4c',
+  '#206694',
+  '#71368a',
+  '#ad1457',
+  '#c27c0e',
+  '#a84300',
+  '#992d22',
+  '#979c9f',
+  '#546e7a',
+];
+
+type RoleColorPresetsProps = {
+  value?: string;
+  onChange: (color: string) => void;
+};
+function RoleColorPresets({ value, onChange }: RoleColorPresetsProps) {
+  const selected = value?.toLowerCase();
+  const rows = [ROLE_COLOR_PRESETS.slice(0, 10), ROLE_COLOR_PRESETS.slice(10)];
+  return (
+    <Box direction="Column" gap="100">
+      {rows.map((row) => (
+        <Box key={row[0]} gap="100">
+          {row.map((hex) => (
+            <button
+              key={hex}
+              type="button"
+              aria-label={hex}
+              aria-pressed={selected === hex}
+              onClick={() => onChange(hex)}
+              style={{
+                width: toRem(20),
+                height: toRem(20),
+                padding: 0,
+                border: 'none',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                backgroundColor: hex,
+                outline: selected === hex ? `2px solid ${color.Primary.Main}` : 'none',
+                outlineOffset: 2,
+              }}
+            />
+          ))}
+        </Box>
+      ))}
+    </Box>
+  );
+}
 
 type EditPowerProps = {
   maxPower: number;
@@ -70,6 +134,7 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
   const pickFile = useFilePicker(setIconFile, false);
 
   const [tagColor, setTagColor] = useState<string | undefined>(tag?.color);
+  const [developerTools] = useSetting(settingsAtom, 'developerTools');
   const [tagIcon, setTagIcon] = useState<MemberPowerTagIcon | undefined>(tag?.icon);
   const uploadingIcon = iconFile && !tagIcon;
   const tagIconSrc = tagIcon && getPowerTagIconSrc(mx, useAuthentication, tagIcon);
@@ -123,7 +188,12 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
             <Text size="L400">Color</Text>
             <Box gap="200">
               <HexColorPickerPopOut
-                picker={<HexColorPicker color={tagColor} onChange={setTagColor} />}
+                picker={
+                  <Box direction="Column" gap="200">
+                    <HexColorPicker color={tagColor} onChange={setTagColor} />
+                    <RoleColorPresets value={tagColor} onChange={setTagColor} />
+                  </Box>
+                }
                 onRemove={() => setTagColor(undefined)}
               >
                 {(openPicker, opened) => (
@@ -142,6 +212,16 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
                 )}
               </HexColorPickerPopOut>
             </Box>
+            {developerTools && (
+              <Input
+                size="300"
+                variant="SurfaceVariant"
+                radii="300"
+                placeholder="Raw CSS colour (developer tools)"
+                value={tagColor ?? ''}
+                onChange={(evt) => setTagColor(evt.target.value || undefined)}
+              />
+            )}
           </Box>
           <Box grow="Yes" direction="Column" gap="100">
             <Text size="L400">Name</Text>
@@ -256,6 +336,16 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
               </>
             )}
           </Box>
+        )}
+        {developerTools && (
+          <Input
+            size="300"
+            variant="SurfaceVariant"
+            radii="300"
+            placeholder="Raw icon key or URL (developer tools)"
+            value={tagIcon?.key ?? ''}
+            onChange={(evt) => setTagIcon(evt.target.value ? { key: evt.target.value } : undefined)}
+          />
         )}
       </Box>
       <Box direction="Row" gap="200" justifyContent="Start">

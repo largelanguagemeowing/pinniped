@@ -1,38 +1,31 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Button, Icon, Icons, Spinner, Text, Tooltip, TooltipProvider, toRem } from 'folds';
-import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
-import { useObjectURL } from '../../../hooks/useObjectURL';
-import { fitWithin } from '../../../utils/common';
-import { onEnterOrSpace } from '../../../utils/keyboard';
 import { ImageOverlay } from '../../ImageOverlay';
 import { ImageViewer } from '../../image-viewer';
 import { Image, Video } from '../../media';
 import { Attachment, AttachmentBox } from '../attachment';
+import { fitWithin } from '../../../utils/common';
+import { onEnterOrSpace } from '../../../utils/keyboard';
 import * as css from './style.css';
 
-const MEDIA_ACCEPT = 'image/*, video/*';
 const MAX_WIDTH = 400;
 const MAX_HEIGHT = 600;
 const DEFAULT_HEIGHT = 300;
 
-type EmbeddableMedia = {
-  blob: Blob;
-  kind: 'image' | 'video';
+const IMAGE_EXTENSIONS = new Set(['gif', 'png', 'jpg', 'jpeg', 'webp', 'avif']);
+
+// The file is loaded by the <img>/<video> element itself, not fetched. A fetch would
+// need the host to send CORS headers, and most file hosts do not.
+const getEmbedKind = (url: string): 'image' | 'video' => {
+  try {
+    const ext = new URL(url).pathname.split('.').pop()?.toLowerCase();
+    return ext !== undefined && IMAGE_EXTENSIONS.has(ext) ? 'image' : 'video';
+  } catch {
+    return 'video';
+  }
 };
 
-const fetchEmbeddableMedia = async (url: string): Promise<EmbeddableMedia> => {
-  const response = await fetch(url, {
-    headers: {
-      Accept: MEDIA_ACCEPT,
-    },
-  });
-  if (!response.ok) throw new Error(`Failed to load media: ${response.status}`);
-
-  const blob = await response.blob();
-  if (blob.type.startsWith('image/')) return { blob, kind: 'image' };
-  if (blob.type.startsWith('video/')) return { blob, kind: 'video' };
-  throw new Error(`Unsupported media type: ${blob.type || 'unknown'}`);
-};
+type EmbedStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export type MediaAutoEmbedProps = {
   url: string;
@@ -40,19 +33,22 @@ export type MediaAutoEmbedProps = {
 };
 
 export function MediaAutoEmbed({ url, autoLoad = true }: MediaAutoEmbedProps) {
+  const kind = getEmbedKind(url);
+  const [status, setStatus] = useState<EmbedStatus>(autoLoad ? 'loading' : 'idle');
+  // Changing the attempt remounts the element, which starts the load again.
+  const [attempt, setAttempt] = useState(0);
   const [viewer, setViewer] = useState(false);
   const [width, setWidth] = useState(MAX_WIDTH);
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
-  const [mediaState, loadMedia] = useAsyncCallback(
-    useCallback(() => fetchEmbeddableMedia(url), [url])
-  );
-  const mediaUrl = useObjectURL(
-    mediaState.status === AsyncStatus.Success ? mediaState.data.blob : undefined
-  );
 
   useEffect(() => {
-    if (autoLoad) loadMedia().catch(() => undefined);
-  }, [autoLoad, loadMedia]);
+    if (autoLoad) setStatus((current) => (current === 'idle' ? 'loading' : current));
+  }, [autoLoad]);
+
+  const startLoad = () => {
+    setStatus('loading');
+    setAttempt((current) => current + 1);
+  };
 
   const updateDimensions = (mediaWidth: number, mediaHeight: number) => {
     if (!mediaWidth || !mediaHeight) return;
@@ -61,80 +57,82 @@ export function MediaAutoEmbed({ url, autoLoad = true }: MediaAutoEmbedProps) {
     setHeight(Math.max(nextHeight, 48));
   };
 
-  const handleRetry = () => loadMedia().catch(() => undefined);
-  const loading = mediaState.status === AsyncStatus.Loading;
-  const failed = mediaState.status === AsyncStatus.Error;
-  const idle = mediaState.status === AsyncStatus.Idle;
+  const mounted = status === 'loading' || status === 'ready';
 
   return (
     <Attachment style={{ width: toRem(width) }}>
       <AttachmentBox style={{ width: toRem(width), height: toRem(height) }}>
         <Box className={css.RelativeBase}>
-          {mediaState.status === AsyncStatus.Success && mediaUrl && (
-            <Box className={css.AbsoluteContainer}>
-              {mediaState.data.kind === 'image' ? (
-                <>
-                  <Image
-                    src={mediaUrl}
-                    alt="Embedded image"
-                    title={url}
-                    loading="lazy"
-                    tabIndex={0}
-                    onLoad={(event) =>
-                      updateDimensions(
-                        event.currentTarget.naturalWidth,
-                        event.currentTarget.naturalHeight
-                      )
-                    }
-                    onKeyDown={(event) => onEnterOrSpace(() => setViewer(true))(event)}
-                    onClick={() => setViewer(true)}
-                  />
-                  <ImageOverlay
-                    src={mediaUrl}
-                    alt="Embedded image"
-                    viewer={viewer}
-                    requestClose={() => setViewer(false)}
-                    renderViewer={(props) => <ImageViewer {...props} />}
-                  />
-                </>
-              ) : (
+          {mounted &&
+            (kind === 'image' ? (
+              <Box className={css.AbsoluteContainer}>
+                <Image
+                  key={attempt}
+                  src={url}
+                  alt="Embedded image"
+                  title={url}
+                  loading="lazy"
+                  tabIndex={0}
+                  onLoad={(event) => {
+                    setStatus('ready');
+                    updateDimensions(
+                      event.currentTarget.naturalWidth,
+                      event.currentTarget.naturalHeight
+                    );
+                  }}
+                  onError={() => setStatus('error')}
+                  onKeyDown={(event) => onEnterOrSpace(() => setViewer(true))(event)}
+                  onClick={() => setViewer(true)}
+                />
+                <ImageOverlay
+                  src={url}
+                  alt="Embedded image"
+                  viewer={viewer}
+                  requestClose={() => setViewer(false)}
+                  renderViewer={(props) => <ImageViewer {...props} />}
+                />
+              </Box>
+            ) : (
+              <Box className={css.AbsoluteContainer}>
                 <Video
-                  src={mediaUrl}
+                  key={attempt}
+                  src={url}
                   title={url}
                   aria-label="Embedded video"
                   controls
                   playsInline
                   preload="metadata"
-                  onLoadedMetadata={(event) =>
+                  onLoadedMetadata={(event) => {
+                    setStatus('ready');
                     updateDimensions(
                       event.currentTarget.videoWidth,
                       event.currentTarget.videoHeight
-                    )
-                  }
+                    );
+                  }}
+                  onError={() => setStatus('error')}
                 />
-              )}
-            </Box>
-          )}
-          {loading && (
+              </Box>
+            ))}
+          {status === 'loading' && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <Spinner variant="Secondary" />
             </Box>
           )}
-          {idle && (
+          {status === 'idle' && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <Button
                 variant="Secondary"
                 fill="Solid"
                 radii="300"
                 size="300"
-                onClick={handleRetry}
+                onClick={startLoad}
                 before={<Icon size="Inherit" src={Icons.Play} filled />}
               >
                 <Text size="B300">Load media</Text>
               </Button>
             </Box>
           )}
-          {failed && (
+          {status === 'error' && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <TooltipProvider
                 tooltip={
@@ -153,7 +151,7 @@ export function MediaAutoEmbed({ url, autoLoad = true }: MediaAutoEmbedProps) {
                     fill="Soft"
                     outlined
                     radii="300"
-                    onClick={handleRetry}
+                    onClick={startLoad}
                     before={<Icon size="Inherit" src={Icons.Warning} filled />}
                   >
                     <Text size="B300">Retry</Text>

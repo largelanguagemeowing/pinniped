@@ -3,6 +3,9 @@ import { useMemo } from 'react';
 import { IPowerLevels } from './usePowerLevels';
 import { useStateEvent } from './useStateEvent';
 import { MemberPowerTag, StateEvent } from '../../types/matrix/room';
+import { sanitizeStateTag } from '../utils/powerTagColor';
+import { settingsAtom } from '../state/settings';
+import { useSetting } from '../state/hooks/settings';
 
 export type PowerLevelTags = Record<number, MemberPowerTag>;
 
@@ -48,31 +51,32 @@ export const getUsedPowers = (powerLevels: IPowerLevels): Set<number> => {
 const DEFAULT_TAGS: PowerLevelTags = {
   9001: {
     name: 'Goku',
-    color: '#ff6a00',
+    color: '#e67e22',
   },
   150: {
     name: 'Manager',
-    color: '#ff6a7f',
+    color: '#e74c3c',
   },
   101: {
     name: 'Founder',
-    color: '#0000ff',
+    color: '#f1c40f',
   },
   100: {
     name: 'Admin',
-    color: '#0088ff',
+    color: '#3498db',
   },
   50: {
     name: 'Moderator',
-    color: '#1fd81f',
+    color: '#2ecc71',
   },
   0: {
     name: 'Member',
-    color: '#91cfdf',
+    color:
+      'color-mix(in oklab, var(--neutral-12) 100%, var(--custom-theme-text-color, #000) var(--custom-theme-text-color-amount, 0%))',
   },
   [-1]: {
     name: 'Muted',
-    color: '#888888',
+    color: '#979c9f',
   },
 };
 
@@ -89,10 +93,17 @@ const generateFallbackTag = (powerLevelTags: PowerLevelTags, power: number): Mem
 
 export const usePowerLevelTags = (room: Room, powerLevels: IPowerLevels): PowerLevelTags => {
   const tagsEvent = useStateEvent(room, StateEvent.PowerLevelTags);
+  // Developer tools show raw colour values as they are stored, for testing.
+  const [developerTools] = useSetting(settingsAtom, 'developerTools');
 
   const powerLevelTags: PowerLevelTags = useMemo(() => {
-    const content = tagsEvent?.getContent<PowerLevelTags>();
-    const powerToTags: PowerLevelTags = { ...content };
+    const content = tagsEvent?.getContent<PowerLevelTags>() ?? {};
+    const powerToTags: PowerLevelTags = {};
+    Object.entries(content).forEach(([power, tag]) => {
+      if (tag && typeof tag === 'object') {
+        powerToTags[Number(power)] = developerTools ? tag : sanitizeStateTag(tag);
+      }
+    });
 
     const powers = getUsedPowers(powerLevels);
     Array.from(powers).forEach((power) => {
@@ -102,7 +113,7 @@ export const usePowerLevelTags = (room: Room, powerLevels: IPowerLevels): PowerL
     });
 
     return powerToTags;
-  }, [powerLevels, tagsEvent]);
+  }, [powerLevels, tagsEvent, developerTools]);
 
   return powerLevelTags;
 };

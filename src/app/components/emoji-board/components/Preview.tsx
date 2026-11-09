@@ -5,6 +5,7 @@ import * as css from './styles.css';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { mxcUrlToHttp } from '../../../utils/matrix';
+import { isMxcUrl } from '../../../utils/mxc';
 
 export type PreviewData = {
   key: string;
@@ -34,7 +35,7 @@ export function Preview({ previewAtom }: PreviewProps) {
           alignItems="Center"
           justifyContent="Center"
         >
-          {key.startsWith('mxc://') ? (
+          {isMxcUrl(key) ? (
             <img
               className={css.PreviewImg}
               src={mxcUrlToHttp(mx, key, useAuthentication) ?? key}

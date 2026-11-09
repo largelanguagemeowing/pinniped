@@ -1,4 +1,5 @@
 import sanitizeHtml, { Transformer } from 'sanitize-html';
+import { isMxcUrl } from './mxc';
 
 const MAX_TAG_NESTING = 100;
 
@@ -108,7 +109,7 @@ const transformATag: Transformer = (tagName, attribs) => ({
 
 const transformImgTag: Transformer = (tagName, attribs) => {
   const { src } = attribs;
-  if (typeof src === 'string' && src.startsWith('mxc://') === false) {
+  if (typeof src === 'string' && !isMxcUrl(src)) {
     return {
       tagName: 'a',
       attribs: {

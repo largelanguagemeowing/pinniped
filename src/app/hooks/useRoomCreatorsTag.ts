@@ -2,7 +2,7 @@ import { MemberPowerTag } from '../../types/matrix/room';
 
 const DEFAULT_TAG: MemberPowerTag = {
   name: 'Founder',
-  color: '#0000ff',
+  color: '#f1c40f',
 };
 
 export const useRoomCreatorsTag = (): MemberPowerTag => DEFAULT_TAG;

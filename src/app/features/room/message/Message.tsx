@@ -87,6 +87,8 @@ import {
 import { MessageExportItem } from '../export/MessageExportItem';
 import { useExportAnchor } from '../export/ExportAnchorProvider';
 import * as exportCss from '../export/styles.css';
+import { settingsAtom } from '../../../state/settings';
+import { useSetting } from '../../../state/hooks/settings';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -365,7 +367,8 @@ export const MessageFavoriteGifItem = as<
   const favorites = useGifFavorites();
   const toggleFavorite = useToggleGifFavorite();
 
-  const fav = getEventFavoriteGif(mEvent);
+  const [mediaEmbedHosts] = useSetting(settingsAtom, 'mediaEmbedHosts');
+  const fav = getEventFavoriteGif(mEvent, mediaEmbedHosts);
   if (!fav) return null;
 
   const favorited = favorites.some((f) => f.id === getFavoriteGifId(fav));

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { MsgType } from 'matrix-js-sdk';
 import { HTMLReactParserOptions } from 'html-react-parser';
 import { Opts } from 'linkifyjs';
@@ -15,6 +15,7 @@ import {
   MImage,
   MLocation,
   MediaAutoEmbed,
+  MediaEmbedAllow,
   MNotice,
   MText,
   MVideo,
@@ -33,10 +34,13 @@ import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { testMatrixTo } from '../plugins/matrix-to';
-import { parseOoyeGif } from '../utils/ooye';
+import { getOoyeGifVideoUrl, parseOoyeGif } from '../utils/ooye';
 import { IImageContent } from '../../types/matrix/common';
 import { isMediaAutoEmbedUrl } from '../utils/mediaAutoEmbed';
 import { isDirectGifUrl } from '../utils/directGif';
+import { settingsAtom } from '../state/settings';
+import { getHostToAllow, isOoyeMediaUrl } from '../utils/ooyeMedia';
+import { useSetting } from '../state/hooks/settings';
 import { DirectGifContent } from './message/content/DirectGifContent';
 import { trimReplyFromBody, trimReplyFromFormattedBody } from '../utils/room';
 
@@ -82,17 +86,43 @@ export function RenderMessageContent({
         : messageContent.formatted_body,
   };
 
+  const [mediaEmbedHosts] = useSetting(settingsAtom, 'mediaEmbedHosts');
+  // An OOYE GIF whose video host is not on the list gets a one-click allow prompt.
+  const withGifAllowPrompt = (node: ReactNode) => {
+    const videoUrl = getOoyeGifVideoUrl(trimmedContent);
+    const host = videoUrl && getHostToAllow(videoUrl, mediaEmbedHosts);
+    return host ? (
+      <>
+        {node}
+        <MediaEmbedAllow host={host} />
+      </>
+    ) : (
+      node
+    );
+  };
+
   const renderUrlsPreview = (urls: string[]) => {
     const filteredUrls = urls.filter((url) => !testMatrixTo(url));
     if (filteredUrls.length === 0) return undefined;
-    const mediaUrls = filteredUrls.filter(isMediaAutoEmbedUrl);
-    const previewUrls = filteredUrls.filter((url) => !isMediaAutoEmbedUrl(url));
+    const mediaUrls = filteredUrls.filter((url) => isMediaAutoEmbedUrl(url, mediaEmbedHosts));
+    const previewUrls = filteredUrls.filter((url) => !isMediaAutoEmbedUrl(url, mediaEmbedHosts));
+    const allowHosts = Array.from(
+      new Set(
+        filteredUrls
+          .filter(isOoyeMediaUrl)
+          .map((url) => getHostToAllow(url, mediaEmbedHosts))
+          .filter((host): host is string => host !== undefined)
+      )
+    );
     return (
       <>
+        {allowHosts.map((host) => (
+          <MediaEmbedAllow key={host} host={host} />
+        ))}
         {mediaUrls.length > 0 && (
           <Box direction="Column" gap="200" style={{ marginTop: config.space.S200 }}>
             {mediaUrls.map((url) =>
-              isDirectGifUrl(url) ? (
+              isDirectGifUrl(url, mediaEmbedHosts) ? (
                 <DirectGifContent key={url} url={url} autoLoad={mediaAutoLoad} />
               ) : (
                 <MediaAutoEmbed key={url} url={url} autoLoad={mediaAutoLoad} />
@@ -170,7 +200,7 @@ export function RenderMessageContent({
   );
 
   if (msgType === MsgType.Text) {
-    const ooyeGif = parseOoyeGif(trimmedContent);
+    const ooyeGif = parseOoyeGif(trimmedContent, mediaEmbedHosts);
     if (ooyeGif) {
       return (
         <OoyeGifContent
@@ -180,7 +210,7 @@ export function RenderMessageContent({
         />
       );
     }
-    return (
+    return withGifAllowPrompt(
       <MText
         edited={edited}
         content={getContent()}
@@ -217,7 +247,7 @@ export function RenderMessageContent({
   }
 
   if (msgType === MsgType.Notice) {
-    const ooyeGif = parseOoyeGif(trimmedContent);
+    const ooyeGif = parseOoyeGif(trimmedContent, mediaEmbedHosts);
     if (ooyeGif) {
       return (
         <OoyeGifContent
@@ -227,7 +257,7 @@ export function RenderMessageContent({
         />
       );
     }
-    return (
+    return withGifAllowPrompt(
       <MNotice
         edited={edited}
         content={getContent()}

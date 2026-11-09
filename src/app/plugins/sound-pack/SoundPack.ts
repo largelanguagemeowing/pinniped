@@ -1,4 +1,5 @@
 import { PackSound, SoundMode, SoundPackContent } from './types';
+import { isMxcUrl } from '../../utils/mxc';
 
 export type Sound = {
   /** Unique across packs: `<packId>/<soundId>`. */
@@ -18,7 +19,7 @@ export type Sound = {
 export type SoundPackAddress = { roomId: string };
 
 const parseSound = (packId: string, id: string, sound: PackSound): Sound | undefined => {
-  if (typeof sound?.url !== 'string' || !sound.url.startsWith('mxc://')) return undefined;
+  if (typeof sound?.url !== 'string' || !isMxcUrl(sound.url)) return undefined;
   return {
     key: `${packId}/${id}`,
     packId,

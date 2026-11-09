@@ -36,24 +36,14 @@ function decodeHtmlEntities(text: string): string {
 
 const MP4_URL_REG = /https:\/\/[^\s"<>']+\.mp4/g;
 
-// Only the media hosts the bridge actually links to may be auto-played; any
-// other host could be a tracker or arbitrary content.
-const GIF_HOSTS = /(^|\.)(tenor\.com|klipy\.com)$/i;
-const isGifHost = (url: string): boolean => {
-  try {
-    return GIF_HOSTS.test(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-};
-
 /**
  * Detects and parses an OOYE bridged GIF message.
  *
  * Returns `undefined` if the content does not look like an OOYE GIF, so callers
  * can fall through to the normal text/notice renderer.
  */
-export function parseOoyeGif(content: Record<string, unknown>): OoyeGifData | undefined {
+// Finds an OOYE GIF in a message without checking the video host.
+function parseOoyeGifUnchecked(content: Record<string, unknown>): OoyeGifData | undefined {
   const body = typeof content.body === 'string' ? content.body : '';
   const formattedBody = typeof content.formatted_body === 'string' ? content.formatted_body : '';
 
@@ -71,7 +61,6 @@ export function parseOoyeGif(content: Record<string, unknown>): OoyeGifData | un
   const videoUrlMatch = searchText.match(MP4_URL_REG);
   if (!videoUrlMatch || videoUrlMatch.length === 0) return undefined;
   const videoUrl = videoUrlMatch[0];
-  if (!isGifHost(videoUrl)) return undefined;
 
   let title = 'GIF';
   let pageUrl: string | undefined;
@@ -118,4 +107,27 @@ export function parseOoyeGif(content: Record<string, unknown>): OoyeGifData | un
     pageUrl,
     videoUrl,
   };
+}
+
+const hostOf = (url: string): string | undefined => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+};
+
+// The video host must be on the Media Embeds list (passed in from settings).
+export function parseOoyeGif(
+  content: Record<string, unknown>,
+  hosts: readonly string[]
+): OoyeGifData | undefined {
+  const gif = parseOoyeGifUnchecked(content);
+  const host = gif && hostOf(gif.videoUrl);
+  return host && hosts.includes(host) ? gif : undefined;
+}
+
+/** The video URL of an OOYE GIF, whether or not its host is on the list. */
+export function getOoyeGifVideoUrl(content: Record<string, unknown>): string | undefined {
+  return parseOoyeGifUnchecked(content)?.videoUrl;
 }

@@ -10,6 +10,7 @@ import { timeDayMonYear, timeHourMinute } from '../../utils/time';
 import { ImageOverlay } from '../ImageOverlay';
 import { ImageViewer } from '../image-viewer';
 import * as css from './UrlPreviewPost.css';
+import { isMxcUrl } from '../../utils/mxc';
 
 // The homeserver adds these next to the og:* keys for fediverse-style posts.
 const POST = 'com.stablecat.post.';
@@ -41,7 +42,7 @@ const getPostMedia = (prev: IPreviewUrlResponse): PostMedia[] => {
   const media: PostMedia[] = [];
   for (let i = 0; i < count; i += 1) {
     const mxc = getString(prev, `${POST}media.${i}`);
-    if (mxc?.startsWith('mxc://')) {
+    if (isMxcUrl(mxc)) {
       media.push({
         mxc,
         kind: getString(prev, `${POST}media.${i}.kind`) ?? 'image',

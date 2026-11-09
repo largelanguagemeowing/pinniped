@@ -1,3 +1,4 @@
+import { isPowerTagIconKey } from '../utils/powerTagIcon';
 import { useCallback, useMemo } from 'react';
 import { MatrixClient, Room, RoomMember } from 'matrix-js-sdk';
 import { getPowerLevelTag, PowerLevelTags, usePowerLevelTags } from './usePowerLevelTags';
@@ -6,6 +7,7 @@ import { MemberPowerTag, MemberPowerTagIcon } from '../../types/matrix/room';
 import { useRoomCreatorsTag } from './useRoomCreatorsTag';
 import { ThemeKind } from './useTheme';
 import { accessibleColor } from '../plugins/color';
+import { isMxcUrl } from '../utils/mxc';
 
 export type GetMemberPowerTag = (userId: string) => MemberPowerTag;
 
@@ -36,10 +38,12 @@ export const getPowerTagIconSrc = (
   mx: MatrixClient,
   useAuthentication: boolean,
   icon: MemberPowerTagIcon
-): string | undefined =>
-  icon?.key?.startsWith('mxc://')
+): string | undefined => {
+  if (!isPowerTagIconKey(icon?.key)) return undefined;
+  return isMxcUrl(icon.key)
     ? (mx.mxcUrlToHttp(icon.key, 96, 96, 'scale', undefined, undefined, useAuthentication) ?? '🌻')
-    : icon?.key;
+    : icon.key;
+};
 
 export const useAccessiblePowerTagColors = (
   themeKind: ThemeKind,

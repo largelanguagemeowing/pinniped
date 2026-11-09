@@ -2,6 +2,7 @@ import { atom } from 'jotai';
 import { VoiceTuning } from '../plugins/call/voiceTuning';
 import type { ScreenShareQuality } from '../plugins/call/types';
 import type { SoundKind } from '../sound/bundles';
+import { DEFAULT_MEDIA_EMBED_HOSTS } from '../utils/directGif';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat =
@@ -61,6 +62,8 @@ export interface Settings {
   // Optional third-party preview server (stablecat preview tokens). Empty = own homeserver.
   urlPreviewServer: string;
   urlPreviewServerToken: string;
+  /** Hosts whose GIF and video links are embedded in the timeline. */
+  mediaEmbedHosts: string[];
   showHiddenEvents: boolean;
   legacyUsernameColor: boolean;
 
@@ -134,6 +137,7 @@ const defaultSettings: Settings = {
   encUrlPreview: false,
   urlPreviewServer: '',
   urlPreviewServerToken: '',
+  mediaEmbedHosts: [...DEFAULT_MEDIA_EMBED_HOSTS],
   showHiddenEvents: false,
   legacyUsernameColor: false,
 

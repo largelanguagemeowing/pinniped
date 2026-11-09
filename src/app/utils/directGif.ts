@@ -1,13 +1,28 @@
-// Hosts trusted to be auto-loaded as media; anywhere else a .gif link stays a
-// normal link, so a message can't make every reader's client fetch from it.
-export const MEDIA_AUTO_EMBED_HOSTS = new Set(['nyafiles.de', 'pissdichal.de']);
+/** Prefilled Media Embeds hosts: file hosts, Klipy media, and the OOYE (Discord) bridge. */
+export const DEFAULT_MEDIA_EMBED_HOSTS = [
+  'nyafiles.de',
+  'pissdichal.de',
+  'static.klipy.com',
+  'bridge.agiadn.org',
+  'tenor.com',
+];
 
-export const isDirectGifUrl = (value: string): boolean => {
+const HOST_REG =
+  /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+/** A bare host name such as `example.org`, lowercased. Anything else is undefined. */
+export const normalizeEmbedHost = (input: string): string | undefined => {
+  const host = input.trim().toLowerCase();
+  return HOST_REG.test(host) ? host : undefined;
+};
+
+// `hosts` is the Media Embeds list from settings. Hosts match exactly.
+export const isDirectGifUrl = (value: string, hosts: readonly string[]): boolean => {
   try {
     const url = new URL(value);
     return (
       (url.protocol === 'https:' || url.protocol === 'http:') &&
-      MEDIA_AUTO_EMBED_HOSTS.has(url.hostname) &&
+      hosts.includes(url.hostname) &&
       !url.username &&
       !url.password &&
       url.pathname.toLowerCase().endsWith('.gif')
