@@ -1362,7 +1362,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
                         urlPreview={false}
                         htmlReactParserOptions={htmlReactParserOptions}
                         linkifyOpts={linkifyOpts}
-                        outlineAttachment={messageLayout === MessageLayout.Bubble}
+                        outlineAttachment
                         fill
                       />
                     ),
@@ -1380,7 +1380,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
                 urlPreview={showUrlPreview}
                 htmlReactParserOptions={htmlReactParserOptions}
                 linkifyOpts={linkifyOpts}
-                outlineAttachment={messageLayout === MessageLayout.Bubble}
+                outlineAttachment
               />
             )}
           </Message>
@@ -1499,7 +1499,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
                       urlPreview={showUrlPreview}
                       htmlReactParserOptions={htmlReactParserOptions}
                       linkifyOpts={linkifyOpts}
-                      outlineAttachment={messageLayout === MessageLayout.Bubble}
+                      outlineAttachment
                     />
                   );
                 }
