@@ -18,6 +18,7 @@ import * as css from './style.css';
 import { useRoomNavigate } from '../../../hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { BackRouteHandler } from '../../../components/BackRouteHandler';
+import { stripOptionalText } from '../../../utils/sanitize';
 
 export function FeaturedRooms() {
   const { featuredCommunities } = useClientConfig();
@@ -66,7 +67,7 @@ export function FeaturedRooms() {
                                 allRooms={allRooms}
                                 avatarUrl={roomSummary?.avatar_url}
                                 name={roomSummary?.name}
-                                topic={roomSummary?.topic}
+                                topic={stripOptionalText(roomSummary?.topic)}
                                 memberCount={roomSummary?.num_joined_members}
                                 onView={navigateSpace}
                                 renderTopicViewer={(name, topic, requestClose) => (
@@ -95,7 +96,7 @@ export function FeaturedRooms() {
                                 allRooms={allRooms}
                                 avatarUrl={roomSummary?.avatar_url}
                                 name={roomSummary?.name}
-                                topic={roomSummary?.topic}
+                                topic={stripOptionalText(roomSummary?.topic)}
                                 memberCount={roomSummary?.num_joined_members}
                                 onView={navigateRoom}
                                 renderTopicViewer={(name, topic, requestClose) => (

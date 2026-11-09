@@ -3,7 +3,7 @@ import parse, { HTMLReactParserOptions } from 'html-react-parser';
 import Linkify from 'linkify-react';
 import { Opts } from 'linkifyjs';
 import { MessageEmptyContent } from './content';
-import { sanitizeCustomHtml } from '../../utils/sanitize';
+import { sanitizeCustomHtml, stripUnsafeTextChars } from '../../utils/sanitize';
 import { unwrapEmbedUrls, unwrapEmbedUrlsHtml } from '../../utils/regex';
 import { highlightText, scaleSystemEmoji } from '../../plugins/react-custom-html-parser';
 
@@ -25,9 +25,12 @@ export function RenderBody({
   if (body === '') <MessageEmptyContent />;
   if (customBody) {
     if (customBody === '') <MessageEmptyContent />;
-    return parse(sanitizeCustomHtml(unwrapEmbedUrlsHtml(customBody)), htmlReactParserOptions);
+    return parse(
+      sanitizeCustomHtml(unwrapEmbedUrlsHtml(stripUnsafeTextChars(customBody))),
+      htmlReactParserOptions
+    );
   }
-  const shown = unwrapEmbedUrls(body);
+  const shown = unwrapEmbedUrls(stripUnsafeTextChars(body));
   return (
     <Linkify options={linkifyOpts}>
       {highlightRegex

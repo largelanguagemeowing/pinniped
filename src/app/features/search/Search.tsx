@@ -44,6 +44,7 @@ import {
   getDirectRoomAvatarUrl,
   getRoomAvatarUrl,
   guessPerfectParent,
+  getRoomName,
 } from '../../utils/room';
 import { highlightText, makeHighlightRegex } from '../../plugins/react-custom-html-parser';
 import { factoryRoomIdByActivity } from '../../utils/sort';
@@ -368,10 +369,10 @@ export function Search({ requestClose }: SearchProps) {
                                       ? getDirectRoomAvatarUrl(mx, room, 32, useAuthentication)
                                       : getRoomAvatarUrl(mx, room, 32, useAuthentication)
                                   }
-                                  alt={room.name}
+                                  alt={getRoomName(room)}
                                   renderFallback={() => (
                                     <Text as="span" size="H6">
-                                      {nameInitials(room.name)}
+                                      {nameInitials(getRoomName(room))}
                                     </Text>
                                   )}
                                 />
@@ -388,8 +389,8 @@ export function Search({ requestClose }: SearchProps) {
                           <Box grow="Yes" alignItems="Center" gap="100">
                             <Text size="T400" truncate>
                               {queryHighlighRegex
-                                ? highlightText(queryHighlighRegex, [room.name])
-                                : room.name}
+                                ? highlightText(queryHighlighRegex, [getRoomName(room)])
+                                : getRoomName(room)}
                             </Text>
                             {dmUsername && (
                               <Text as="span" size="T200" priority="300" truncate>

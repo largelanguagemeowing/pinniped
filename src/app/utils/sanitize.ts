@@ -158,6 +158,21 @@ export const sanitizeCustomHtml = (customHtml: string): string =>
     nestingLimit: MAX_TAG_NESTING,
   });
 
+/**
+ * Removes characters that change how text is displayed without being visible: bidi embedding,
+ * override and isolate controls, and C0/C1 control characters other than tab, newline and
+ * carriage return. An override can reverse the text that follows it, so a message can show
+ * different text from what was sent. Left-to-right and right-to-left marks (U+200E, U+200F) are
+ * kept, because right-to-left text needs them.
+ */
+export const stripUnsafeTextChars = (text: string) =>
+  text.replace(
+    // Matching control characters is the purpose of this pattern.
+    // eslint-disable-next-line no-control-regex
+    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g,
+    ''
+  );
+
 export const sanitizeText = (body: string) => {
   const tagsToReplace: Record<string, string> = {
     '&': '&amp;',
@@ -168,3 +183,7 @@ export const sanitizeText = (body: string) => {
   };
   return body.replace(/[&<>'"]/g, (tag) => tagsToReplace[tag] || tag);
 };
+
+/** `stripUnsafeTextChars` for a value that may be absent. */
+export const stripOptionalText = (text: string | undefined) =>
+  text === undefined ? undefined : stripUnsafeTextChars(text);

@@ -38,6 +38,7 @@ import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '../../utils/room';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
 import { mxcUrlToHttp } from '../../utils/matrix';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
+import { stripOptionalText } from '../../utils/sanitize';
 
 type RoomJoinButtonProps = {
   roomId: string;
@@ -340,7 +341,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                   roomId={roomId}
                   roomType={localSummary.roomType}
                   name={localSummary.name}
-                  topic={localSummary.topic}
+                  topic={stripOptionalText(localSummary.topic)}
                   avatarUrl={
                     dm
                       ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
@@ -399,7 +400,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                   roomId={roomId}
                   roomType={summary.room_type}
                   name={summary.name || summary.canonical_alias || roomId}
-                  topic={summary.topic}
+                  topic={stripOptionalText(summary.topic)}
                   avatarUrl={
                     summary?.avatar_url
                       ? (mxcUrlToHttp(mx, summary.avatar_url, useAuthentication, 96, 96, 'crop') ??

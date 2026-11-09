@@ -45,6 +45,7 @@ import { getMxIdServer } from '../../../utils/matrix';
 import { stopPropagation } from '../../../utils/keyboard';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { BackRouteHandler } from '../../../components/BackRouteHandler';
+import { stripOptionalText } from '../../../utils/sanitize';
 
 const useServerSearchParams = (searchParams: URLSearchParams): ExploreServerPathSearchParams =>
   useMemo(
@@ -596,7 +597,7 @@ export function PublicRooms() {
                               allRooms={allRooms}
                               avatarUrl={chunkRoom.avatar_url}
                               name={chunkRoom.name}
-                              topic={chunkRoom.topic}
+                              topic={stripOptionalText(chunkRoom.topic)}
                               memberCount={chunkRoom.num_joined_members}
                               roomType={chunkRoom.room_type}
                               onView={

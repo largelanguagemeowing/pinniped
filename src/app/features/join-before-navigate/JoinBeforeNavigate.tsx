@@ -10,6 +10,7 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { allRoomsAtom } from '../../state/room-list/roomList';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { BackRouteHandler } from '../../components/BackRouteHandler';
+import { stripOptionalText } from '../../utils/sanitize';
 
 type JoinBeforeNavigateProps = { roomIdOrAlias: string; eventId?: string; viaServers?: string[] };
 export function JoinBeforeNavigate({
@@ -63,7 +64,7 @@ export function JoinBeforeNavigate({
                   allRooms={allRooms}
                   avatarUrl={summary?.avatar_url}
                   name={summary?.name}
-                  topic={summary?.topic}
+                  topic={stripOptionalText(summary?.topic)}
                   memberCount={summary?.num_joined_members}
                   roomType={summary?.room_type}
                   viaServers={viaServers}

@@ -24,6 +24,7 @@ import {
   getMemberDisplayName,
   getNotificationType,
   isNotificationEvent,
+  getRoomName,
 } from '../../utils/room';
 import { NotificationType } from '../../../types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
@@ -319,7 +320,7 @@ function MessageNotifications() {
         if (isDM) {
           title = senderName;
         } else {
-          const roomName = room.name ?? 'Unknown';
+          const roomName = getRoomName(room) ?? 'Unknown';
           const parentRoomId = roomToParents.get(room.roomId)?.values().next().value;
           const parentName = parentRoomId ? mx.getRoom(parentRoomId)?.name : undefined;
           title = parentName

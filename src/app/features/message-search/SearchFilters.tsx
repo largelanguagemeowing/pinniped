@@ -29,7 +29,7 @@ import { SearchOrderBy } from 'matrix-js-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { getRoomIconSrc } from '../../utils/room';
+import { getRoomIconSrc, getRoomName } from '../../utils/room';
 import { factoryRoomIdByAtoZ } from '../../utils/sort';
 import {
   SearchItemStrGetter,
@@ -291,7 +291,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                             }
                           >
                             <Text truncate size="T300">
-                              {room.name}
+                              {getRoomName(room)}
                             </Text>
                           </MenuItem>
                         </VirtualTile>
@@ -406,7 +406,7 @@ export function SearchFilters({
               }
               after={<Icon size="50" src={Icons.Cross} />}
             >
-              <Text size="T200">{room.name}</Text>
+              <Text size="T200">{getRoomName(room)}</Text>
             </Chip>
           );
         })}

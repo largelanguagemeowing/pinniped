@@ -38,6 +38,7 @@ import {
   getMemberAvatarMxc,
   getMemberDisplayName,
   getRoomAvatarUrl,
+  getRoomName,
 } from '../../../utils/room';
 import { ScrollTopContainer } from '../../../components/scroll-top-container';
 import { useInterval } from '../../../hooks/useInterval';
@@ -414,7 +415,7 @@ function RoomNotificationsGroupComp({
             <RoomAvatar
               roomId={room.roomId}
               src={getRoomAvatarUrl(mx, room, 96, useAuthentication)}
-              alt={room.name}
+              alt={getRoomName(room)}
               renderFallback={() => (
                 <RoomIcon
                   size="50"
@@ -426,7 +427,7 @@ function RoomNotificationsGroupComp({
             />
           </Avatar>
           <Text size="H4" truncate>
-            {room.name}
+            {getRoomName(room)}
           </Text>
         </Box>
         <Box shrink="No">

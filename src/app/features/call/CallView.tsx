@@ -20,7 +20,7 @@ import * as css from './styles.css';
 import { CallControls } from './CallControls';
 import { useLivekitSupport } from '../../hooks/useLivekitSupport';
 import { webRTCSupported } from '../../utils/rtc';
-import { getMemberDisplayName } from '../../utils/room';
+import { getMemberDisplayName, getRoomName } from '../../utils/room';
 import { getMxIdLocalPart } from '../../utils/matrix';
 import { type Room } from 'matrix-js-sdk';
 import { type CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
@@ -127,7 +127,7 @@ function CallPrescreen() {
         alignItems="Center"
       >
         <Text size="H3" align="Center" truncate>
-          {room.name}
+          {getRoomName(room)}
         </Text>
         {hasParticipant && (
           <Text size="B400" align="Center" priority="300">

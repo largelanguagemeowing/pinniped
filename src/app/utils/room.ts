@@ -25,6 +25,7 @@ import { AccountDataEvent } from '../../types/matrix/accountData';
 import { MATRIX_GIF_PROPERTY_NAME } from '../../types/matrix/common';
 import { getEventTimeline, getFirstLinkedTimeline } from './timeline';
 import { getPollQuestion, isPollStartType } from './poll';
+import { stripUnsafeTextChars } from './sanitize';
 import {
   IRoomCreateContent,
   Membership,
@@ -491,7 +492,8 @@ export const getMemberDisplayName = (room: Room, userId: string): string | undef
   const member = room.getMember(userId);
   const name = member?.rawDisplayName;
   if (name === userId) return undefined;
-  return name;
+  // A name made only of invisible or override characters is no name at all.
+  return name === undefined ? undefined : stripUnsafeTextChars(name) || undefined;
 };
 
 export const getMemberSearchStr = (
@@ -701,3 +703,6 @@ export const guessPerfectParent = (
 
   return perfectParent;
 };
+
+/** The room name for display. Invisible and override characters are removed. */
+export const getRoomName = (room: Room): string => stripUnsafeTextChars(room.name);
