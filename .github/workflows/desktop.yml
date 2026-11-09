@@ -1,20 +1,12 @@
 # Fork-only: build the Electron desktop app (AppImage, rpm, flatpak, msi, dmg) on CI.
-# Every run builds the web bundle. The installers are packaged on tags, manual runs
-# and pushes that touch packaging (electron/, package*.json, this file); other pushes
-# skip the three-OS packaging. Installers are uploaded as workflow artifacts, and a
+# Every push to fork/dev, every tag and every manual run builds the web bundle and
+# all three installer packages. Installers are uploaded as workflow artifacts, and a
 # `v*` tag also attaches them to a GitHub release.
 name: desktop
 on:
   push:
     branches: [fork/dev]
     tags: ['v*']
-    paths:
-      - electron/**
-      - element-call/**
-      - src/**
-      - package.json
-      - package-lock.json
-      - .github/workflows/desktop.yml
   workflow_dispatch:
 
 permissions:
@@ -25,32 +17,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Packaging needed?
-    runs-on: ubuntu-latest
-    outputs:
-      packaging: ${{ steps.diff.outputs.packaging }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: diff
-        env:
-          BEFORE: ${{ github.event.before }}
-        run: |
-          # Anything but a plain branch push packages. If the push range cannot be
-          # diffed (new branch, force push), package too.
-          packaging=true
-          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" != refs/tags/* ]] \
-            && [[ -n "$BEFORE" && "$BEFORE" != 0000000000000000000000000000000000000000 ]] \
-            && changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" 2>/dev/null); then
-            if ! grep -qE '^(electron/|package\.json$|package-lock\.json$|\.github/workflows/desktop\.yml$)' <<<"$changed"; then
-              packaging=false
-            fi
-          fi
-          echo "packaging=$packaging" >> "$GITHUB_OUTPUT"
-          echo "packaging=$packaging"
-
   web:
     name: Web bundle
     runs-on: ubuntu-latest
@@ -88,8 +54,7 @@ jobs:
 
   package:
     name: Package (${{ matrix.name }})
-    needs: [web, changes]
-    if: needs.changes.outputs.packaging == 'true'
+    needs: web
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
