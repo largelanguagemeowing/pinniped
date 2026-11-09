@@ -92,7 +92,7 @@ export function EmoticonAutocomplete({
 
   return autoCompleteEmoticon.length === 0 ? null : (
     <AutocompleteMenu headerContent={<Text size="L400">Emojis</Text>} requestClose={requestClose}>
-      {autoCompleteEmoticon.map((emoticon) => {
+      {autoCompleteEmoticon.map((emoticon, index) => {
         const isCustomEmoji = 'url' in emoticon;
         const key = isCustomEmoji ? emoticon.url : emoticon.unicode;
         const customEmojiUrl = mxcUrlToHttp(mx, key, useAuthentication);
@@ -102,6 +102,7 @@ export function EmoticonAutocomplete({
             key={emoticon.shortcode + key}
             as="button"
             radii="300"
+            aria-pressed={index === 0}
             onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
               onTabPress(evt, () => handleAutocomplete(key, emoticon.shortcode))
             }

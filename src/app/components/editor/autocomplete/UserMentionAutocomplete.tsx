@@ -32,16 +32,19 @@ const userIdFromQueryText = (mx: MatrixClient, text: string) =>
 function UnknownMentionItem({
   userId,
   name,
+  active,
   handleAutocomplete,
 }: {
   userId: string;
   name: string;
+  active: boolean;
   handleAutocomplete: MentionAutoCompleteHandler;
 }) {
   return (
     <MenuItem
       as="button"
       radii="300"
+      aria-pressed={active}
       onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
         onTabPress(evt, () => handleAutocomplete(userId, name))
       }
@@ -140,6 +143,10 @@ export function UserMentionAutocomplete({
   // Enter can always accept a suggestion.
   useAutocompleteEnter({ hasItems: true, accept: acceptFirst });
 
+  // The row Tab and Enter accept (see `acceptFirst`) is the best match, so it
+  // is the one highlighted. A `room` query puts @room first.
+  const bestIsRoom = query.text === 'room';
+
   const getName = (member: RoomMember) =>
     getMemberDisplayName(room, member.userId) ?? getMxIdLocalPart(member.userId) ?? member.userId;
 
@@ -149,6 +156,7 @@ export function UserMentionAutocomplete({
         <UnknownMentionItem
           userId={roomAliasOrId}
           name="@room"
+          active
           handleAutocomplete={handleAutocomplete}
         />
       )}
@@ -156,10 +164,11 @@ export function UserMentionAutocomplete({
         <UnknownMentionItem
           userId={userIdFromQueryText(mx, query.text)}
           name={userIdFromQueryText(mx, query.text)}
+          active={!bestIsRoom}
           handleAutocomplete={handleAutocomplete}
         />
       ) : (
-        autoCompleteMembers.map((roomMember) => {
+        autoCompleteMembers.map((roomMember, index) => {
           const avatarMxcUrl = roomMember.getMxcAvatarUrl();
           const avatarUrl = avatarMxcUrl
             ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
@@ -169,6 +178,7 @@ export function UserMentionAutocomplete({
               key={roomMember.userId}
               as="button"
               radii="300"
+              aria-pressed={!bestIsRoom && index === 0}
               onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
                 onTabPress(evt, () => handleAutocomplete(roomMember.userId, getName(roomMember)))
               }

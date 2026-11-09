@@ -43,6 +43,8 @@ function UnknownRoomMentionItem({
     <MenuItem
       as="button"
       radii="300"
+      // It is the only row, so it is always the best match.
+      aria-pressed
       onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) => onTabPress(evt, handleSelect)}
       onClick={handleSelect}
       before={
@@ -144,7 +146,7 @@ export function RoomMentionAutocomplete({
       {autoCompleteRoomIds.length === 0 ? (
         <UnknownRoomMentionItem query={query} handleAutocomplete={handleAutocomplete} />
       ) : (
-        autoCompleteRoomIds.map((rId) => {
+        autoCompleteRoomIds.map((rId, index) => {
           const room = mx.getRoom(rId);
           if (!room) return null;
           const dm = mDirects.has(room.roomId);
@@ -156,6 +158,7 @@ export function RoomMentionAutocomplete({
               key={rId}
               as="button"
               radii="300"
+              aria-pressed={index === 0}
               onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
                 onTabPress(evt, handleSelect)
               }
