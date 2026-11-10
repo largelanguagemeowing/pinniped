@@ -10,6 +10,13 @@ import { describe, expect, it } from "vitest";
 import { arrangeTiles } from "./CallLayout";
 import {
   arrangeBelowSpotlight,
+  arrangeStrip,
+  planStrip,
+  STRIP_MAX_TILES,
+  STRIP_GAP,
+  STRIP_HEIGHT,
+  STRIP_MAX_TILE_WIDTH,
+  STRIP_MIN_TILE_WIDTH,
   arrangeGrid,
   SPOTLIGHT_GRID_MIN_TILE_WIDTH,
   SPOTLIGHT_INDICATORS_MARGIN,
@@ -231,5 +238,98 @@ describe("every arrangement stays finite in tiny or collapsed windows", () => {
         Math.floor(a.tileWidth / GRID_TILE_ASPECT),
       );
     }
+  });
+});
+
+describe("arrangeStrip", () => {
+  /** How wide the row of tiles is, including the gap kept free at each end. */
+  const rowWidth = (count: number, tileWidth: number): number =>
+    count * tileWidth + (count + 1) * STRIP_GAP;
+
+  it("shrinks the tiles so that six of them fit a 1140px-wide stage", () => {
+    // Six tiles at the full size would need 1210px and the last would be cut off.
+    const { tileWidth, tileHeight } = arrangeStrip(1140, 6);
+    expect(tileWidth).toBeLessThan(STRIP_MAX_TILE_WIDTH);
+    expect(rowWidth(6, tileWidth)).toBeLessThanOrEqual(1140);
+    expect(tileHeight).toBeLessThanOrEqual(STRIP_HEIGHT);
+  });
+
+  it("splits the width evenly: (width - gap) / count - gap", () => {
+    for (const width of [500, 800, 1140, 1600])
+      for (let count = 1; count <= 12; count++) {
+        const fit = (width - 8) / count - 8;
+        if (fit < STRIP_MIN_TILE_WIDTH || fit > STRIP_MAX_TILE_WIDTH) continue;
+        expect(
+          arrangeStrip(width, count).tileWidth,
+          `${width} n=${count}`,
+        ).toBe(Math.floor(fit));
+      }
+  });
+
+  it("keeps tiles at full size while there is room", () => {
+    expect(arrangeStrip(1600, 3).tileWidth).toBe(STRIP_MAX_TILE_WIDTH);
+    expect(arrangeStrip(1600, 1).tileWidth).toBe(STRIP_MAX_TILE_WIDTH);
+  });
+
+  it("stops shrinking at the minimum, and lets the strip scroll", () => {
+    expect(arrangeStrip(600, 12).tileWidth).toBe(STRIP_MIN_TILE_WIDTH);
+    expect(arrangeStrip(300, 4).tileWidth).toBe(STRIP_MIN_TILE_WIDTH);
+  });
+
+  it("keeps tiles 16:9 and never taller than the strip", () => {
+    for (const width of [0, 1, 200, 700, 1140, 2000])
+      for (const count of [0, 1, 2, 6, 12, 30]) {
+        const a = arrangeStrip(width, count);
+        expect(Number.isFinite(a.tileWidth)).toBe(true);
+        expect(a.tileHeight).toBeLessThanOrEqual(STRIP_HEIGHT);
+        expect(a.tileHeight).toBe(Math.floor(a.tileWidth / GRID_TILE_ASPECT));
+      }
+  });
+});
+
+describe("planStrip", () => {
+  it("shows everyone when they fit", () => {
+    const p = planStrip(1140, 2, 4);
+    expect(p.shares).toBe(2);
+    expect(p.people).toBe(4);
+  });
+
+  it("shows only as many as fit at the minimum width, and drops the rest", () => {
+    // 1140px holds eight 124px tiles, so the ninth person is left out.
+    const p = planStrip(1140, 0, 9);
+    expect(p.people).toBe(8);
+    expect(p.tileWidth).toBeGreaterThanOrEqual(STRIP_MIN_TILE_WIDTH);
+  });
+
+  it("keeps the screen shares and trims the people", () => {
+    const p = planStrip(1140, 2, 9);
+    expect(p.shares).toBe(2);
+    expect(p.people).toBe(6);
+  });
+
+  it("never shows more than the cap, however wide it is", () => {
+    const p = planStrip(5000, 0, 30);
+    expect(p.people).toBe(STRIP_MAX_TILES);
+  });
+
+  it("keeps the tiles of a full strip inside the width", () => {
+    for (const width of [300, 500, 700, 1140, 1600, 2400])
+      for (const people of [1, 3, 8, 15, 40]) {
+        const p = planStrip(width, 0, people);
+        const row = p.people * p.tileWidth + (p.people + 1) * STRIP_GAP;
+        // Only a window narrower than a single minimum tile can overflow.
+        if (width >= STRIP_MIN_TILE_WIDTH + 2 * STRIP_GAP)
+          expect(row, `${width} n=${people}`).toBeLessThanOrEqual(width);
+      }
+  });
+
+  it("shows at least one tile in a very narrow window", () => {
+    expect(planStrip(60, 0, 5).people).toBe(1);
+    expect(planStrip(60, 3, 5).shares).toBe(1);
+  });
+
+  it("copes with nothing to show or no width", () => {
+    expect(planStrip(1140, 0, 0)).toMatchObject({ shares: 0, people: 0 });
+    expect(Number.isFinite(planStrip(0, 0, 0).tileWidth)).toBe(true);
   });
 });

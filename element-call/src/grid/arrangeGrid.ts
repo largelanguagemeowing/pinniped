@@ -141,3 +141,74 @@ export function arrangeBelowSpotlight(
     columns: columnsFor(tileWidth, available),
   };
 }
+
+/** Height of the participant strip under a focused stream. */
+export const STRIP_HEIGHT = 112;
+/** Space between strip tiles, and kept free at each end of the strip. */
+export const STRIP_GAP = 8;
+/** The widest a strip tile gets: a 16:9 tile as tall as the strip. */
+export const STRIP_MAX_TILE_WIDTH = Math.floor(STRIP_HEIGHT * GRID_TILE_ASPECT);
+/** The narrowest a strip tile shrinks to before the strip scrolls instead. */
+export const STRIP_MIN_TILE_WIDTH = 124;
+
+export interface StripArrangement {
+  tileWidth: number;
+  tileHeight: number;
+}
+
+/**
+ * Size the tiles of the participant strip so that everyone fits in one row:
+ * they shrink from their full size to share the width, down to a minimum, past
+ * which the strip scrolls. The row keeps `STRIP_GAP` free at each end.
+ */
+export function arrangeStrip(
+  width: number,
+  tileCount: number,
+): StripArrangement {
+  let tileWidth = STRIP_MAX_TILE_WIDTH;
+  if (tileCount >= 1 && width >= 1) {
+    const fit = (width - STRIP_GAP) / tileCount - STRIP_GAP;
+    tileWidth = Math.floor(
+      Math.max(STRIP_MIN_TILE_WIDTH, Math.min(STRIP_MAX_TILE_WIDTH, fit)),
+    );
+  }
+  return {
+    tileWidth,
+    tileHeight: Math.floor(tileWidth / GRID_TILE_ASPECT),
+  };
+}
+
+/** The most tiles the strip ever shows. */
+export const STRIP_MAX_TILES = 12;
+
+export interface StripPlan extends StripArrangement {
+  /** How many of the screen shares to show. */
+  shares: number;
+  /** How many of the participants to show, taken from the front of the list. */
+  people: number;
+}
+
+/**
+ * Decide what the strip shows. It shows as many tiles as fit at the minimum
+ * width (and no more than `STRIP_MAX_TILES`), screen shares first, then
+ * participants in the order given. The rest are left out; they are not
+ * scrolled to. Everything that is shown shares the width evenly.
+ */
+export function planStrip(
+  width: number,
+  shareCount: number,
+  peopleCount: number,
+): StripPlan {
+  const fits = Math.floor(
+    (width - STRIP_GAP) / (STRIP_MIN_TILE_WIDTH + STRIP_GAP),
+  );
+  // Always show at least one tile, however narrow the window is.
+  const capacity = Math.max(1, Math.min(STRIP_MAX_TILES, fits));
+  const shown = Math.min(capacity, shareCount + peopleCount);
+  const shares = Math.min(shareCount, shown);
+  return {
+    shares,
+    people: shown - shares,
+    ...arrangeStrip(width, shown),
+  };
+}

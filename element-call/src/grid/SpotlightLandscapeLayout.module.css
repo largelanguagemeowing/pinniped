@@ -46,13 +46,15 @@ unconditionally select the container so we can use cq units */
   gap: var(--gap);
   justify-content: safe center;
   align-content: center;
+  /* Kept free at each end; arrangeStrip sizes the tiles to the width left. */
+  padding-inline: var(--gap);
 }
 
 .grid > .slot,
 .grid > .spacer {
   flex: 0 0 auto;
-  inline-size: 195px;
-  block-size: 112px;
+  inline-size: var(--strip-tile-width, 195px);
+  block-size: var(--strip-tile-height, 112px);
 }
 
 .layer.stripHidden {

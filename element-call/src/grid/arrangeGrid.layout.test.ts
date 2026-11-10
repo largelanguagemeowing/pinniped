@@ -13,6 +13,7 @@ import { type Browser, chromium } from "@playwright/test";
 
 import {
   arrangeBelowSpotlight,
+  planStrip,
   arrangeGrid,
   GRID_INSET,
   GRID_MAX_VISIBLE,
@@ -32,6 +33,13 @@ const css = readFileSync(
 const portraitCss = readFileSync(
   fileURLToPath(
     new URL("./SpotlightPortraitLayout.module.css", import.meta.url),
+  ),
+  "utf8",
+);
+
+const landscapeCss = readFileSync(
+  fileURLToPath(
+    new URL("./SpotlightLandscapeLayout.module.css", import.meta.url),
   ),
   "utf8",
 );
@@ -241,4 +249,64 @@ describe("SpotlightPortraitLayout stylesheet in Chromium", () => {
     const r = await render(370, 240, 6, false);
     expect(r.scrolls).toBe(true);
   });
+});
+
+describe("SpotlightLandscapeLayout strip in Chromium", () => {
+  async function render(
+    width: number,
+    count: number,
+  ): Promise<{
+    shown: number;
+    allVisible: boolean;
+    scrolls: boolean;
+    tileWidth: number;
+  }> {
+    const a = planStrip(width, 0, count);
+    const page = await browser!.newPage({ viewport: { width, height: 700 } });
+    try {
+      await page.setContent(`<!doctype html><style>${landscapeCss}html,body{margin:0}</style>
+        <div class="layer" style="width:${width}px;height:700px;--strip-tile-width:${a.tileWidth}px;--strip-tile-height:${a.tileHeight}px">
+          <div class="spotlight"></div>
+          <div class="grid">${'<div class="slot"></div>'.repeat(a.people)}</div>
+        </div>`);
+      const m = await page.evaluate((w) => {
+        const grid = document.querySelector(".grid")!;
+        const tiles = [...document.querySelectorAll(".grid > .slot")].map((e) =>
+          e.getBoundingClientRect(),
+        );
+        return {
+          shown: tiles.length,
+          allVisible: tiles.every((r) => r.left >= -0.5 && r.right <= w + 0.5),
+          scrolls: grid.scrollWidth > grid.clientWidth + 1,
+          tileWidth: tiles[0].width,
+        };
+      }, width);
+      return m;
+    } finally {
+      await page.close();
+    }
+  }
+
+  it.each([
+    [1140, 2, 2],
+    [1140, 6, 6],
+    [1140, 8, 8],
+    [1140, 9, 8],
+    [1140, 30, 8],
+    [900, 5, 5],
+    [700, 12, 5],
+    [420, 3, 3],
+    [420, 7, 3],
+  ] as const)(
+    "%i px wide with %i participants shows %i, all fully visible",
+    async (width, count, expected) => {
+      if (!browser) return;
+      const r = await render(width, count);
+      const label = `${width} n=${count}`;
+      expect(r.shown, label).toBe(expected);
+      expect(r.allVisible, label).toBe(true);
+      expect(r.scrolls, label).toBe(false);
+      expect(r.tileWidth, label).toBe(planStrip(width, 0, count).tileWidth);
+    },
+  );
 });

@@ -5,11 +5,17 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type ReactNode, use, useSyncExternalStore } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  use,
+  useSyncExternalStore,
+} from "react";
 import { useObservableEagerState } from "observable-hooks";
 import classNames from "classnames";
 
 import { type CallLayout } from "./CallLayout";
+import { planStrip, type StripPlan } from "./arrangeGrid";
 import { type SpotlightLandscapeLayout as SpotlightLandscapeLayoutModel } from "../state/layout-types.ts";
 import styles from "./SpotlightLandscapeLayout.module.css";
 import { useUpdateLayout, useVisibleTiles } from "./Grid";
@@ -38,6 +44,17 @@ const useStripScreenShares = (
         (m): m is ScreenShareViewModel => m.type === "screen share",
       );
 };
+
+interface StripCSSProperties extends CSSProperties {
+  "--strip-tile-width": string;
+  "--strip-tile-height": string;
+}
+
+/** The size of every tile in the strip, shared by both layers so they agree. */
+const stripStyle = (plan: StripPlan): StripCSSProperties => ({
+  "--strip-tile-width": `${plan.tileWidth}px`,
+  "--strip-tile-height": `${plan.tileHeight}px`,
+});
 
 // Cinny: "Hide Members" toggle for the participant strip. Shared
 // between the fixed and scrolling layers, so it lives outside React state.
@@ -74,17 +91,20 @@ export const makeSpotlightLandscapeLayout: CallLayout<
     Slot,
   }): ReactNode {
     useUpdateLayout();
-    useObservableEagerState(minBounds$);
+    const { width } = useObservableEagerState(minBounds$);
     const hidden = useStripHidden();
-    const stripCount =
-      model.grid.length +
+    const plan = planStrip(
+      width,
       useStripScreenShares(useObservableEagerState(model.spotlight.media$))
-        .length;
+        .length,
+      model.grid.length,
+    );
 
     return (
       <div
         ref={ref}
         className={classNames(styles.layer, { [styles.stripHidden]: hidden })}
+        style={stripStyle(plan)}
       >
         <div className={styles.spotlight}>
           <Slot
@@ -96,7 +116,7 @@ export const makeSpotlightLandscapeLayout: CallLayout<
         {/* Reserve the same space as the strip in the scrolling layer, otherwise
             the spotlight would extend underneath the participant tiles. */}
         <div className={styles.grid}>
-          {Array.from({ length: stripCount }, (_, i) => (
+          {Array.from({ length: plan.shares + plan.people }, (_, i) => (
             <div key={i} className={styles.spacer} />
           ))}
         </div>
@@ -111,16 +131,18 @@ export const makeSpotlightLandscapeLayout: CallLayout<
   }): ReactNode {
     useUpdateLayout();
     useVisibleTiles(model.setVisibleTiles);
-    useObservableEagerState(minBounds$);
+    const { width } = useObservableEagerState(minBounds$);
     const spotlightMedia = useObservableEagerState(model.spotlight.media$);
     const withIndicators = spotlightMedia.length > 1;
     const stripScreenShares = useStripScreenShares(spotlightMedia);
     const hidden = useStripHidden();
+    const plan = planStrip(width, stripScreenShares.length, model.grid.length);
 
     return (
       <div
         ref={ref}
         className={classNames(styles.layer, { [styles.stripHidden]: hidden })}
+        style={stripStyle(plan)}
       >
         <div
           className={classNames(styles.spotlight, {
@@ -128,10 +150,10 @@ export const makeSpotlightLandscapeLayout: CallLayout<
           })}
         />
         <div className={styles.grid}>
-          {stripScreenShares.map((m) => (
+          {stripScreenShares.slice(0, plan.shares).map((m) => (
             <ScreenSharePreview key={m.id} vm={m} />
           ))}
-          {model.grid.map((m) => (
+          {model.grid.slice(0, plan.people).map((m) => (
             <Slot key={m.id} className={styles.slot} id={m.id} model={m} />
           ))}
         </div>

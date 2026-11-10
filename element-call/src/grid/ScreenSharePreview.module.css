@@ -9,8 +9,8 @@ Please see LICENSE in the repository root for full details.
   position: relative;
   /* The layout layer ignores the pointer; take hover so the Hide Members pill shows. */
   pointer-events: auto;
-  inline-size: 195px;
-  block-size: 112px;
+  inline-size: var(--strip-tile-width, 195px);
+  block-size: var(--strip-tile-height, 112px);
   border-radius: 8px;
   overflow: hidden;
   background: #000;
