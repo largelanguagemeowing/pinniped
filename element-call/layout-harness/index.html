@@ -5,15 +5,34 @@
     <title>layout harness</title>
     <style>
       :root {
-        --cpd-space-1x: 4px; --cpd-space-2x: 8px; --cpd-space-3x: 12px;
-        --cpd-space-4x: 16px; --cpd-space-6x: 24px;
+        --cpd-space-1x: 4px;
+        --cpd-space-2x: 8px;
+        --cpd-space-3x: 12px;
+        --cpd-space-4x: 16px;
+        --cpd-space-6x: 24px;
         --call-view-header-footer-layer: 10;
         --cpd-color-bg-canvas-default: #101317;
       }
-      html, body, #root { margin: 0; height: 100%; width: 100%; background: #000; }
-      .tile-box { box-sizing: border-box; border-radius: 8px; color: #fff; font: 12px sans-serif;
-        display: grid; place-items: center; background: #3a6; }
-      .tile-box[data-kind="spotlight"] { background: #639; }
+      html,
+      body,
+      #root {
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        background: #000;
+      }
+      .tile-box {
+        box-sizing: border-box;
+        border-radius: 8px;
+        color: #fff;
+        font: 12px sans-serif;
+        display: grid;
+        place-items: center;
+        background: #3a6;
+      }
+      .tile-box[data-kind="spotlight"] {
+        background: #639;
+      }
     </style>
   </head>
   <body>
