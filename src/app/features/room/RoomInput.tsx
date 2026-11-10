@@ -135,6 +135,7 @@ import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { useComposingCheck } from '../../hooks/useComposingCheck';
 import { PollCreator, PollIcon } from '../../components/poll';
 import { stopPropagation } from '../../utils/keyboard';
+import { storeMsgDraft } from '../../state/room/msgDraftStore';
 
 const gifIconStyles: CSSProperties = {
   border: '1.5px solid currentColor',
@@ -144,6 +145,8 @@ const gifIconStyles: CSSProperties = {
   lineHeight: 1,
   padding: `${toRem(3)} ${toRem(2)}`,
 };
+
+const DRAFT_STORE_DELAY_MS = 400;
 
 const SEND_FAILURE_MESSAGE =
   'Message not sent. Check your connection and available disk space, then retry the failed message.';
@@ -208,7 +211,25 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const sendTypingStatus = useTypingStatusUpdater(mx, roomId);
 
+    // The draft reaches its atom only when the room is left, which a reload or a quit never
+    // does, so it is also stored a moment after each change and when the page goes away.
+    const draftTimerRef = useRef<number>(undefined);
+    const storeDraft = useCallback(() => {
+      storeMsgDraft(roomId, isEmptyEditor(editor) ? [] : editor.children);
+    }, [roomId, editor]);
+    useEffect(() => {
+      window.addEventListener('pagehide', storeDraft);
+      return () => {
+        window.removeEventListener('pagehide', storeDraft);
+        // The editor is shared between rooms: a late save would file the next room's text here.
+        window.clearTimeout(draftTimerRef.current);
+      };
+    }, [storeDraft]);
+
     const handleEditorChange = useCallback(() => {
+      window.clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = window.setTimeout(storeDraft, DRAFT_STORE_DELAY_MS);
+
       // Only attempt replacement when the user types a ':' character
       const hasColonInsert = editor.operations.some(
         (op) => op.type === 'insert_text' && op.text.includes(':')
@@ -216,7 +237,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (hasColonInsert) {
         replaceShortcodeWithEmoji(editor, emojiShortcodeMap);
       }
-    }, [editor, emojiShortcodeMap]);
+    }, [editor, emojiShortcodeMap, storeDraft]);
 
     const handleFiles = useCallback(
       async (files: File[]) => {
