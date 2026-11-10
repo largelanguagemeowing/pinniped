@@ -129,6 +129,12 @@ export const SidebarItemUnreadPill = style([
     borderRadius: `0 ${toRem(4)} ${toRem(4)} 0`,
     backgroundColor: color.Background.OnContainer,
     pointerEvents: 'none',
+    selectors: {
+      // The hover bar takes the pill's place; both at once overlap into one odd shape.
+      '*:hover > &': {
+        display: 'none',
+      },
+    },
   },
 ]);
 
