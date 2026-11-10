@@ -34,6 +34,7 @@ import {
 import { autoGainSync, denoiseSync } from "../../../livekit/denoise.ts";
 import { screenShareQuality, videoSimulcast } from "../../../settings/settings";
 import { Soundboard, soundboardCommand$ } from "../../../livekit/soundboard.ts";
+import { localDeafened$ } from "../../../livekit/deafened";
 import { applyScreenShareQuality } from "../../../livekit/screenShareLive.ts";
 import { parseScreenShareQuality } from "../../../livekit/options.ts";
 import { getUrlParams } from "../../../UrlParams.ts";
@@ -194,7 +195,9 @@ export class Publisher {
       // state while the handler is mid-flight, so the handler itself will apply
       // the correct mute state once it completes.
       if (!muteState.syncing$.value) {
-        const enabled = muteState.enabled$.value;
+        // Deafened is checked on its own as well as through the mute state: this is the last
+        // point before the microphone reaches the call.
+        const enabled = muteState.enabled$.value && !localDeafened$.value;
         if (!enabled) {
           this.logger.info(
             "Local audio track just published but muted meanwhile, setting enabled to false",
@@ -467,7 +470,9 @@ export class Publisher {
    */
   private observeMuteStates(): void {
     const lkRoom = this.connection.livekitRoom;
-    this.muteStates.audio.setHandler(async (enable) => {
+    this.muteStates.audio.setHandler(async (desired) => {
+      // The microphone is never switched on while deafened, whoever asks.
+      const enable = desired && !localDeafened$.value;
       try {
         this.logger.debug(
           `handler: Setting LiveKit microphone enabled: ${enable}`,

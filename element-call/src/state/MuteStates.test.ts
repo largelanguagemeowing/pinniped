@@ -6,14 +6,16 @@ Please see LICENSE in the repository root for full details.
 */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, NEVER } from "rxjs";
 import { logger } from "matrix-js-sdk/lib/logger";
 
 import { MuteStates, MuteState } from "./MuteStates";
+import { setAudioEnabled$ } from "../controls";
 import {
   type AudioOutputDeviceLabel,
   type DeviceLabel,
   type MediaDevice,
+  type SelectedAudioInputDevice,
   type SelectedAudioOutputDevice,
   type SelectedDevice,
 } from "./MediaDevices";
@@ -264,6 +266,69 @@ describe("MuteStates", () => {
       },
     };
   }
+
+  function aAudioInput(): MediaDevice<DeviceLabel, SelectedAudioInputDevice> {
+    return {
+      available$: constant(
+        new Map<string, DeviceLabel>([
+          ["0000", { type: "name", name: "Microphone" }],
+        ]),
+      ),
+      selected$: new BehaviorSubject<SelectedAudioInputDevice | undefined>({
+        id: "0000",
+        hardwareDeviceChange$: NEVER,
+      }),
+      select(): void {},
+    };
+  }
+
+  describe("while deafened", () => {
+    afterEach(() => setAudioEnabled$.next(true));
+
+    test("mute states made while deafened start with the microphone off", () => {
+      // Deafened before these mute states exist, as when they are made anew mid-call.
+      setAudioEnabled$.next(false);
+      const handler = vi.fn(async (enabled: boolean) =>
+        Promise.resolve(enabled),
+      );
+      const muteStates = new MuteStates(
+        testScope,
+        mockMediaDevices({ audioInput: aAudioInput() }),
+        { audioEnabled: true, videoEnabled: false },
+      );
+      muteStates.audio.setHandler(handler);
+
+      expect(muteStates.audio.enabled$.value).toBe(false);
+      // Nothing can switch it on: there is no setter and no toggle while deafened.
+      expect(muteStates.audio.setEnabled$.value).toBeNull();
+      expect(muteStates.audio.toggle$.value).toBeNull();
+      expect(handler).not.toHaveBeenCalledWith(true);
+    });
+
+    test("deafening switches a live microphone off and undeafening brings it back", async () => {
+      const calls: boolean[] = [];
+      const muteStates = new MuteStates(
+        testScope,
+        mockMediaDevices({ audioInput: aAudioInput() }),
+        { audioEnabled: true, videoEnabled: false },
+      );
+      muteStates.audio.setHandler(async (enabled) => {
+        calls.push(enabled);
+        return Promise.resolve(enabled);
+      });
+      expect(muteStates.audio.enabled$.value).toBe(true);
+
+      setAudioEnabled$.next(false);
+      await flushPromises();
+      expect(muteStates.audio.enabled$.value).toBe(false);
+      expect(calls).toEqual([false]);
+
+      setAudioEnabled$.next(true);
+      await flushPromises();
+      expect(muteStates.audio.enabled$.value).toBe(true);
+      expect(calls).toEqual([false, true]);
+    });
+  });
 
   test("should mute camera when in earpiece mode", async () => {
     const audioOutputDevice = aAudioOutputDevices();

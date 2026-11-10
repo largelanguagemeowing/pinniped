@@ -18,7 +18,6 @@ import {
   merge,
   Observable,
   of,
-  startWith,
   Subject,
   switchMap,
   withLatestFrom,
@@ -27,7 +26,7 @@ import {
 import { type MediaDevices, type MediaDevice } from "../state/MediaDevices";
 import { ElementWidgetActions, widget } from "../widget";
 import { type ObservableScope } from "./ObservableScope";
-import { setAudioEnabled$ } from "../controls";
+import { localDeafened$ } from "../livekit/deafened";
 import { type Behavior } from "./Behavior";
 
 interface MuteStateData {
@@ -226,15 +225,14 @@ export class MuteStates {
     }),
   );
 
-  // Deafening (output off) always mutes the microphone too.
+  // Deafening (output off) always mutes the microphone too. The state is read from
+  // localDeafened$, which remembers it: mute states are made anew when the devices or the
+  // URL parameters change, and one made while deafened must start with the microphone off.
   public readonly audio = new MuteState(
     this.scope,
     this.mediaDevices.audioInput,
     this.initialMuteState.audioEnabled,
-    setAudioEnabled$.pipe(
-      startWith(true),
-      map((outputEnabled) => !outputEnabled),
-    ),
+    localDeafened$,
     true,
   );
   public readonly video = new MuteState(
