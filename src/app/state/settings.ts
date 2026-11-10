@@ -183,7 +183,17 @@ const MIGRATED_SOUND_BUNDLES: Record<string, string> = {
 export const getSettings = () => {
   const settings = localStorage.getItem(STORAGE_KEY);
   if (settings === null) return defaultSettings;
-  const saved = JSON.parse(settings) as Settings;
+  let saved: Settings;
+  try {
+    const parsed: unknown = JSON.parse(settings);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return defaultSettings;
+    }
+    saved = parsed as Settings;
+  } catch {
+    // This runs while the app's modules load: unreadable settings must not stop the app.
+    return defaultSettings;
+  }
   return {
     ...defaultSettings,
     ...saved,
