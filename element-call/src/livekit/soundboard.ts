@@ -12,9 +12,10 @@ import {
   Track,
 } from "livekit-client";
 import { type Logger } from "matrix-js-sdk/lib/logger";
-import { Subject, type Subscription } from "rxjs";
+import { combineLatest, Subject, type Subscription } from "rxjs";
 
 import { soundboardVolume } from "../settings/settings";
+import { localDeafened$ } from "./deafened";
 
 /**
  * Soundboard commands from the embedding client (ElementWidgetActions.Soundboard).
@@ -24,6 +25,16 @@ export type SoundboardCommand =
   { op: "play"; url: string; mode?: "cut" | "add" } | { op: "stop" };
 
 export const soundboardCommand$ = new Subject<SoundboardCommand>();
+
+/**
+ * How loud the user hears their own soundboard sounds: their soundboard volume,
+ * and nothing at all while deafened. Deafened means no sound from the call, the
+ * user's own included; the call still gets the sound.
+ */
+export const soundboardMonitorLevel = (
+  volume: number,
+  deafened: boolean,
+): number => (deafened ? 0 : Math.max(0, Math.min(volume, 1)));
 
 /** A mono output for the soundboard track, so its Opus parameters match the microphone's. */
 function createMonoDestination(
@@ -57,7 +68,7 @@ export class Soundboard {
   // Bumped by stop(), so sounds still loading when it is called do not start.
   private stopGeneration = 0;
   // The listener's own copy of each sound still playing, so the soundboard volume
-  // applies to sounds already playing as well as new ones.
+  // and deafening apply to sounds already playing as well as new ones.
   private readonly monitors = new Set<GainNode>();
   private readonly volumeSub: Subscription;
 
@@ -65,8 +76,11 @@ export class Soundboard {
     private readonly room: LivekitRoom,
     private readonly logger: Logger,
   ) {
-    this.volumeSub = soundboardVolume.value$.subscribe((volume) => {
-      const level = Math.max(0, Math.min(volume, 1));
+    this.volumeSub = combineLatest([
+      soundboardVolume.value$,
+      localDeafened$,
+    ]).subscribe(([volume, deafened]) => {
+      const level = soundboardMonitorLevel(volume, deafened);
       this.monitors.forEach((monitor) => {
         monitor.gain.value = level;
       });
@@ -160,7 +174,10 @@ export class Soundboard {
     // soundboard volume. The local copy for the user is scaled the same way.
     const gain = this.ctx.createGain();
     const monitor = this.ctx.createGain();
-    monitor.gain.value = Math.max(0, Math.min(soundboardVolume.getValue(), 1));
+    monitor.gain.value = soundboardMonitorLevel(
+      soundboardVolume.getValue(),
+      localDeafened$.value,
+    );
     source.connect(gain);
     gain.connect(this.output.destination);
     gain.connect(monitor);

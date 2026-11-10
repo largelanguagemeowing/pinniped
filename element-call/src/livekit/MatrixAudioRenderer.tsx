@@ -272,9 +272,11 @@ function AudioTrackWithAudioNodes({
   useEffect(() => {
     // Plain elements only: with the audio context LiveKit keeps the element muted itself,
     // and unmuting it here would play the voice twice.
+    // Deafened (muted) counts too: this runs after the element is mounted, so writing only
+    // `silent` would switch a track that arrives while deafened back on.
     if (audioContext || !audioRef.current) return;
-    audioRef.current.muted = Boolean(silent);
-  }, [audioContext, silent, trackReady]);
+    audioRef.current.muted = Boolean(silent || muted);
+  }, [audioContext, silent, muted, trackReady]);
 
   useEffect(() => {
     if (!trackRef || trackReady) return;

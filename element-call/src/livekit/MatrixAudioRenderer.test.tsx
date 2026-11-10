@@ -17,7 +17,7 @@ import {
   type Room,
   Track,
 } from "livekit-client";
-import { type ReactNode } from "react";
+import { type ReactNode, type Ref } from "react";
 import { useTracks } from "@livekit/components-react";
 
 import { testAudioContext } from "../useAudioContext.test";
@@ -52,9 +52,12 @@ afterEach(() => {
 vi.mock("@livekit/components-react", async (importOriginal) => {
   return {
     ...(await importOriginal()),
-    AudioTrack: (props: { trackRef: TrackReference }): ReactNode => {
+    AudioTrack: (props: {
+      trackRef: TrackReference;
+      ref?: Ref<HTMLAudioElement>;
+    }): ReactNode => {
       return (
-        <audio data-testid={"audio"}>
+        <audio data-testid={"audio"} ref={props.ref}>
           {getTrackReferenceId(props.trackRef)}
         </audio>
       );
@@ -83,6 +86,7 @@ function renderTestComponent(
     kind: Track.Kind;
     source: Track.Source;
   }[],
+  muted = false,
 ): RenderResult {
   const liveKitParticipants = livekitParticipantIdentities.map((identity) =>
     mockRemoteParticipant({ identity }),
@@ -117,6 +121,7 @@ function renderTestComponent(
         validIdentities={participants.map((p) => p.identity)}
         livekitRoom={livekitRoom}
         url={""}
+        muted={muted}
       />
     </MediaDevicesProvider>,
   );
@@ -129,6 +134,30 @@ it("should render for member", () => {
   );
   expect(container).toBeTruthy();
   expect(queryAllByTestId("audio")).toHaveLength(1);
+});
+
+// Without AudioContext.setSinkId (Firefox, Safari) voices play through plain audio elements.
+it("keeps a plain audio element silent while deafened", () => {
+  const members = [{ userId: "@alice", deviceId: "DEV0" }];
+  const deafened = renderTestComponent(
+    members,
+    ["@alice:DEV0"],
+    undefined,
+    true,
+  );
+  expect(
+    deafened
+      .queryAllByTestId("audio")
+      .map((el) => (el as HTMLAudioElement).muted),
+  ).toEqual([true]);
+  deafened.unmount();
+
+  const listening = renderTestComponent(members, ["@alice:DEV0"]);
+  expect(
+    listening
+      .queryAllByTestId("audio")
+      .map((el) => (el as HTMLAudioElement).muted),
+  ).toEqual([false]);
 });
 
 it("should not render without member", () => {
