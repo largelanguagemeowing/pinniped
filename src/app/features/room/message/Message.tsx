@@ -6,6 +6,7 @@ import {
   Header,
   Icon,
   IconButton,
+  IconSrc,
   Icons,
   Input,
   Line,
@@ -19,11 +20,14 @@ import {
   RectCords,
   Spinner,
   Text,
+  Tooltip,
+  TooltipProvider,
   as,
   color,
   config,
 } from 'folds';
 import React, {
+  ButtonHTMLAttributes,
   FormEventHandler,
   MouseEventHandler,
   ReactNode,
@@ -131,6 +135,38 @@ export const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
     );
   }
 );
+
+type MessageOptionButtonProps = {
+  label: string;
+  icon: IconSrc;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'>;
+/** A button of the bar shown over a message: an icon, named for screen readers and in a tooltip. */
+function MessageOptionButton({ label, icon, ...props }: MessageOptionButtonProps) {
+  return (
+    <TooltipProvider
+      position="Top"
+      offset={4}
+      tooltip={
+        <Tooltip>
+          <Text>{label}</Text>
+        </Tooltip>
+      }
+    >
+      {(triggerRef) => (
+        <IconButton
+          ref={triggerRef}
+          aria-label={label}
+          variant="SurfaceVariant"
+          size="300"
+          radii="300"
+          {...props}
+        >
+          <Icon src={icon} size="100" />
+        </IconButton>
+      )}
+    </TooltipProvider>
+  );
+}
 
 export const MessageAllReactionItem = as<
   'button',
@@ -1059,46 +1095,34 @@ export const Message = as<'div', MessageProps>(
                       />
                     }
                   >
-                    <IconButton
+                    <MessageOptionButton
+                      label="Add Reaction"
+                      icon={Icons.SmilePlus}
                       onClick={handleOpenEmojiBoard}
-                      variant="SurfaceVariant"
-                      size="300"
-                      radii="300"
                       aria-pressed={!!emojiBoardAnchor}
-                    >
-                      <Icon src={Icons.SmilePlus} size="100" />
-                    </IconButton>
+                    />
                   </PopOut>
                 )}
-                <IconButton
+                <MessageOptionButton
+                  label="Reply"
+                  icon={Icons.ReplyArrow}
                   onClick={onReplyClick}
                   data-event-id={mEvent.getId()}
-                  variant="SurfaceVariant"
-                  size="300"
-                  radii="300"
-                >
-                  <Icon src={Icons.ReplyArrow} size="100" />
-                </IconButton>
+                />
                 {!isThreadedMessage && (
-                  <IconButton
+                  <MessageOptionButton
+                    label="Reply in Thread"
+                    icon={Icons.ThreadPlus}
                     onClick={(ev) => onReplyClick(ev, true)}
                     data-event-id={mEvent.getId()}
-                    variant="SurfaceVariant"
-                    size="300"
-                    radii="300"
-                  >
-                    <Icon src={Icons.ThreadPlus} size="100" />
-                  </IconButton>
+                  />
                 )}
                 {canEditEvent(mx, mEvent) && onEditId && (
-                  <IconButton
+                  <MessageOptionButton
+                    label="Edit Message"
+                    icon={Icons.Pencil}
                     onClick={() => onEditId(mEvent.getId())}
-                    variant="SurfaceVariant"
-                    size="300"
-                    radii="300"
-                  >
-                    <Icon src={Icons.Pencil} size="100" />
-                  </IconButton>
+                  />
                 )}
                 <PopOut
                   anchor={menuAnchor}
@@ -1276,15 +1300,12 @@ export const Message = as<'div', MessageProps>(
                     </FocusTrap>
                   }
                 >
-                  <IconButton
-                    variant="SurfaceVariant"
-                    size="300"
-                    radii="300"
+                  <MessageOptionButton
+                    label="More Options"
+                    icon={Icons.VerticalDots}
                     onClick={handleOpenMenu}
                     aria-pressed={!!menuAnchor}
-                  >
-                    <Icon src={Icons.VerticalDots} size="100" />
-                  </IconButton>
+                  />
                 </PopOut>
               </Box>
             </Menu>
@@ -1453,15 +1474,12 @@ export const Event = as<'div', EventProps>(
                     </FocusTrap>
                   }
                 >
-                  <IconButton
-                    variant="SurfaceVariant"
-                    size="300"
-                    radii="300"
+                  <MessageOptionButton
+                    label="More Options"
+                    icon={Icons.VerticalDots}
                     onClick={handleOpenMenu}
                     aria-pressed={!!menuAnchor}
-                  >
-                    <Icon src={Icons.VerticalDots} size="100" />
-                  </IconButton>
+                  />
                 </PopOut>
               </Box>
             </Menu>
