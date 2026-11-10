@@ -84,7 +84,7 @@ export function PermissionGroups({
 
         return draftPowerLevels;
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomPowerLevels as any, editedPowerLevels);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomPowerLevels, editedPowerLevels);
     }, [mx, room, powerLevels, permissionUpdate, permissionGroups])
   );
 

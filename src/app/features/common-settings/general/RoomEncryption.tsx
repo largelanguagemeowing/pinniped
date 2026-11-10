@@ -46,7 +46,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
 
   const [enableState, enable] = useAsyncCallback(
     useCallback(async () => {
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomEncryption as any, {
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomEncryption, {
         algorithm: ROOM_ENC_ALGO,
       });
     }, [mx, room.roomId])

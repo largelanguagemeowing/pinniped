@@ -29,7 +29,7 @@ export function SpaceAutoJoin({ permissions }: SpaceAutoJoinProps) {
     useCallback(
       async (value: boolean) => {
         const content: SpaceAutoJoinContent = { auto_join: value };
-        await mx.sendStateEvent(space.roomId, StateEvent.SpaceAutoJoin as any, content as any);
+        await mx.sendStateEvent(space.roomId, StateEvent.SpaceAutoJoin, content);
       },
       [mx, space.roomId]
     )

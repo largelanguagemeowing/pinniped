@@ -9,7 +9,7 @@ import {
   RoomMember,
   Visibility,
 } from 'matrix-js-sdk';
-import { RoomServerAclEventContent } from 'matrix-js-sdk/lib/types';
+import { RoomMemberEventContent, RoomServerAclEventContent } from 'matrix-js-sdk/lib/types';
 import { useMemo } from 'react';
 import {
   addRoomIdToMDirect,
@@ -363,11 +363,11 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             .getLiveTimeline()
             .getState(EventTimeline.FORWARDS)
             ?.getStateEvents(StateEvent.RoomMember, mx.getSafeUserId());
-          const content = mEvent?.getContent();
+          const content = mEvent?.getContent<RoomMemberEventContent>();
           if (!content) return;
           await mx.sendStateEvent(
             room.roomId,
-            StateEvent.RoomMember as any,
+            StateEvent.RoomMember,
             {
               ...content,
               displayname: nick,
@@ -385,11 +385,11 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               .getLiveTimeline()
               .getState(EventTimeline.FORWARDS)
               ?.getStateEvents(StateEvent.RoomMember, mx.getSafeUserId());
-            const content = mEvent?.getContent();
+            const content = mEvent?.getContent<RoomMemberEventContent>();
             if (!content) return;
             await mx.sendStateEvent(
               room.roomId,
-              StateEvent.RoomMember as any,
+              StateEvent.RoomMember,
               {
                 ...content,
                 avatar_url: payload,
@@ -527,7 +527,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           aclContent.allow?.sort();
           aclContent.deny?.sort();
 
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomServerAcl as any, aclContent);
+          await mx.sendStateEvent(room.roomId, StateEvent.RoomServerAcl, aclContent);
         },
       },
     }),

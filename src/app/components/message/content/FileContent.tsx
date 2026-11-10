@@ -120,7 +120,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
               <Modal
                 className={ModalWide}
                 size="500"
-                onContextMenu={(evt: any) => evt.stopPropagation()}
+                onContextMenu={(evt) => evt.stopPropagation()}
               >
                 {renderViewer({
                   name: body,
@@ -209,7 +209,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
               <Modal
                 className={ModalWide}
                 size="500"
-                onContextMenu={(evt: any) => evt.stopPropagation()}
+                onContextMenu={(evt) => evt.stopPropagation()}
               >
                 {renderViewer({
                   name: body,

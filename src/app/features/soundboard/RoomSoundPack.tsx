@@ -22,7 +22,7 @@ export function RoomSoundPack() {
 
   const handleUpdate = useCallback(
     (content: SoundPackContent) =>
-      mx.sendStateEvent(room.roomId, StateEvent.PinnipedRoomSounds as any, content, ''),
+      mx.sendStateEvent(room.roomId, StateEvent.PinnipedRoomSounds, content, ''),
     [mx, room.roomId]
   );
 

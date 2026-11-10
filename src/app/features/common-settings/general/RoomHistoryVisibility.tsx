@@ -76,7 +76,7 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
         const content: RoomHistoryVisibilityEventContent = {
           history_visibility: visibility,
         };
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomHistoryVisibility as any, content);
+        await mx.sendStateEvent(room.roomId, StateEvent.RoomHistoryVisibility, content);
       },
       [mx, room.roomId]
     )

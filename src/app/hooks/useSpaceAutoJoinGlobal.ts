@@ -132,7 +132,7 @@ export const useSpaceAutoJoinGlobal = () => {
       if (!legacy || getStateEvent(room, StateEvent.SpaceAutoJoin)) return;
       if (!room.currentState.maySendStateEvent(StateEvent.SpaceAutoJoin, userId)) return;
       migratedRef.current.add(spaceId);
-      mx.sendStateEvent(spaceId, StateEvent.SpaceAutoJoin as any, legacy.getContent() as any).catch(
+      mx.sendStateEvent(spaceId, StateEvent.SpaceAutoJoin, legacy.getContent()).catch(
         () => undefined
       );
     });

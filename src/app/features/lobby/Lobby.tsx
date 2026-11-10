@@ -273,7 +273,7 @@ export function Lobby() {
             if (!reorder.item.parentId) return;
             await mx.sendStateEvent(
               reorder.item.parentId,
-              StateEvent.SpaceChild as any,
+              StateEvent.SpaceChild,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -298,7 +298,7 @@ export function Lobby() {
 
         // remove from current space
         if (item.parentId !== containerParentId) {
-          mx.sendStateEvent(item.parentId, StateEvent.SpaceChild as any, {}, item.roomId);
+          mx.sendStateEvent(item.parentId, StateEvent.SpaceChild, {}, item.roomId);
         }
 
         if (
@@ -318,7 +318,7 @@ export function Lobby() {
               joinRuleContent.allow?.filter((allowRule) => allowRule.room_id !== item.parentId) ??
               [];
             allow.push({ type: RestrictedAllowType.RoomMembership, room_id: containerParentId });
-            mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules as any, {
+            mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules, {
               ...joinRuleContent,
               allow,
             });
@@ -360,7 +360,7 @@ export function Lobby() {
           await rateLimitedActions(reorders, async (reorder) => {
             await mx.sendStateEvent(
               containerParentId,
-              StateEvent.SpaceChild as any,
+              StateEvent.SpaceChild,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -422,7 +422,7 @@ export function Lobby() {
         newItems.push(rId);
       }
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
-      mx.setAccountData(AccountDataEvent.CinnySpaces as any, newSpacesContent as any);
+      mx.setAccountData(AccountDataEvent.CinnySpaces, newSpacesContent);
     },
     [mx, sidebarItems, sidebarSpaces]
   );

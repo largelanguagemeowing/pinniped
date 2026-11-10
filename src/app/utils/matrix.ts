@@ -5,11 +5,14 @@ import {
 } from 'browser-encrypt-attachment';
 import {
   EventTimeline,
+  ISendEventResponse,
   MatrixClient,
   MatrixError,
   MatrixEvent,
   Room,
   RoomMember,
+  StateEvents,
+  TimelineEvents,
   UploadProgress,
   UploadResponse,
 } from 'matrix-js-sdk';
@@ -19,6 +22,36 @@ import { AccountDataEvent } from '../../types/matrix/accountData';
 import { getStateEvent } from './room';
 import { Membership, StateEvent } from '../../types/matrix/room';
 import { getFallbackSession } from '../state/sessions';
+
+/**
+ * Sends an event whose type is only known at runtime (developer tools, widget driver).
+ * The SDK keys its event maps by enum members, so an arbitrary type is widened here.
+ */
+export const sendRawStateEvent = (
+  mx: MatrixClient,
+  roomId: string,
+  eventType: string,
+  content: object,
+  stateKey = ''
+): Promise<ISendEventResponse> =>
+  mx.sendStateEvent(
+    roomId,
+    eventType as keyof StateEvents,
+    content as StateEvents[keyof StateEvents],
+    stateKey
+  );
+
+export const sendRawEvent = (
+  mx: MatrixClient,
+  roomId: string,
+  eventType: string,
+  content: object
+): Promise<ISendEventResponse> =>
+  mx.sendEvent(
+    roomId,
+    eventType as keyof TimelineEvents,
+    content as TimelineEvents[keyof TimelineEvents]
+  );
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
@@ -202,9 +235,12 @@ export const uploadContent = async (
     const mxc = data.content_uri;
     if (mxc) onSuccess(mxc);
     else onError(new MatrixError(data));
-  } catch (e: any) {
-    const error = typeof e?.message === 'string' ? e.message : undefined;
-    const errcode = typeof e?.name === 'string' ? e.message : undefined;
+  } catch (e) {
+    const err =
+      typeof e === 'object' && e !== null ? (e as { message?: unknown; name?: unknown }) : {};
+    const error = typeof err.message === 'string' ? err.message : undefined;
+    const errcode =
+      typeof err.name === 'string' && typeof err.message === 'string' ? err.message : undefined;
     onError(new MatrixError({ error, errcode }));
   }
 };
@@ -268,7 +304,7 @@ export const addRoomIdToMDirect = async (
   roomId: string,
   userId: string
 ): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as any);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -293,11 +329,11 @@ export const addRoomIdToMDirect = async (
   }
   userIdToRoomIds[userId] = roomIds;
 
-  await mx.setAccountData(AccountDataEvent.Direct as any, userIdToRoomIds as any);
+  await mx.setAccountData(AccountDataEvent.Direct, userIdToRoomIds);
 };
 
 export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as any);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -311,7 +347,7 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
     }
   });
 
-  await mx.setAccountData(AccountDataEvent.Direct as any, userIdToRoomIds as any);
+  await mx.setAccountData(AccountDataEvent.Direct, userIdToRoomIds);
 };
 
 export const mxcUrlToHttp = (

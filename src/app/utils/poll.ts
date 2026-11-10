@@ -5,6 +5,9 @@ import {
   M_POLL_RESPONSE,
   M_POLL_START,
   MatrixEvent,
+  PollEndEventContent,
+  PollResponseEventContent,
+  PollStartEventContent,
   RelationType,
 } from 'matrix-js-sdk';
 
@@ -102,14 +105,18 @@ const randomAnswerId = (): string =>
     b.toString(16).padStart(2, '0')
   ).join('');
 
+export type PollStartContent = IContent & PollStartEventContent;
+export type PollResponseContent = IContent & PollResponseEventContent;
+export type PollEndContent = IContent & PollEndEventContent;
+
 export const makePollStartContent = (
   question: string,
   answers: string[],
   maxSelections: number,
   expiresAt?: number
-): IContent => {
+): PollStartContent => {
   const fallback = `${question}\n${answers.map((a, i) => `${i + 1}. ${a}`).join('\n')}`;
-  const content: IContent = {
+  const content: PollStartContent = {
     [M_POLL_START.altName]: {
       question: { [TEXT_UNSTABLE]: question },
       kind: M_POLL_KIND_DISCLOSED.altName,
@@ -122,12 +129,15 @@ export const makePollStartContent = (
   return content;
 };
 
-export const makePollResponseContent = (pollEventId: string, answerIds: string[]): IContent => ({
+export const makePollResponseContent = (
+  pollEventId: string,
+  answerIds: string[]
+): PollResponseContent => ({
   [M_POLL_RESPONSE.altName]: { answers: answerIds },
   'm.relates_to': { rel_type: RelationType.Reference, event_id: pollEventId },
 });
 
-export const makePollEndContent = (pollEventId: string, text: string): IContent => ({
+export const makePollEndContent = (pollEventId: string, text: string): PollEndContent => ({
   [M_POLL_END.altName]: {},
   [TEXT_UNSTABLE]: text,
   'm.relates_to': { rel_type: RelationType.Reference, event_id: pollEventId },

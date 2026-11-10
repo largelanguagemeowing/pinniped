@@ -2,13 +2,13 @@ import { MatrixClient, Room } from 'matrix-js-sdk';
 import { IPowerLevels } from '../../../hooks/usePowerLevels';
 import { getRoomPermissionsAPI } from '../../../hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '../../../hooks/useRoomCreators';
-import { StateEvent } from '../../../../types/matrix/room';
+import { PowerLevelTags, StateEvent } from '../../../../types/matrix/room';
 import { getSpaceChildren, getStateEvent } from '../../../utils/room';
 
 /** Power level content as stored in `m.room.power_levels`. */
 export type PowerLevelsContent = Record<string, unknown>;
 /** Role tag content as stored in `in.cinny.room.power_level_tags`. */
-export type PowerTagsContent = Record<string, unknown>;
+export type PowerTagsContent = PowerLevelTags;
 
 /**
  * The part of a room the sync needs. `undefined` from `lookup` means the room is not joined,
@@ -136,15 +136,17 @@ const planRoom = (ctx: SyncContext, roomId: string, room: SyncRoomState, plan: S
 
 /** Reads the sync context from a Matrix client, using the space as the source of truth. */
 export const readSyncContext = (mx: MatrixClient, space: Room): SyncContext => {
-  const readContent = (room: Room, type: string): Record<string, unknown> =>
-    (getStateEvent(room, type as StateEvent)?.getContent() as Record<string, unknown>) ?? {};
+  const readPowerLevels = (room: Room): PowerLevelsContent =>
+    getStateEvent(room, StateEvent.RoomPowerLevels)?.getContent<PowerLevelsContent>() ?? {};
+  const readTags = (room: Room): PowerTagsContent =>
+    getStateEvent(room, StateEvent.PowerLevelTags)?.getContent<PowerTagsContent>() ?? {};
 
   const lookup = (roomId: string): SyncRoomState | undefined => {
     const room = mx.getRoom(roomId);
     if (!room || room.getMyMembership() !== 'join') return undefined;
     return {
-      powerLevels: readContent(room, StateEvent.RoomPowerLevels),
-      tags: readContent(room, StateEvent.PowerLevelTags),
+      powerLevels: readPowerLevels(room),
+      tags: readTags(room),
       creators: getRoomCreatorsForRoomId(mx, roomId),
       children: getSpaceChildren(room),
     };
@@ -154,8 +156,8 @@ export const readSyncContext = (mx: MatrixClient, space: Room): SyncContext => {
     userId: mx.getSafeUserId(),
     spaceId: space.roomId,
     space: {
-      powerLevels: readContent(space, StateEvent.RoomPowerLevels),
-      tags: readContent(space, StateEvent.PowerLevelTags),
+      powerLevels: readPowerLevels(space),
+      tags: readTags(space),
       children: getSpaceChildren(space),
     },
     lookup,
@@ -179,14 +181,10 @@ export const applySpacePermissionSync = async (
   for (const update of updates) {
     try {
       if (update.powerLevels !== undefined) {
-        await mx.sendStateEvent(
-          update.roomId,
-          StateEvent.RoomPowerLevels as any,
-          update.powerLevels
-        );
+        await mx.sendStateEvent(update.roomId, StateEvent.RoomPowerLevels, update.powerLevels);
       }
       if (update.tags !== undefined) {
-        await mx.sendStateEvent(update.roomId, StateEvent.PowerLevelTags as any, update.tags);
+        await mx.sendStateEvent(update.roomId, StateEvent.PowerLevelTags, update.tags);
       }
       result.updated += 1;
     } catch (e) {

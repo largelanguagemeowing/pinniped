@@ -31,6 +31,7 @@ import { usePowerLevels } from '../../../hooks/usePowerLevels';
 import { useTextAreaCodeEditor } from '../../../hooks/useTextAreaCodeEditor';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
+import { sendRawStateEvent } from '../../../utils/matrix';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -59,7 +60,7 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
 
   const [submitState, submit] = useAsyncCallback<object, MatrixError, [object]>(
     useCallback(
-      (c) => mx.sendStateEvent(room.roomId, type as any, c, stateKey),
+      (c) => sendRawStateEvent(mx, room.roomId, type, c, stateKey),
       [mx, room, type, stateKey]
     )
   );

@@ -53,6 +53,7 @@ import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { getEditedEvent, getMentionContent, trimReplyFromFormattedBody } from '../../../utils/room';
 import { mobileOrTablet } from '../../../utils/user-agent';
+import { sendRoomMessage } from '../msgContent';
 import { useComposingCheck } from '../../../hooks/useComposingCheck';
 import { useEmojiShortcodeMap } from '../../../hooks/useEmojiShortcodeMap';
 
@@ -163,7 +164,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           },
         };
 
-        return mx.sendMessage(roomId, content as any);
+        return sendRoomMessage(mx, roomId, content);
       }, [mx, editor, roomId, mEvent, getPrevBodyAndFormattedBody])
     );
 

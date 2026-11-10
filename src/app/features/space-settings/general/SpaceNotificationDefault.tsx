@@ -36,11 +36,7 @@ export function SpaceNotificationDefault({ permissions }: SpaceNotificationDefau
     useCallback(
       async (mode: DefaultMode) => {
         const content: SpaceNotificationDefaultContent = { mode };
-        await mx.sendStateEvent(
-          space.roomId,
-          StateEvent.SpaceNotificationDefault as any,
-          content as any
-        );
+        await mx.sendStateEvent(space.roomId, StateEvent.SpaceNotificationDefault, content);
       },
       [mx, space.roomId]
     )

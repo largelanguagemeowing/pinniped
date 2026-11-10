@@ -22,6 +22,7 @@ import { useTextAreaCodeEditor } from '../../../hooks/useTextAreaCodeEditor';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { syntaxErrorPosition } from '../../../utils/dom';
 import { Cursor } from '../../../plugins/text-area';
+import { sendRawEvent, sendRawStateEvent } from '../../../utils/matrix';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -51,9 +52,9 @@ export function SendRoomEvent({ type, stateKey, requestClose }: SendRoomEventPro
     useCallback(
       (evtType, evtStateKey, evtContent) => {
         if (typeof evtStateKey === 'string') {
-          return mx.sendStateEvent(room.roomId, evtType as any, evtContent, evtStateKey);
+          return sendRawStateEvent(mx, room.roomId, evtType, evtContent, evtStateKey);
         }
-        return mx.sendEvent(room.roomId, evtType as any, evtContent);
+        return sendRawEvent(mx, room.roomId, evtType, evtContent);
       },
       [mx, room]
     )

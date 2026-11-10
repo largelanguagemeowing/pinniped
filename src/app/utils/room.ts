@@ -20,6 +20,7 @@ import {
   RoomMember,
 } from 'matrix-js-sdk';
 import { CryptoBackend } from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
+import { ReactionEventContent } from 'matrix-js-sdk/lib/types';
 import { getLocalReadTs } from '../state/readMarkers';
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { isGifVideoContent } from '../../types/matrix/common';
@@ -51,7 +52,7 @@ export const getStateEvents = (room: Room, eventType: StateEvent): MatrixEvent[]
 export const getAccountData = (
   mx: MatrixClient,
   eventType: AccountDataEvent
-): MatrixEvent | undefined => mx.getAccountData(eventType as any);
+): MatrixEvent | undefined => mx.getAccountData(eventType);
 
 export const getMDirects = (mDirectEvent: MatrixEvent): Set<string> => {
   const roomIds = new Set<string>();
@@ -525,11 +526,18 @@ export const decryptAllTimelineEvent = async (mx: MatrixClient, timeline: EventT
   await Promise.allSettled(decryptionPromises);
 };
 
-export const getReactionContent = (eventId: string, key: string, shortcode?: string) => ({
+/** `m.reaction` content; Pinniped also stores the emoji shortcode. */
+export type ReactionContent = ReactionEventContent & { shortcode?: string };
+
+export const getReactionContent = (
+  eventId: string,
+  key: string,
+  shortcode?: string
+): ReactionContent => ({
   'm.relates_to': {
     event_id: eventId,
     key,
-    rel_type: 'm.annotation',
+    rel_type: RelationType.Annotation,
   },
   shortcode,
 });

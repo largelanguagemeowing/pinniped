@@ -370,7 +370,7 @@ export class CallEmbed {
     return this.listenEvent('preparing', callback);
   }
 
-  public onPreparingError(callback: (error: any) => void) {
+  public onPreparingError(callback: (error: unknown) => void) {
     return this.listenEvent('error:preparing', callback);
   }
 

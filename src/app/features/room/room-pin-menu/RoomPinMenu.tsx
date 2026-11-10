@@ -122,7 +122,7 @@ function PinnedMessage({
         pinned: content.pinned.filter((id) => id !== eventId),
       };
 
-      return mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as any, newContent);
+      return mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents, newContent);
     }, [room, eventId, mx])
   );
 

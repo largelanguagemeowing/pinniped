@@ -1017,8 +1017,8 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   );
   const parseMemberEvent = useMemberEventParser(handleUserClick);
 
-  const handleReplyClick: MouseEventHandler<HTMLButtonElement> = useCallback(
-    (evt, startThread = false) => {
+  const handleReplyClick = useCallback(
+    (evt: React.MouseEvent<HTMLElement>, startThread = false) => {
       const replyId = evt.currentTarget.getAttribute('data-event-id');
       if (!replyId) {
         console.warn('Button should have "data-event-id" attribute!');
@@ -1064,7 +1064,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
       mx.sendEvent(
         room.roomId,
-        MessageEvent.Reaction as any,
+        MessageEvent.Reaction,
         getReactionContent(targetEventId, key, rShortcode)
       );
     },

@@ -26,12 +26,8 @@ import { IPowerLevels } from '../../../hooks/usePowerLevels';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SequenceCardStyle } from '../styles.css';
 import { SettingTile } from '../../../components/setting-tile';
-import {
-  getPowers,
-  getUsedPowers,
-  PowerLevelTags,
-  usePowerLevelTags,
-} from '../../../hooks/usePowerLevelTags';
+import { getPowers, getUsedPowers, usePowerLevelTags } from '../../../hooks/usePowerLevelTags';
+import { PowerLevelTags } from '../../../../types/matrix/room';
 import { useRoom } from '../../../hooks/useRoom';
 import { HexColorPickerPopOut } from '../../../components/HexColorPickerPopOut';
 import { PowerColorBadge, PowerIcon } from '../../../components/power';
@@ -423,7 +419,7 @@ export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
       deleted.forEach((power) => {
         delete content[power];
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags as any, content);
+      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags, content);
     }, [mx, room, powerLevelTags, editedPowerTags, deleted])
   );
 

@@ -16,6 +16,7 @@ import { useAtomValue } from 'jotai';
 import Linkify from 'linkify-react';
 import classNames from 'classnames';
 import { JoinRule, MatrixError } from 'matrix-js-sdk';
+import { RoomAvatarEventContent } from 'matrix-js-sdk/lib/types';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SequenceCardStyle } from '../../room-settings/styles.css';
 import { useRoom } from '../../../hooks/useRoom';
@@ -93,15 +94,15 @@ export function RoomProfileEdit({
     useCallback(
       async (roomAvatarMxc?: string | null, roomName?: string, roomTopic?: string) => {
         if (roomAvatarMxc !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomAvatar as any, {
-            url: roomAvatarMxc,
-          });
+          const content: RoomAvatarEventContent = {};
+          if (roomAvatarMxc !== null) content.url = roomAvatarMxc;
+          await mx.sendStateEvent(room.roomId, StateEvent.RoomAvatar, content);
         }
         if (roomName !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomName as any, { name: roomName });
+          await mx.sendStateEvent(room.roomId, StateEvent.RoomName, { name: roomName });
         }
         if (roomTopic !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomTopic as any, { topic: roomTopic });
+          await mx.sendStateEvent(room.roomId, StateEvent.RoomTopic, { topic: roomTopic });
         }
       },
       [mx, room.roomId]

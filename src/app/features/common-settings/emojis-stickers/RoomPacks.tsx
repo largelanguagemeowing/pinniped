@@ -57,7 +57,7 @@ function CreatePackTile({ packs, roomId }: CreatePackTileProps) {
             display_name: name,
           },
         };
-        await mx.sendStateEvent(roomId, StateEvent.PoniesRoomEmotes as any, content, stateKey);
+        await mx.sendStateEvent(roomId, StateEvent.PoniesRoomEmotes, content, stateKey);
       },
       [mx, roomId]
     )
@@ -161,7 +161,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
       for (let i = 0; i < removedPacks.length; i += 1) {
         const addr = removedPacks[i];
 
-        await mx.sendStateEvent(room.roomId, StateEvent.PoniesRoomEmotes as any, {}, addr.stateKey);
+        await mx.sendStateEvent(room.roomId, StateEvent.PoniesRoomEmotes, {}, addr.stateKey);
       }
     }, [mx, room, removedPacks])
   );

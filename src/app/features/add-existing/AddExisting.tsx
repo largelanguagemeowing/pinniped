@@ -136,7 +136,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
 
           await mx.sendStateEvent(
             parentId,
-            StateEvent.SpaceChild as any,
+            StateEvent.SpaceChild,
             {
               auto_join: false,
               suggested: false,

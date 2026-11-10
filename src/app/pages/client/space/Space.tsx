@@ -430,7 +430,9 @@ export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProp
         <Text size="T200">This space has been replaced and is no longer active.</Text>
         {joinState.status === AsyncStatus.Error && (
           <Text className={BreakWord} style={{ color: color.Critical.Main }} size="T200">
-            {(joinState.error as any)?.message ?? 'Failed to join replacement space!'}
+            {joinState.error instanceof Error
+              ? joinState.error.message
+              : 'Failed to join replacement space!'}
           </Text>
         )}
       </Box>
@@ -593,7 +595,7 @@ export function Space() {
         await rateLimitedActions(reorders, ({ item, orderKey }) =>
           mx.sendStateEvent(
             parentId,
-            StateEvent.SpaceChild as any,
+            StateEvent.SpaceChild,
             { ...item.content, order: orderKey },
             item.roomId
           )

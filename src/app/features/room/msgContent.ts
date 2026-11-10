@@ -1,4 +1,5 @@
-import { IContent, MatrixClient, MsgType, RelationType } from 'matrix-js-sdk';
+import { EventType, IContent, MatrixClient, MsgType, RelationType } from 'matrix-js-sdk';
+import { RoomMessageEventContent, StickerEventContent } from 'matrix-js-sdk/lib/types';
 import to from 'await-to-js';
 import {
   IThumbnailContent,
@@ -187,6 +188,15 @@ export const addReplyRelation = (content: IContent, replyDraft?: IReplyDraft): I
 
   return { ...content, 'm.relates_to': relation };
 };
+
+// The SDK's room message type models a relation as replacement, plain relation or reply, so it
+// cannot express a thread reply (`m.thread` with `m.in_reply_to`), and its sticker type has no
+// relation at all. Both are content our builders create, so widen at this one boundary.
+export const sendRoomMessage = (mx: MatrixClient, roomId: string, content: IContent) =>
+  mx.sendMessage(roomId, content as RoomMessageEventContent);
+
+export const sendRoomSticker = (mx: MatrixClient, roomId: string, content: IContent) =>
+  mx.sendEvent(roomId, EventType.Sticker, content as StickerEventContent);
 
 type UploadMessages = {
   /** One message content per uploaded file, in the order they were picked. */

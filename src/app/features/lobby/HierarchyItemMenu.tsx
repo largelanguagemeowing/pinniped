@@ -48,7 +48,7 @@ function SuggestMenuItem({
   const [toggleState, handleToggleSuggested] = useAsyncCallback(
     useCallback(() => {
       const newContent: MSpaceChildContent = { ...content, suggested: !content.suggested };
-      return mx.sendStateEvent(parentId, StateEvent.SpaceChild as any, newContent, roomId);
+      return mx.sendStateEvent(parentId, StateEvent.SpaceChild, newContent, roomId);
     }, [mx, parentId, roomId, content])
   );
 
@@ -85,7 +85,7 @@ function RemoveMenuItem({
 
   const [removeState, handleRemove] = useAsyncCallback(
     useCallback(
-      () => mx.sendStateEvent(parentId, StateEvent.SpaceChild as any, {}, roomId),
+      () => mx.sendStateEvent(parentId, StateEvent.SpaceChild, {}, roomId),
       [mx, parentId, roomId]
     )
   );

@@ -43,7 +43,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
       // Each card stands alone, so it keeps all four corners whatever comes before or after it.
       firstChild
       lastChild
-      onClick={(evt: any) =>
+      onClick={(evt: React.MouseEvent<HTMLButtonElement>) =>
         openUserProfile(
           room.roomId,
           undefined,

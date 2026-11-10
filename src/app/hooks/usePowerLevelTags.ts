@@ -2,12 +2,10 @@ import { Room } from 'matrix-js-sdk';
 import { useMemo } from 'react';
 import { IPowerLevels } from './usePowerLevels';
 import { useStateEvent } from './useStateEvent';
-import { MemberPowerTag, StateEvent } from '../../types/matrix/room';
+import { MemberPowerTag, PowerLevelTags, StateEvent } from '../../types/matrix/room';
 import { sanitizeStateTag } from '../utils/powerTagColor';
 import { settingsAtom } from '../state/settings';
 import { useSetting } from '../state/hooks/settings';
-
-export type PowerLevelTags = Record<number, MemberPowerTag>;
 
 const powerSortFn = (a: number, b: number) => b - a;
 const sortPowers = (powers: number[]): number[] => powers.sort(powerSortFn);

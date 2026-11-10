@@ -56,7 +56,7 @@ export const useSetMainAlias = (room: Room): ((alias: string | undefined) => Pro
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias, newContent);
     },
     [mx, room]
   );
@@ -90,7 +90,7 @@ export const usePublishUnpublishAliases = (
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias, newContent);
     },
     [mx, room]
   );
@@ -114,7 +114,7 @@ export const usePublishUnpublishAliases = (
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias, newContent);
     },
     [mx, room]
   );

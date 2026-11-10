@@ -1,35 +1,37 @@
-import { AccountDataEvents } from 'matrix-js-sdk';
+import { AccountDataEvents, EventType } from 'matrix-js-sdk';
 
-export enum AccountDataEvent {
-  PushRules = 'm.push_rules',
-  Direct = 'm.direct',
-  IgnoredUserList = 'm.ignored_user_list',
+// Spec event types take their value from the SDK enum so they keep its nominal member type,
+// which is what the SDK's account data API accepts. App-defined types are plain literals,
+// registered with the SDK in `types/matrix-js-sdk.d.ts`.
+export const AccountDataEvent = {
+  PushRules: EventType.PushRules,
+  Direct: EventType.Direct,
+  IgnoredUserList: EventType.IgnoredUserList,
 
-  CinnySpaces = 'in.cinny.spaces',
+  CinnySpaces: 'in.cinny.spaces',
 
-  PinnipedRoomOrder = 'club.stablecat.pinniped.room_order',
-  PinnipedGifFavorites = 'club.stablecat.pinniped.gif_favorites',
-  PinnipedLeftRooms = 'club.stablecat.pinniped.left_rooms',
-  PinnipedStatusMessage = 'club.stablecat.pinniped.status_message',
-  PinnipedUserSounds = 'club.stablecat.pinniped.user_sounds',
-  PinnipedSoundFavorites = 'club.stablecat.pinniped.sound_favorites',
-  PinnipedSpaceNotifications = 'club.stablecat.pinniped.space_notifications',
-  PinnipedInheritedNotifications = 'club.stablecat.pinniped.inherited_notifications',
+  PinnipedRoomOrder: 'club.stablecat.pinniped.room_order',
+  PinnipedGifFavorites: 'club.stablecat.pinniped.gif_favorites',
+  PinnipedLeftRooms: 'club.stablecat.pinniped.left_rooms',
+  PinnipedStatusMessage: 'club.stablecat.pinniped.status_message',
+  PinnipedUserSounds: 'club.stablecat.pinniped.user_sounds',
+  PinnipedSoundFavorites: 'club.stablecat.pinniped.sound_favorites',
+  PinnipedSpaceNotifications: 'club.stablecat.pinniped.space_notifications',
+  PinnipedInheritedNotifications: 'club.stablecat.pinniped.inherited_notifications',
 
-  ElementRecentEmoji = 'io.element.recent_emoji',
-  PinnipedEmojiFavorites = 'club.stablecat.pinniped.emoji_favorites',
-  PinnipedRecentCustomEmoji = 'club.stablecat.pinniped.recent_custom_emoji',
+  ElementRecentEmoji: 'io.element.recent_emoji',
+  PinnipedEmojiFavorites: 'club.stablecat.pinniped.emoji_favorites',
+  PinnipedRecentCustomEmoji: 'club.stablecat.pinniped.recent_custom_emoji',
 
-  PoniesUserEmotes = 'im.ponies.user_emotes',
-  PoniesEmoteRooms = 'im.ponies.emote_rooms',
+  PoniesUserEmotes: 'im.ponies.user_emotes',
+  PoniesEmoteRooms: 'im.ponies.emote_rooms',
 
-  SecretStorageDefaultKey = 'm.secret_storage.default_key',
+  SecretStorageDefaultKey: 'm.secret_storage.default_key',
 
-  CrossSigningMaster = 'm.cross_signing.master',
-  CrossSigningSelf = 'm.cross_signing.self',
-  CrossSigningUser = 'm.cross_signing.user',
-  MegolmBackupV1 = 'm.megolm_backup.v1',
-}
+  CrossSigningMaster: 'm.cross_signing.master',
+  MegolmBackupV1: 'm.megolm_backup.v1',
+} as const;
+export type AccountDataEvent = (typeof AccountDataEvent)[keyof typeof AccountDataEvent];
 
 /** Pre-rename `im.kibby.*` account data types, migrated to their Pinniped equivalents. */
 export const LEGACY_ACCOUNT_DATA_MIGRATIONS: [

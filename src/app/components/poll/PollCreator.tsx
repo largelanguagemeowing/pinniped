@@ -117,7 +117,7 @@ export function PollCreator({ room, requestClose }: PollCreatorProps) {
     );
     setSending(true);
     setError(undefined);
-    mx.sendEvent(room.roomId, M_POLL_START.altName as any, content as any)
+    mx.sendEvent(room.roomId, M_POLL_START.altName, content)
       .then(() => requestClose())
       .catch(() => {
         setError('Failed to post poll.');

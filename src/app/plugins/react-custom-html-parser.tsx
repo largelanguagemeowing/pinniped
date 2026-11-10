@@ -19,7 +19,7 @@ import {
 import { MatrixClient } from 'matrix-js-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
-import { IntermediateRepresentation, Opts as LinkifyOpts, OptFn } from 'linkifyjs';
+import { IntermediateRepresentation, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import * as css from '../styles/CustomHtml.css';
@@ -149,14 +149,12 @@ export const renderMatrixMention = (
   return undefined;
 };
 
+type LinkifyRender = (ir: IntermediateRepresentation) => JSX.Element;
+
 export const factoryRenderLinkifyWithMention = (
   mentionRender: (href: string) => JSX.Element | undefined
-): OptFn<(ir: IntermediateRepresentation) => any> => {
-  const render: OptFn<(ir: IntermediateRepresentation) => any> = ({
-    tagName,
-    attributes,
-    content,
-  }) => {
+): LinkifyRender => {
+  const render: LinkifyRender = ({ tagName, attributes, content }) => {
     if (tagName === 'a' && testMatrixTo(tryDecodeURIComponent(attributes.href))) {
       const mention = mentionRender(tryDecodeURIComponent(attributes.href));
       if (mention) return mention;

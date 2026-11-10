@@ -86,7 +86,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, profileLoaded, presence
                   escapeDeactivates: stopPropagation,
                 }}
               >
-                <Modal size="500" onContextMenu={(evt: any) => evt.stopPropagation()}>
+                <Modal size="500" onContextMenu={(evt) => evt.stopPropagation()}>
                   <ImageViewer
                     src={viewAvatar}
                     alt={userId}

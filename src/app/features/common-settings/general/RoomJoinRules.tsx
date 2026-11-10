@@ -111,7 +111,7 @@ export function RoomJoinRules({ permissions }: RoomJoinRulesProps) {
           join_rule: joinRule as JoinRule,
         };
         if (allow.length > 0) c.allow = allow;
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomJoinRules as any, c);
+        await mx.sendStateEvent(room.roomId, StateEvent.RoomJoinRules, c);
       },
       [mx, room, space, subspaces, roomIdToParents]
     )

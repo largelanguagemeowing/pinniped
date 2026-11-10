@@ -1,3 +1,4 @@
+import { EventType } from 'matrix-js-sdk';
 import { IImageInfo } from './common';
 
 export enum Membership {
@@ -16,44 +17,49 @@ export type IMemberContent = {
   is_direct?: boolean;
 };
 
-export enum StateEvent {
-  RoomCanonicalAlias = 'm.room.canonical_alias',
-  RoomCreate = 'm.room.create',
-  RoomJoinRules = 'm.room.join_rules',
-  RoomMember = 'm.room.member',
-  RoomThirdPartyInvite = 'm.room.third_party_invite',
-  RoomPowerLevels = 'm.room.power_levels',
-  RoomName = 'm.room.name',
-  RoomTopic = 'm.room.topic',
-  RoomAvatar = 'm.room.avatar',
-  RoomPinnedEvents = 'm.room.pinned_events',
-  RoomEncryption = 'm.room.encryption',
-  RoomHistoryVisibility = 'm.room.history_visibility',
-  RoomGuestAccess = 'm.room.guest_access',
-  RoomServerAcl = 'm.room.server_acl',
-  RoomTombstone = 'm.room.tombstone',
-  GroupCallPrefix = 'org.matrix.msc3401.call',
-  GroupCallMemberPrefix = 'org.matrix.msc3401.call.member',
+// Spec event types take their value from the SDK enum so they keep its nominal member type,
+// which is what `sendStateEvent`/`sendEvent` accept. App-defined types are plain literals,
+// registered with the SDK in `types/matrix-js-sdk.d.ts`.
+export const StateEvent = {
+  RoomCanonicalAlias: EventType.RoomCanonicalAlias,
+  RoomCreate: EventType.RoomCreate,
+  RoomJoinRules: EventType.RoomJoinRules,
+  RoomMember: EventType.RoomMember,
+  RoomThirdPartyInvite: EventType.RoomThirdPartyInvite,
+  RoomPowerLevels: EventType.RoomPowerLevels,
+  RoomName: EventType.RoomName,
+  RoomTopic: EventType.RoomTopic,
+  RoomAvatar: EventType.RoomAvatar,
+  RoomPinnedEvents: EventType.RoomPinnedEvents,
+  RoomEncryption: EventType.RoomEncryption,
+  RoomHistoryVisibility: EventType.RoomHistoryVisibility,
+  RoomGuestAccess: EventType.RoomGuestAccess,
+  RoomServerAcl: EventType.RoomServerAcl,
+  RoomTombstone: EventType.RoomTombstone,
+  GroupCallPrefix: EventType.GroupCallPrefix,
+  GroupCallMemberPrefix: EventType.GroupCallMemberPrefix,
 
-  SpaceChild = 'm.space.child',
-  SpaceParent = 'm.space.parent',
+  SpaceChild: EventType.SpaceChild,
+  SpaceParent: EventType.SpaceParent,
 
-  PoniesRoomEmotes = 'im.ponies.room_emotes',
-  PinnipedRoomSounds = 'club.stablecat.pinniped.room_sounds',
-  PowerLevelTags = 'in.cinny.room.power_level_tags',
-  SpaceAutoJoin = 'club.stablecat.pinniped.space.auto_join',
-  SpaceNotificationDefault = 'club.stablecat.pinniped.space.notification_default',
+  PoniesRoomEmotes: 'im.ponies.room_emotes',
+  PinnipedRoomSounds: 'club.stablecat.pinniped.room_sounds',
+  PowerLevelTags: 'in.cinny.room.power_level_tags',
+  SpaceAutoJoin: 'club.stablecat.pinniped.space.auto_join',
+  SpaceNotificationDefault: 'club.stablecat.pinniped.space.notification_default',
   /** Pre-rename type; still read when no `SpaceAutoJoin` event exists. */
-  LegacySpaceAutoJoin = 'im.kibby.space.auto_join',
-}
+  LegacySpaceAutoJoin: 'im.kibby.space.auto_join',
+} as const;
+export type StateEvent = (typeof StateEvent)[keyof typeof StateEvent];
 
-export enum MessageEvent {
-  RoomMessage = 'm.room.message',
-  RoomMessageEncrypted = 'm.room.encrypted',
-  Sticker = 'm.sticker',
-  RoomRedaction = 'm.room.redaction',
-  Reaction = 'm.reaction',
-}
+export const MessageEvent = {
+  RoomMessage: EventType.RoomMessage,
+  RoomMessageEncrypted: EventType.RoomMessageEncrypted,
+  Sticker: EventType.Sticker,
+  RoomRedaction: EventType.RoomRedaction,
+  Reaction: EventType.Reaction,
+} as const;
+export type MessageEvent = (typeof MessageEvent)[keyof typeof MessageEvent];
 
 export enum RoomType {
   Space = 'm.space',
@@ -128,3 +134,5 @@ export type MemberPowerTag = {
   color?: string;
   icon?: MemberPowerTagIcon;
 };
+/** Power level -> tag, as stored in the `in.cinny.room.power_level_tags` state event. */
+export type PowerLevelTags = Record<number, MemberPowerTag>;

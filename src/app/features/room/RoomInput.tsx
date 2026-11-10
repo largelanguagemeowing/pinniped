@@ -11,7 +11,7 @@ import React, {
 } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
-import { EventType, IContent, MsgType, RelationType, Room } from 'matrix-js-sdk';
+import { IContent, MsgType, RelationType, Room } from 'matrix-js-sdk';
 import { Transforms, Editor } from 'slate';
 import FocusTrap from 'focus-trap-react';
 import {
@@ -114,6 +114,8 @@ import {
   getVideoMsgContent,
   addReplyRelation,
   getUploadMessages,
+  sendRoomMessage,
+  sendRoomSticker,
 } from './msgContent';
 import { getMemberDisplayName, getMentionContent, trimReplyFromBody } from '../../utils/room';
 import { CommandAutocomplete } from './CommandAutocomplete';
@@ -367,7 +369,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         replyDraft,
       });
       const sendResults = await Promise.allSettled(
-        outgoing.map((content) => mx.sendMessage(roomId, content as any))
+        outgoing.map((content) => sendRoomMessage(mx, roomId, content))
       );
       setSendError(
         sendResults.some((result) => result.status === 'rejected')
@@ -447,7 +449,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (selectedFiles.length > 0) {
         uploadBoardHandlers.current?.handleSend(content);
       } else {
-        mx.sendMessage(roomId, addReplyRelation(content, replyDraft) as any).catch(() =>
+        sendRoomMessage(mx, roomId, addReplyRelation(content, replyDraft)).catch(() =>
           setSendError(SEND_FAILURE_MESSAGE)
         );
       }
@@ -561,14 +563,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           url: mxc,
           info,
         };
-        return () =>
-          mx.sendEvent(roomId, EventType.Sticker, addReplyRelation(content, replyDraft) as any);
+        return () => sendRoomSticker(mx, roomId, addReplyRelation(content, replyDraft));
       });
 
     const handleGifSelect = (fav: FavoriteGif) =>
       sendPickedMedia('GIF', async () => {
         const gifSender = (content: IContent) => () =>
-          mx.sendMessage(roomId, addReplyRelation(content, replyDraft) as any);
+          sendRoomMessage(mx, roomId, addReplyRelation(content, replyDraft));
 
         const safeGifName = (name: string, fallback: string) =>
           name

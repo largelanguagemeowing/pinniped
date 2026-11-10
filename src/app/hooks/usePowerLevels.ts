@@ -43,12 +43,10 @@ const DEFAULT_POWER_LEVELS: Required<IPowerLevels> = {
 
 const fillMissingPowers = (powerLevels: IPowerLevels): IPowerLevels =>
   produce(powerLevels, (draftPl: IPowerLevels) => {
-    const keys = Object.keys(DEFAULT_POWER_LEVELS) as unknown as (keyof IPowerLevels)[];
-    keys.forEach((key) => {
-      if (draftPl[key] === undefined) {
-        draftPl[key] = DEFAULT_POWER_LEVELS[key] as any;
-      }
-    });
+    const fillMissing = <K extends keyof IPowerLevels>(key: K) => {
+      if (draftPl[key] === undefined) draftPl[key] = DEFAULT_POWER_LEVELS[key];
+    };
+    (Object.keys(DEFAULT_POWER_LEVELS) as (keyof IPowerLevels)[]).forEach(fillMissing);
     if (draftPl.notifications && typeof draftPl.notifications.room !== 'number') {
       draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room;
     }

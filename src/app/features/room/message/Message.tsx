@@ -29,6 +29,7 @@ import {
 import React, {
   ButtonHTMLAttributes,
   FormEventHandler,
+  MouseEvent,
   MouseEventHandler,
   ReactNode,
   useCallback,
@@ -186,7 +187,7 @@ export const MessageAllReactionItem = as<
   return (
     <>
       <Overlay
-        onContextMenu={(evt: any) => {
+        onContextMenu={(evt) => {
           evt.stopPropagation();
         }}
         open={open}
@@ -450,7 +451,7 @@ export const MessagePinItem = as<
     if (!isPinned && eventId) {
       pinContent.pinned.push(eventId);
     }
-    mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as any, pinContent);
+    mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents, pinContent);
     onClose?.();
   };
 
@@ -748,10 +749,7 @@ export type MessageProps = {
   messageSpacing: MessageSpacing;
   onUserClick: MouseEventHandler<HTMLButtonElement>;
   onUsernameClick: MouseEventHandler<HTMLButtonElement>;
-  onReplyClick: (
-    ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
-    startThread?: boolean
-  ) => void;
+  onReplyClick: (ev: MouseEvent<HTMLElement>, startThread?: boolean) => void;
   onEditId?: (eventId?: string) => void;
   onReactionToggle: (targetEventId: string, key: string, shortcode?: string) => void;
   reply?: ReactNode;
@@ -983,8 +981,8 @@ export const Message = as<'div', MessageProps>(
 
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
-      const tag = (evt.target as any).tagName;
-      if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
+      const tag = evt.target instanceof Element ? evt.target.tagName.toLowerCase() : undefined;
+      if (tag === 'a') return;
       const image = evt.target instanceof HTMLImageElement ? evt.target : undefined;
       setMenuImageSrc(image?.currentSrc || image?.src);
       evt.preventDefault();
@@ -1008,7 +1006,7 @@ export const Message = as<'div', MessageProps>(
           (node) => node.nodeType === Node.TEXT_NODE && (node.textContent?.trim().length ?? 0) > 0
         );
         if (hasText) return;
-        onReplyClick(evt as any);
+        onReplyClick(evt);
       },
       [edit, onReplyClick]
     );
@@ -1179,7 +1177,7 @@ export const Message = as<'div', MessageProps>(
                             after={<Icon size="100" src={Icons.ReplyArrow} />}
                             radii="300"
                             data-event-id={mEvent.getId()}
-                            onClick={(evt: any) => {
+                            onClick={(evt) => {
                               onReplyClick(evt);
                               closeMenu();
                             }}
@@ -1199,7 +1197,7 @@ export const Message = as<'div', MessageProps>(
                               after={<Icon src={Icons.ThreadPlus} size="100" />}
                               radii="300"
                               data-event-id={mEvent.getId()}
-                              onClick={(evt: any) => {
+                              onClick={(evt) => {
                                 onReplyClick(evt, true);
                                 closeMenu();
                               }}
@@ -1367,8 +1365,8 @@ export const Event = as<'div', EventProps>(
 
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (evt.altKey || !window.getSelection()?.isCollapsed) return;
-      const tag = (evt.target as any).tagName;
-      if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
+      const tag = evt.target instanceof Element ? evt.target.tagName.toLowerCase() : undefined;
+      if (tag === 'a') return;
       const image = evt.target instanceof HTMLImageElement ? evt.target : undefined;
       setMenuImageSrc(image?.currentSrc || image?.src);
       evt.preventDefault();

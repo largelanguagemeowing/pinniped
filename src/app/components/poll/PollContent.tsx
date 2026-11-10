@@ -91,8 +91,8 @@ export function PollContent({ room, mEvent, poll }: PollContentProps) {
       try {
         await mx.sendEvent(
           room.roomId,
-          M_POLL_RESPONSE.altName as any,
-          makePollResponseContent(pollEventId, answerIds) as any
+          M_POLL_RESPONSE.altName,
+          makePollResponseContent(pollEventId, answerIds)
         );
       } catch {
         setPending(undefined);
@@ -108,8 +108,8 @@ export function PollContent({ room, mEvent, poll }: PollContentProps) {
     if (!pollEventId) return;
     await mx.sendEvent(
       room.roomId,
-      M_POLL_END.altName as any,
-      makePollEndContent(pollEventId, pollEndSummary(poll, tally)) as any
+      M_POLL_END.altName,
+      makePollEndContent(pollEventId, pollEndSummary(poll, tally))
     );
   }, [mx, room, pollEventId, poll, tally]);
 
