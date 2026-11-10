@@ -3,6 +3,7 @@ const {
   BrowserWindow,
   shell,
   Menu,
+  clipboard,
   session,
   desktopCapturer,
   ipcMain,
@@ -385,22 +386,59 @@ function createWindow() {
     mainWindow.minimize();
   });
 
-  // Electron has no default browser context menu. Copy the rendered image so
-  // authenticated media and decrypted blob URLs work without fetching again.
-  const imageWindow = mainWindow;
-  imageWindow.webContents.on('context-menu', (_event, params) => {
-    if (params.mediaType !== 'image') return;
-    Menu.buildFromTemplate([
-      {
-        label: 'Copy image',
-        enabled: params.hasImageContents,
-        click: () => {
-          if (!imageWindow.isDestroyed()) {
-            imageWindow.webContents.copyImageAt(params.x, params.y);
-          }
+  // Electron has no default browser context menu, so build the one a browser would show.
+  // The page's own menus (messages, rooms) cancel the event and never reach this.
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const contents = mainWindow.webContents;
+    const groups = [];
+
+    if (params.isEditable && params.misspelledWord) {
+      const spelling = params.dictionarySuggestions.map((suggestion) => ({
+        label: suggestion,
+        click: () => contents.replaceMisspelling(suggestion),
+      }));
+      if (spelling.length === 0) spelling.push({ label: 'No suggestions', enabled: false });
+      spelling.push({
+        label: 'Add to dictionary',
+        click: () => contents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+      });
+      groups.push(spelling);
+    }
+
+    if (params.mediaType === 'image') {
+      // Copy the rendered image so authenticated media and decrypted blob URLs
+      // work without fetching again.
+      groups.push([
+        {
+          label: 'Copy image',
+          enabled: params.hasImageContents,
+          click: () => contents.copyImageAt(params.x, params.y),
         },
-      },
-    ]).popup({ window: imageWindow });
+      ]);
+    }
+
+    if (/^(https?|mailto|matrix):/.test(params.linkURL)) {
+      groups.push([
+        { label: 'Copy link address', click: () => clipboard.writeText(params.linkURL) },
+      ]);
+    }
+
+    if (params.isEditable) {
+      groups.push([
+        { role: 'cut', enabled: params.editFlags.canCut },
+        { role: 'copy', enabled: params.editFlags.canCopy },
+        { role: 'paste', enabled: params.editFlags.canPaste },
+        { role: 'selectAll', enabled: params.editFlags.canSelectAll },
+      ]);
+    } else if (params.selectionText.trim() !== '') {
+      groups.push([{ role: 'copy' }]);
+    }
+
+    if (groups.length === 0) return;
+    const template = groups.flatMap((group, index) =>
+      index === 0 ? group : [{ type: 'separator' }, ...group]
+    );
+    Menu.buildFromTemplate(template).popup({ window: mainWindow });
   });
 
   // open target=_blank / window.open externally, never as a child window
