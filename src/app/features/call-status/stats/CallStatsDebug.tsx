@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
+  Button,
   color,
   config,
   Icon,
@@ -18,7 +19,6 @@ import FocusTrap from 'focus-trap-react';
 import {
   CallEmbed,
   CallStatsConnection,
-  CallStatsStream,
   formatBitrate,
   formatBytes,
   useCallStats,
@@ -28,22 +28,13 @@ import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { stopPropagation } from '../../../utils/keyboard';
 import { StatChartTile } from './StatChart';
 import { StatRow, StreamStats } from './StreamStats';
-import { streamsOf } from './streams';
+import { streamsOf, streamTitle } from './streams';
+import { buildCallReport } from './report';
+import { copyToClipboard } from '../../../utils/dom';
 
 type Direction = 'outbound' | 'inbound';
 /** `transport`, or one stream as `outbound:<ssrc>` / `inbound:<ssrc>`. */
 type Page = 'transport' | `${Direction}:${number}`;
-
-/** Who the stream is from ("You" for ours) and what it carries, e.g. "Alice · Microphone". */
-const streamTitle = (stream: CallStatsStream, who: (userId: string) => string): string => {
-  const from = stream.participant ? who(stream.participant) : 'You';
-  const kind = stream.kind === 'video' ? 'Video' : 'Audio';
-  const track = stream.track ?? kind;
-  // Simulcast sends one video stream per quality layer, named by its rid.
-  const { rid } = stream.stats;
-  const layer = typeof rid === 'string' && rid ? ` (${rid})` : '';
-  return `${from} · ${track}${layer}`;
-};
 
 const pages = (
   c: CallStatsConnection,
@@ -74,6 +65,24 @@ export function CallStatsDebug({ callEmbed, requestClose }: CallStatsDebugProps)
     conn: 0,
     page: 'transport',
   });
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+  const copyReport = () => {
+    copyToClipboard(
+      buildCallReport({
+        samples,
+        who,
+        roomName: room?.name ?? callEmbed.roomId,
+        roomId: callEmbed.roomId,
+        encrypted: callEmbed.room.hasEncryptionStateEvent(),
+      })
+    );
+    setCopied(true);
+  };
 
   const latest = samples[samples.length - 1];
   const connections = latest?.connections ?? [];
@@ -210,7 +219,24 @@ export function CallStatsDebug({ callEmbed, requestClose }: CallStatsDebugProps)
                 ))}
               </Box>
               <Box direction="Column" grow="Yes" style={{ minWidth: 0 }}>
-                <Box justifyContent="End" shrink="No" style={{ padding: config.space.S200 }}>
+                <Box
+                  justifyContent="End"
+                  alignItems="Center"
+                  gap="200"
+                  shrink="No"
+                  style={{ padding: config.space.S200 }}
+                >
+                  <Button
+                    size="300"
+                    variant={copied ? 'Success' : 'Secondary'}
+                    fill="Soft"
+                    radii="300"
+                    before={<Icon size="100" src={copied ? Icons.Check : Icons.File} />}
+                    onClick={copyReport}
+                    disabled={samples.length === 0}
+                  >
+                    <Text size="B300">{copied ? 'Copied' : 'Copy Report'}</Text>
+                  </Button>
                   <IconButton onClick={requestClose} variant="Background" size="300">
                     <Icon src={Icons.Cross} />
                   </IconButton>

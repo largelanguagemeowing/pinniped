@@ -13,10 +13,12 @@ import {
 } from '../../../plugins/call';
 import { StatChartTile } from './StatChart';
 
-type ChartSpec = {
+export type ChartSpec = {
   title: string;
   /** Cumulative counters are shown as a rate (per second) after scaling. */
   rate?: number;
+  /** A running total: only its current value means anything in a summary. */
+  total?: boolean;
   pick: (stream: CallStatsStream) => number | undefined;
   format: (v: number) => string;
 };
@@ -33,28 +35,28 @@ const remoteField =
     return v === undefined ? undefined : v * scale;
   };
 
-const OUTBOUND_CHARTS: ChartSpec[] = [
+export const OUTBOUND_CHARTS: ChartSpec[] = [
   { title: 'Bitrate', rate: 8, pick: field('bytesSent'), format: formatBitrate },
   { title: 'Bitrate (Target)', pick: field('targetBitrate'), format: formatBitrate },
-  { title: 'Bytes Sent', pick: field('bytesSent'), format: formatBytes },
+  { title: 'Bytes Sent', total: true, pick: field('bytesSent'), format: formatBytes },
   { title: 'Frame Rate (Encode)', pick: field('framesPerSecond'), format: fps },
   {
     title: 'Frame Rate (Input)',
     pick: (s) => statNumber(s.source, 'framesPerSecond'),
     format: fps,
   },
-  { title: 'Key Frames Encoded', pick: field('keyFramesEncoded'), format: count },
-  { title: 'Packets Sent', pick: field('packetsSent'), format: count },
-  { title: 'QP Sum', pick: field('qpSum'), format: count },
-  { title: 'Packets Lost (Remote)', pick: remoteField('packetsLost'), format: count },
+  { title: 'Key Frames Encoded', total: true, pick: field('keyFramesEncoded'), format: count },
+  { title: 'Packets Sent', total: true, pick: field('packetsSent'), format: count },
+  { title: 'QP Sum', total: true, pick: field('qpSum'), format: count },
+  { title: 'Packets Lost (Remote)', total: true, pick: remoteField('packetsLost'), format: count },
   { title: 'Jitter (Remote)', pick: remoteField('jitter', 1000), format: ms },
 ];
 
-const INBOUND_CHARTS: ChartSpec[] = [
+export const INBOUND_CHARTS: ChartSpec[] = [
   { title: 'Bitrate', rate: 8, pick: field('bytesReceived'), format: formatBitrate },
-  { title: 'Bytes Received', pick: field('bytesReceived'), format: formatBytes },
-  { title: 'Packets Received', pick: field('packetsReceived'), format: count },
-  { title: 'Packets Lost', pick: field('packetsLost'), format: count },
+  { title: 'Bytes Received', total: true, pick: field('bytesReceived'), format: formatBytes },
+  { title: 'Packets Received', total: true, pick: field('packetsReceived'), format: count },
+  { title: 'Packets Lost', total: true, pick: field('packetsLost'), format: count },
   {
     title: 'Jitter',
     pick: (s) => {
@@ -64,11 +66,11 @@ const INBOUND_CHARTS: ChartSpec[] = [
     format: ms,
   },
   { title: 'Frame Rate', pick: field('framesPerSecond'), format: fps },
-  { title: 'Frames Decoded', pick: field('framesDecoded'), format: count },
-  { title: 'Concealed Samples', pick: field('concealedSamples'), format: count },
+  { title: 'Frames Decoded', total: true, pick: field('framesDecoded'), format: count },
+  { title: 'Concealed Samples', total: true, pick: field('concealedSamples'), format: count },
 ];
 
-type Row = [label: string, value: string | undefined, warn?: boolean];
+export type Row = [label: string, value: string | undefined, warn?: boolean];
 
 const str = (v: unknown): string | undefined =>
   v === undefined || v === null || v === '' ? undefined : String(v);
@@ -79,7 +81,7 @@ const resolution = (s: CallStatsStream): string | undefined => {
   return w && h ? `${w}x${h}` : undefined;
 };
 
-const outboundRows = (s: CallStatsStream): Row[] => {
+export const outboundRows = (s: CallStatsStream): Row[] => {
   const frames = statNumber(s.stats, 'framesEncoded');
   const encodeTime = statNumber(s.stats, 'totalEncodeTime');
   const power = s.stats.powerEfficientEncoder;
@@ -120,7 +122,7 @@ const stereo = (s: CallStatsStream): string | undefined => {
   return s.sdpFmtpLine?.includes('stereo=1') ? 'Yes' : 'No';
 };
 
-const inboundRows = (s: CallStatsStream): Row[] => [
+export const inboundRows = (s: CallStatsStream): Row[] => [
   ['SSRC', str(s.ssrc)],
   ['Codec', str(s.codec)],
   ['Stereo Decoding', stereo(s)],
@@ -148,7 +150,7 @@ export function StatRow({ label, value, warn }: { label: string; value?: string;
   );
 }
 
-const seriesFor = (
+export const seriesFor = (
   samples: CallStatsSample[],
   connIdx: number,
   direction: 'outbound' | 'inbound',
