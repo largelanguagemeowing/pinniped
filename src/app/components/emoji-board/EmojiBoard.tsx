@@ -29,6 +29,8 @@ import { useAsyncSearch, UseAsyncSearchOptions } from '../../hooks/useAsyncSearc
 import { useDebounce } from '../../hooks/useDebounce';
 import { useThrottle } from '../../hooks/useThrottle';
 import { addRecentEmoji } from '../../plugins/recent-emoji';
+import { toggleFavoriteEmoji } from '../../plugins/favorite-emoji';
+import { useFavoriteEmoji } from '../../hooks/useFavoriteEmoji';
 import { SkinToneSelector } from './components/SkinToneSelector';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { ImagePack, ImageUsage, PackImageReader } from '../../plugins/custom-emoji';
@@ -58,6 +60,7 @@ import { GifPicker } from './GifPicker';
 import { FavoriteGif } from '../../state/gifFavorites';
 
 const RECENT_GROUP_ID = 'recent_group';
+const FAVORITES_GROUP_ID = 'favorites_group';
 const SEARCH_GROUP_ID = 'search_group';
 
 type EmojiGroupItem = {
@@ -78,11 +81,20 @@ const useGroups = (
   const mx = useMatrixClient();
 
   const recentEmojis = useRecentEmoji(mx, 21);
+  const favoriteEmojis = useFavoriteEmoji(mx);
   const labels = useEmojiGroupLabels();
 
   const emojiGroupItems = useMemo(() => {
     const g: EmojiGroupItem[] = [];
     if (tab !== EmojiBoardTab.Emoji) return g;
+
+    if (favoriteEmojis.length > 0) {
+      g.push({
+        id: FAVORITES_GROUP_ID,
+        name: 'Favourites',
+        items: favoriteEmojis,
+      });
+    }
 
     g.push({
       id: RECENT_GROUP_ID,
@@ -112,7 +124,7 @@ const useGroups = (
     });
 
     return g;
-  }, [mx, recentEmojis, labels, imagePacks, tab]);
+  }, [mx, favoriteEmojis, recentEmojis, labels, imagePacks, tab]);
 
   const stickerGroupItems = useMemo(() => {
     const g: StickerGroupItem[] = [];
@@ -175,6 +187,7 @@ type EmojiSidebarProps = {
 };
 function EmojiSidebar({ activeGroupAtom, packs, onScrollToGroup }: EmojiSidebarProps) {
   const mx = useMatrixClient();
+  const hasFavorites = useFavoriteEmoji(mx).length > 0;
   const useAuthentication = useMediaAuthentication();
 
   const [activeGroupId, setActiveGroupId] = useAtom(activeGroupAtom);
@@ -190,6 +203,15 @@ function EmojiSidebar({ activeGroupAtom, packs, onScrollToGroup }: EmojiSidebarP
   return (
     <Sidebar>
       <SidebarStack>
+        {hasFavorites && (
+          <GroupIcon
+            active={activeGroupId === FAVORITES_GROUP_ID}
+            id={FAVORITES_GROUP_ID}
+            label="Favourites"
+            icon={Icons.Star}
+            onClick={handleScrollToGroup}
+          />
+        )}
         <GroupIcon
           active={activeGroupId === RECENT_GROUP_ID}
           id={RECENT_GROUP_ID}
@@ -466,6 +488,15 @@ export function EmojiBoard({
     if (!evt.altKey && !evt.shiftKey) requestClose();
   };
 
+  // Right-clicking a unicode emoji adds it to, or removes it from, the favourites.
+  const handleGroupItemContextMenu: MouseEventHandler = (evt) => {
+    const targetEl = targetFromEvent(evt.nativeEvent, 'button');
+    const emojiInfo = targetEl && getEmojiItemInfo(targetEl);
+    if (!emojiInfo || emojiInfo.type !== EmojiType.Emoji) return;
+    evt.preventDefault();
+    toggleFavoriteEmoji(mx, emojiInfo.data);
+  };
+
   const handleTextCustomEmojiSelect = (textEmoji: string) => {
     onCustomEmojiSelect?.(textEmoji, textEmoji);
     requestClose();
@@ -565,7 +596,7 @@ export function EmojiBoard({
         {gifTab ? (
           <GifPicker onGifSelect={onGifSelect} requestClose={requestClose} />
         ) : (
-          <Box grow="Yes">
+          <Box grow="Yes" onContextMenu={handleGroupItemContextMenu}>
             <EmojiGroupHolder
               key={tab}
               contentScrollRef={contentScrollRef}
@@ -604,9 +635,11 @@ export function EmojiBoard({
                         id={group.id}
                         label={group.name}
                         icon={
-                          group.id === RECENT_GROUP_ID
-                            ? Icons.Clock
-                            : emojiGroupIcons[group.id as EmojiGroupId]
+                          group.id === FAVORITES_GROUP_ID
+                            ? Icons.Star
+                            : group.id === RECENT_GROUP_ID
+                              ? Icons.Clock
+                              : emojiGroupIcons[group.id as EmojiGroupId]
                         }
                         collapsed={collapsedGroupIds.has(group.id)}
                         onToggleCollapsed={handleToggleGroupCollapsed}

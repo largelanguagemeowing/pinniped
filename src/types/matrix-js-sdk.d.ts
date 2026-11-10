@@ -17,6 +17,7 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'club.stablecat.pinniped.user_sounds': Record<string, unknown>;
     'club.stablecat.pinniped.sound_favorites': Record<string, unknown>;
     'io.element.recent_emoji': Record<string, unknown>;
+    'club.stablecat.pinniped.emoji_favorites': Record<string, unknown>;
     'im.ponies.user_emotes': Record<string, unknown>;
     'im.ponies.emote_rooms': Record<string, unknown>;
     // pre-rename types read by the legacy account data migration
