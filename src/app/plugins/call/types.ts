@@ -71,6 +71,7 @@ export const screenShareAudioSource = (enabled: boolean): string => {
 /** Call audio preferences; an empty device id is the system default. */
 export type ElementCallSettings = {
   denoise: boolean;
+  autoGain: boolean;
   voiceGate: boolean;
   voiceGateAuto: boolean;
   /** 0-1: how loud speech must be to open the gate when not automatic. */

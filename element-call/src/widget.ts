@@ -50,6 +50,7 @@ import {
   audioInput,
   audioOutput,
   denoiseMode,
+  autoGain,
   voiceGate,
   voiceGateAuto,
   voiceGateThreshold,
@@ -73,7 +74,7 @@ export enum ElementWidgetActions {
   HangupCall = "im.vector.hangup",
   Close = "io.element.close",
   // toWidget (fork): the client sets the call audio preferences, data
-  // `{ denoise?, voiceGate?, voiceGateAuto?, voiceGateThreshold?, voiceTuning?, simulcast?, screenShare?, screenShareAudio?, soundVolume?, soundboardVolume?, userVolumes?, mutedSoundboards?, mutedSounds?, audioInput?, audioOutput? }`.
+  // `{ denoise?, autoGain?, voiceGate?, voiceGateAuto?, voiceGateThreshold?, voiceTuning?, simulcast?, screenShare?, screenShareAudio?, soundVolume?, soundboardVolume?, userVolumes?, mutedSoundboards?, mutedSounds?, audioInput?, audioOutput? }`.
   // An empty device ID means the system default.
   CallSettings = "io.cinny.call_settings",
   // toWidget (fork): start a screen share with the given options, see ScreenShareStart
@@ -145,6 +146,7 @@ export const initializeWidget = (
       e2eEnabled,
       allowIceFallback,
       denoise,
+      autoGain: autoGainParam,
       voiceGate: voiceGateParam,
       voiceGateAuto: voiceGateAutoParam,
       voiceTuning: voiceTuningParam,
@@ -198,6 +200,7 @@ export const initializeWidget = (
       // seed them and the action updates them mid-call. They are applied right
       // away, since nothing else consumes this action.
       denoiseMode.setValue(denoise ? "deepfilternet" : "off");
+      autoGain.setValue(autoGainParam ?? false);
       voiceGate.setValue(voiceGateParam ?? false);
       voiceGateAuto.setValue(voiceGateAutoParam ?? true);
       if (voiceTuningParam !== undefined)
@@ -232,6 +235,7 @@ export const initializeWidget = (
           ev.preventDefault();
           const data = ev.detail.data as {
             denoise?: boolean;
+            autoGain?: boolean;
             voiceGate?: boolean;
             voiceGateAuto?: boolean;
             voiceTuning?: unknown;
@@ -249,6 +253,7 @@ export const initializeWidget = (
           };
           if (data.denoise !== undefined)
             denoiseMode.setValue(data.denoise ? "deepfilternet" : "off");
+          if (data.autoGain !== undefined) autoGain.setValue(data.autoGain);
           if (data.voiceGate !== undefined) voiceGate.setValue(data.voiceGate);
           if (data.voiceTuning !== undefined)
             voiceTuning.setValue(normalizeVoiceTuning(data.voiceTuning));

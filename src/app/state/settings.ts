@@ -31,6 +31,8 @@ export interface Settings {
 
   // Call microphone: DeepFilterNet 3 noise suppression, applied inside the call widget.
   callDenoise: boolean;
+  /** The browser's automatic gain control on the microphone, ahead of everything else. */
+  callAutoGain: boolean;
   // Only send the microphone while it hears speech (applied inside the call widget, after the
   // denoiser). `Auto` follows the room's noise floor; otherwise `Threshold` (0-1) is the level.
   callVoiceGate: boolean;
@@ -117,6 +119,7 @@ const defaultSettings: Settings = {
   publishRichPresence: false,
 
   callDenoise: false,
+  callAutoGain: false,
   callVoiceGate: false,
   callVoiceGateAuto: true,
   callVoiceGateThreshold: 0.45,

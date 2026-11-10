@@ -106,6 +106,9 @@ export const videoInput = new Setting<string | undefined>(
 
 export const backgroundBlur = new Setting<boolean>("background-blur", false);
 
+/** The browser's automatic gain control on the microphone capture. */
+export const autoGain = new Setting<boolean>("auto-gain", false);
+
 export const denoiseMode = new Setting<"off" | "deepfilternet">(
   "denoise-mode",
   "off",

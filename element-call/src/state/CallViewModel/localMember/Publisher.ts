@@ -31,7 +31,7 @@ import {
   type ProcessorState,
   trackProcessorSync,
 } from "../../../livekit/TrackProcessorContext.tsx";
-import { denoiseSync } from "../../../livekit/denoise.ts";
+import { autoGainSync, denoiseSync } from "../../../livekit/denoise.ts";
 import { screenShareQuality, videoSimulcast } from "../../../settings/settings";
 import { Soundboard, soundboardCommand$ } from "../../../livekit/soundboard.ts";
 import { applyScreenShareQuality } from "../../../livekit/screenShareLive.ts";
@@ -532,5 +532,6 @@ export class Publisher {
       null,
     );
     denoiseSync(scope, track$, this.logger);
+    autoGainSync(scope, track$, this.logger);
   }
 }

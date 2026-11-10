@@ -166,6 +166,7 @@ function DeviceSelect({ value, devices, fallbackName, onChange }: DeviceSelectPr
 
 function CallAudio() {
   const [callDenoise, setCallDenoise] = useSetting(settingsAtom, 'callDenoise');
+  const [callAutoGain, setCallAutoGain] = useSetting(settingsAtom, 'callAutoGain');
   const [voiceGate, setVoiceGate] = useSetting(settingsAtom, 'callVoiceGate');
   const [voiceGateAuto, setVoiceGateAuto] = useSetting(settingsAtom, 'callVoiceGateAuto');
   const [voiceGateThreshold, setVoiceGateThreshold] = useSetting(
@@ -253,6 +254,13 @@ function CallAudio() {
               onChange={setCallDenoise}
             />
           }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Automatic Gain"
+          description="Level your microphone automatically, boosting a quiet voice and taming a loud one. Off sends your microphone untouched."
+          after={<Switch variant="Primary" value={callAutoGain} onChange={setCallAutoGain} />}
         />
       </SequenceCard>
       <SequenceCard

@@ -148,6 +148,7 @@ export class CallEmbed {
 
     const settings = getSettings();
     params.append('denoise', settings.callDenoise.toString());
+    params.append('autoGain', settings.callAutoGain.toString());
     params.append('voiceGate', settings.callVoiceGate.toString());
     params.append('voiceGateAuto', settings.callVoiceGateAuto.toString());
     params.append('voiceGateThreshold', settings.callVoiceGateThreshold.toString());

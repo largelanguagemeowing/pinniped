@@ -256,6 +256,8 @@ export interface UrlConfiguration {
    * the `io.cinny.denoise` widget action.
    */
   denoise?: boolean;
+  /** The browser's automatic gain control on the microphone; owned by the embedding client. */
+  autoGain?: boolean;
   /** Voice activity gate on the microphone, and its threshold (0-1). */
   voiceGate?: boolean;
   voiceGateAuto?: boolean;
@@ -544,6 +546,7 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
     echoCancellation: parser.getFlagParam("echoCancellation", true),
     soundOverrides: parseSoundOverrides(parser.getParam("soundOverrides")),
     denoise: parser.getFlagParam("denoise", false),
+    autoGain: parser.getFlagParam("autoGain", false),
     voiceGate: parser.getFlagParam("voiceGate", false),
     voiceGateAuto: parser.getFlagParam("voiceGateAuto", true),
     voiceTuning: parseVoiceTuning(parser.getParam("voiceTuning")),

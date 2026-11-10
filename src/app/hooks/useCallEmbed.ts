@@ -202,6 +202,7 @@ export const useCallThemeSync = (embed: CallEmbed) => {
 
 export const useCallSettingsSync = (embed: CallEmbed) => {
   const [denoise] = useSetting(settingsAtom, 'callDenoise');
+  const [autoGain] = useSetting(settingsAtom, 'callAutoGain');
   const [voiceGate] = useSetting(settingsAtom, 'callVoiceGate');
   const [voiceGateAuto] = useSetting(settingsAtom, 'callVoiceGateAuto');
   const [voiceGateThreshold] = useSetting(settingsAtom, 'callVoiceGateThreshold');
@@ -222,6 +223,7 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
     embed
       .setCallSettings({
         denoise,
+        autoGain,
         voiceGate,
         voiceGateAuto,
         voiceGateThreshold,
@@ -241,6 +243,7 @@ export const useCallSettingsSync = (embed: CallEmbed) => {
       });
   }, [
     denoise,
+    autoGain,
     voiceGate,
     voiceGateAuto,
     voiceGateThreshold,
