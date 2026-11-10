@@ -1,5 +1,5 @@
 // Fork-only: distinguishes the Electron desktop build from the web build.
-// The desktop preload exposes `window.cinnyDesktop` (see electron/preload.cjs).
+// The desktop preload exposes `window.pinnipedDesktop` (see electron/preload.cjs).
 
 // A Discord `SET_ACTIVITY` payload (the fields we read), as normalised by the
 // main-process impersonator (see electron/rich-presence.cjs). `null` = clear.
@@ -25,7 +25,7 @@ export type AutostartState = { enabled: boolean; minimized: boolean };
 
 declare global {
   interface Window {
-    cinnyDesktop?: {
+    pinnipedDesktop?: {
       platform: string;
       versions: { electron: string; chrome: string; node: string };
       showWindow?: () => void;
@@ -60,7 +60,7 @@ declare global {
   }
 }
 
-export const isDesktop = (): boolean => typeof window.cinnyDesktop !== 'undefined';
+export const isDesktop = (): boolean => typeof window.pinnipedDesktop !== 'undefined';
 
 // Matrix device display name shown in the account's sessions list
 export const getDeviceDisplayName = (): string =>

@@ -17,7 +17,7 @@ WORKDIR /src
 COPY .npmrc package.json package-lock.json /src/
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY . /src/
-COPY --from=element-call /element-call-dist /src/node_modules/.cache/cinny-element-call-fork
+COPY --from=element-call /element-call-dist /src/node_modules/.cache/pinniped-element-call
 ARG APP_COMMIT=unknown
 ENV APP_COMMIT=$APP_COMMIT
 # The widget was built in the stage above; do not rebuild it from the copied source.

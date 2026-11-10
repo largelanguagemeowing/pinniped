@@ -36,7 +36,7 @@ jobs:
         id: widget
         uses: actions/cache@v4
         with:
-          path: node_modules/.cache/cinny-element-call-fork
+          path: node_modules/.cache/pinniped-element-call
           key: element-call-${{ hashFiles('element-call/**', 'scripts/fork/element-call/build.mjs') }}
       - name: Build (includes the Element Call fork)
         env:

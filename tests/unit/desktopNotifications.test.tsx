@@ -112,7 +112,7 @@ const browserWindow = {
   Notification: DesktopNotification,
   closed: false,
   focus,
-  cinnyDesktop: { platform: 'win32', setBadgeCount, showWindow },
+  pinnipedDesktop: { platform: 'win32', setBadgeCount, showWindow },
 };
 
 function mount() {

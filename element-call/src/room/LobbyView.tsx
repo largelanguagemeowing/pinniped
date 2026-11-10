@@ -199,7 +199,7 @@ export const LobbyView: FC<Props> = ({
         footerScope,
         muteStates,
         devices,
-        // Embedded clients (Cinny) own the call settings
+        // Embedded clients (Pinniped) own the call settings
         widget === null ? openSettings : undefined,
         hangup,
         // Logo and header are connected: only show the logo in SPA with header.

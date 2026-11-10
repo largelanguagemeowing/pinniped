@@ -209,7 +209,7 @@ Please see LICENSE in the repository root for full details.
   background: var(--cpd-color-gray-1400);
 }
 
-/* Cinny: the stream tile only has the zoom button (and volume for remote shares);
+/* Pinniped: the stream tile only has the zoom button (and volume for remote shares);
 fullscreen lives in the host app's call bar, and the expanded layout isn't used. */
 .bottomRightButtons .expand {
   display: none;

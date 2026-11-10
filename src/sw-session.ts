@@ -4,7 +4,7 @@
  * it for the page it controls.
  */
 export function pushSessionToSW(baseUrl?: string, accessToken?: string) {
-  window.cinnyDesktop?.setMediaAuth?.(baseUrl, accessToken);
+  window.pinnipedDesktop?.setMediaAuth?.(baseUrl, accessToken);
 
   if (!('serviceWorker' in navigator)) return;
   if (!navigator.serviceWorker.controller) return;

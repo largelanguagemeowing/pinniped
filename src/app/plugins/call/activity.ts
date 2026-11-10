@@ -19,7 +19,7 @@ export const emptyCallActivity: CallActivity = {
 const idSet = (value: unknown): Set<string> =>
   new Set(Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
 
-/** Reads the call widget's `io.cinny.call_activity` payload; anything malformed counts as empty. */
+/** Reads the call widget's `club.stablecat.pinniped.call_activity` payload; anything malformed counts as empty. */
 export const parseCallActivity = (data: unknown): CallActivity => {
   const { speaking, muted, deafened, screenSharing } = (data ?? {}) as Record<string, unknown>;
   return {

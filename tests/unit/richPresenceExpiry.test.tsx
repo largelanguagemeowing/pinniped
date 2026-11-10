@@ -33,7 +33,7 @@ beforeEach(() => {
     getExtendedProfile: vi.fn(),
   });
   vi.stubGlobal('window', {
-    cinnyDesktop: {
+    pinnipedDesktop: {
       supportsRichPresenceBridge: true,
       startRichPresenceBridge: vi.fn().mockResolvedValue({ ok: true }),
       stopRichPresenceBridge: vi.fn().mockResolvedValue(undefined),

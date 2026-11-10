@@ -128,7 +128,7 @@ const SpotlightUserMediaItem: FC<SpotlightUserMediaItemProps> = ({
   const { t } = useTranslation();
   const videoFit = useBehavior(vm.videoFit$);
   const videoEnabled = useBehavior(vm.videoEnabled$);
-  // Cinny: show the mute state on the spotlight's name tag too, like the strip tiles.
+  // Pinniped: show the mute state on the spotlight's name tag too, like the strip tiles.
   const audioEnabled = useBehavior(vm.audioEnabled$);
   const deafened = useBehavior(vm.deafened$);
 
@@ -188,7 +188,7 @@ const SpotlightScreenShareItem: FC<SpotlightScreenShareItemProps> = ({
     <MediaView
       videoFit="contain"
       mirror={false}
-      data-cinny-live
+      data-pinniped-live
       nameTagLeadingIcon={
         <ShareScreenSolidIcon aria-hidden width={20} height={20} />
       }
@@ -426,7 +426,7 @@ interface Props {
   focusable: boolean;
   className?: string;
   style?: ComponentProps<typeof animated.div>["style"];
-  /** Cinny: clicking the focused tile goes back to the grid. */
+  /** Pinniped: clicking the focused tile goes back to the grid. */
   onClick?: ComponentProps<typeof animated.div>["onClick"];
 }
 

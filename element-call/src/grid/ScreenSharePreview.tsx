@@ -25,7 +25,7 @@ interface Props {
 }
 
 /**
- * Cinny: preview of a screen share in the participant strip,
+ * Pinniped: preview of a screen share in the participant strip,
  * shown next to the participants while the share is in the spotlight.
  */
 export const ScreenSharePreview: FC<Props> = ({ vm, variant = "strip" }) => {

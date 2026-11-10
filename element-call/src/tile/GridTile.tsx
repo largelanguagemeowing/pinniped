@@ -237,10 +237,10 @@ const UserMediaTile: FC<UserMediaTileProps> = ({
       rtcBackendIdentity={rtcBackendIdentity}
       targetWidth={targetWidth}
       targetHeight={targetHeight}
-      // Hooks for the fork's styling (speaking ring, hover); Cinny gets this data
+      // Hooks for the fork's styling (speaking ring, hover); Pinniped gets this data
       // from CallViewModel.participantActivity$ instead.
-      data-cinny-speaking={speaking}
-      data-cinny-user-id={vm.userId}
+      data-pinniped-speaking={speaking}
+      data-pinniped-user-id={vm.userId}
       {...props}
     />
   );
@@ -352,8 +352,8 @@ const RemoteUserMediaTile: FC<RemoteUserMediaTileProps> = ({
       waitingForMedia={waitingForMedia}
       mirror={false}
       menuStart={
-        /* Cinny: the tile menu leads with View Profile. Volume and mute for a
-           participant live in Cinny's member menu, not on the tile. */
+        /* Pinniped: the tile menu leads with View Profile. Volume and mute for a
+           participant live in Pinniped's member menu, not on the tile. */
         <MenuItem
           Icon={UserProfileIcon}
           label="View Profile"
@@ -376,7 +376,7 @@ interface GridTileProps {
   targetHeight: number;
   className?: string;
   style?: ComponentProps<typeof animated.div>["style"];
-  /** Cinny: clicking a tile focuses that participant. */
+  /** Pinniped: clicking a tile focuses that participant. */
   onClick?: ComponentProps<typeof animated.div>["onClick"];
   showSpeakingIndicators: boolean;
   showNameTags: boolean;

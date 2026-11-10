@@ -27,19 +27,21 @@ export enum ElementWidgetActions {
   Close = 'io.element.close',
   DeviceMute = 'io.element.device_mute',
   /** Fork: sets the call audio preferences, see {@link ElementCallSettings}. */
-  CallSettings = 'io.cinny.call_settings',
+  CallSettings = 'club.stablecat.pinniped.call_settings',
   /** Fork: start a screen share with the chosen quality and audio, see {@link ScreenShareStart}. */
-  ScreenShare = 'io.cinny.screenshare',
+  ScreenShare = 'club.stablecat.pinniped.screenshare',
   /** Fork, from the widget: a call sound to play, see {@link CallSoundCommand}. */
-  CallSound = 'io.cinny.call_sound',
+  CallSound = 'club.stablecat.pinniped.call_sound',
   /** Fork: play or stop a soundboard sound in the call, see {@link SoundboardCommand}. */
-  Soundboard = 'io.cinny.soundboard',
+  Soundboard = 'club.stablecat.pinniped.soundboard',
   /** Fork, from the widget: a CallStatsSample once a second. */
-  CallStats = 'io.cinny.call_stats',
+  CallStats = 'club.stablecat.pinniped.call_stats',
   /** Fork, from the widget: who is speaking, muted or sharing, whenever that changes. */
-  CallActivity = 'io.cinny.call_activity',
+  CallActivity = 'club.stablecat.pinniped.call_activity',
   /** Fork, from the widget: a non-fatal call problem (or none), whenever that changes. */
-  CallError = 'io.cinny.call_error',
+  CallError = 'club.stablecat.pinniped.call_error',
+  /** Fork, from the widget: open the profile card of a participant, data `{ userId }`. */
+  ViewProfile = 'club.stablecat.pinniped.view_profile',
 }
 
 export const screenShareResolutions = [
@@ -65,7 +67,9 @@ export const SCREEN_SHARE_AUDIO_DEVICE = 'Pinniped Screen Share Audio';
  */
 export const screenShareAudioSource = (enabled: boolean): string => {
   if (!enabled) return 'off';
-  return window.cinnyDesktop?.screenShareAudio ? `device:${SCREEN_SHARE_AUDIO_DEVICE}` : 'display';
+  return window.pinnipedDesktop?.screenShareAudio
+    ? `device:${SCREEN_SHARE_AUDIO_DEVICE}`
+    : 'display';
 };
 
 /** Call audio preferences; an empty device id is the system default. */

@@ -208,11 +208,11 @@ unconditionally select the container so we can use cqmin units */
   place-self: end;
 }
 
-/* Cinny: voice tiles. Participants without video get a tile tinted
+/* Pinniped: voice tiles. Participants without video get a tile tinted
 with their avatar's dominant colour, a fixed 80px round avatar, and a green border
 while speaking. */
 .media[data-voice="true"] {
-  --video-tile-background: var(--cinny-avatar-color, #2b2d31);
+  --video-tile-background: var(--pinniped-avatar-color, #2b2d31);
   outline: none !important;
 }
 
@@ -230,7 +230,7 @@ the frame edge the strip is flush against. */
   transition: opacity 0.15s ease;
 }
 
-.media[data-voice="true"][data-cinny-speaking="true"]::after {
+.media[data-voice="true"][data-pinniped-speaking="true"]::after {
   opacity: 1;
 }
 
@@ -265,8 +265,8 @@ the frame edge the strip is flush against. */
   display: none;
 }
 
-/* Cinny: "Live" badge on screen share tiles. */
-.media[data-cinny-live]::after {
+/* Pinniped: "Live" badge on screen share tiles. */
+.media[data-pinniped-live]::after {
   content: "Live";
   position: absolute;
   inset-block-start: var(--cpd-space-3x);
@@ -282,35 +282,37 @@ the frame edge the strip is flush against. */
   pointer-events: none;
 }
 
-/* Cinny: clicking a participant tile focuses them. */
-.media[data-cinny-user-id] {
+/* Pinniped: clicking a participant tile focuses them. */
+.media[data-pinniped-user-id] {
   cursor: pointer;
 }
 
-/* Cinny: tiles fill their slot exactly. Element Call's hover-border margin shifts
+/* Pinniped: tiles fill their slot exactly. Element Call's hover-border margin shifts
 each tile 4px down and right while keeping the slot's size, which pushes the strip
 past the bottom of the frame; our speaking ring is drawn inside the tile and needs no room. */
 .media {
   margin: 0;
 }
 
-/* Cinny: screen shares are flush and edge-to-edge on black. */
-.media[data-cinny-live] {
+/* Pinniped: screen shares are flush and edge-to-edge on black. */
+.media[data-pinniped-live] {
   --media-view-border-radius: 0;
   --video-tile-background: #000;
   margin: 0;
 }
 
-/* Cinny: labels fade away while the user is idle (the host app sets
-data-cinny-idle on the document); muted indicators stay. */
+/* Pinniped: labels fade away while the user is idle (the host app sets
+data-pinniped-idle on the document); muted indicators stay. */
 .media .nameTag {
   transition: opacity 0.3s ease;
 }
 
-:root[data-cinny-idle="true"] .media .nameTag > .name {
+:root[data-pinniped-idle="true"] .media .nameTag > .name {
   display: none;
 }
 
-:root[data-cinny-idle="true"] .media .nameTag:not(:has([data-muted="true"])) {
+:root[data-pinniped-idle="true"]
+  .media
+  .nameTag:not(:has([data-muted="true"])) {
   opacity: 0;
 }

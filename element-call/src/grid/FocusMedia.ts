@@ -6,12 +6,14 @@ Please see LICENSE in the repository root for full details.
 */
 
 import { createContext, type MouseEvent } from "react";
+import { logger } from "matrix-js-sdk/lib/logger";
 
 import { type Behavior } from "../state/Behavior";
 import { type ScreenShareViewModel } from "../state/media/ScreenShareViewModel";
+import { ElementWidgetActions, widget } from "../widget";
 
 /**
- * Cinny: "click a tile to focus it". Provided by InCallView so tiles
+ * Pinniped: "click a tile to focus it". Provided by InCallView so tiles
  * and layouts can reach the call view model.
  */
 export interface FocusMedia {
@@ -28,12 +30,11 @@ export const isTileBodyClick = (e: MouseEvent): boolean =>
   !(e.target as Element).closest("button, a, input, [role='menu']");
 
 /**
- * Cinny: asks the host app to open its profile card for a participant (the tile
- * menu's "View Profile"). The host only trusts this message from its call iframe.
+ * Pinniped: asks the embedding client to open its profile card for a participant
+ * (the tile menu's "View Profile").
  */
 export const viewProfileInHost = (userId: string): void => {
-  window.parent.postMessage(
-    { type: "cinny:view-profile", userId },
-    window.location.origin,
-  );
+  widget?.api.transport
+    .send(ElementWidgetActions.ViewProfile, { userId })
+    .catch((e) => logger.warn("Could not ask the client to show a profile", e));
 };

@@ -410,7 +410,7 @@ function useStreamQuality(embed?: CallEmbed): string | undefined {
       return undefined;
     }
     const update = () => {
-      const video = embed.document?.querySelector<HTMLVideoElement>('[data-cinny-live] video');
+      const video = embed.document?.querySelector<HTMLVideoElement>('[data-pinniped-live] video');
       const height = video?.videoHeight;
       setQuality(height ? `${height}p` : undefined);
     };

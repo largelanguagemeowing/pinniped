@@ -62,7 +62,7 @@ if ('serviceWorker' in navigator && !isDesktop()) {
   // A hard reload (Ctrl+Shift+R) bypasses the SW, and Chromium won't let the already-active
   // SW claim such a page, so authenticated media would be fetched without a token. Reload
   // normally once to get the page controlled; the flag stops a loop if that doesn't help.
-  const HARD_RELOAD_KEY = 'cinny.swControlReload';
+  const HARD_RELOAD_KEY = 'pinniped.swControlReload';
   /** Returns true when it has started a reload, in which case the app must not mount. */
   const reloadIfUncontrolled = (registration: ServiceWorkerRegistration): boolean => {
     try {

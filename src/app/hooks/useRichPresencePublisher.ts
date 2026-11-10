@@ -43,7 +43,7 @@ export const useRichPresencePublisher = () => {
       setStatus(undefined);
       return undefined;
     }
-    const bridge = window.cinnyDesktop;
+    const bridge = window.pinnipedDesktop;
     if (!bridge || !bridge.supportsRichPresenceBridge) {
       setStatus(undefined);
       return undefined;

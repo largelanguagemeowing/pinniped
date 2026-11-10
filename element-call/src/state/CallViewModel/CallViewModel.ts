@@ -161,7 +161,7 @@ import {
   type RingingMediaViewModel,
 } from "../media/RingingMediaViewModel.ts";
 
-// Cinny: show two participants as equal tiles instead of a PiP.
+// Pinniped: show two participants as equal tiles instead of a PiP.
 const CINNY_EQUAL_TILES = true;
 const CINNY_SHARES_IN_GRID = true;
 
@@ -363,16 +363,16 @@ export interface CallViewModel {
   gridMode$: Behavior<GridMode>;
   setGridMode: (value: GridMode) => void;
   /**
-   * Cinny: click-to-focus. Puts the given media (a participant or a screen
+   * Pinniped: click-to-focus. Puts the given media (a participant or a screen
    * share) in the spotlight, or toggles back to automatic if it's already focused.
    */
   focusMedia: (mediaId: string) => void;
-  /** Cinny: clears any focus and switches to the grid (clicking the focused tile). */
+  /** Pinniped: clears any focus and switches to the grid (clicking the focused tile). */
   showGrid: () => void;
-  /** Cinny: every screen share in the call, for the strip's stream previews. */
+  /** Pinniped: every screen share in the call, for the strip's stream previews. */
   screenShares$: Behavior<ScreenShareViewModel[]>;
   /**
-   * Cinny: who is speaking, muted or sharing their screen, whatever the layout
+   * Pinniped: who is speaking, muted or sharing their screen, whatever the layout
    * shows. Reported to the embedding client, which shows it next to the
    * participants.
    */
@@ -1015,7 +1015,7 @@ export function createCallViewModel$(
 
         return combineLatest([screenShares$, userMedia$, focusedMediaId$]).pipe(
           switchMap(([screenShares, userMedia, focusedId]) => {
-            // Cinny: media the user clicked on wins over the automatic choice
+            // Pinniped: media the user clicked on wins over the automatic choice
             // for as long as it's still in the call.
             const focused =
               focusedId === null
@@ -1083,9 +1083,9 @@ export function createCallViewModel$(
         // Our layouts for flat windows are better at adapting to a small width
         // than our layouts for narrow windows are at adapting to a small height,
         // so we give "flat" precedence here
-        // Cinny: the call lives in a pane inside the app, so a short iframe is
+        // Pinniped: the call lives in a pane inside the app, so a short iframe is
         // normal. Never switch to the "flat" (edge-to-edge PiP) layout.
-        // Cinny: a small landscape pane keeps the stream with the
+        // Pinniped: a small landscape pane keeps the stream with the
         // participant strip below; only phone-like portrait panes go "narrow".
         if (width <= 600 && height > width) return "narrow";
         return "normal";
@@ -1134,7 +1134,7 @@ export function createCallViewModel$(
     (grid, spotlight) => ({
       type: "grid",
       edgeToEdge: false,
-      // Cinny: screen shares are tiles in the grid itself (GridLayout), not a
+      // Pinniped: screen shares are tiles in the grid itself (GridLayout), not a
       // floating spotlight.
       spotlight:
         !CINNY_SHARES_IN_GRID &&

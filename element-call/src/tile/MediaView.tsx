@@ -174,7 +174,10 @@ export const MediaView: FC<Props> = ({
       })}
       style={
         avatarColor
-          ? ({ ...style, "--cinny-avatar-color": avatarColor } as typeof style)
+          ? ({
+              ...style,
+              "--pinniped-avatar-color": avatarColor,
+            } as typeof style)
           : style
       }
       ref={ref}

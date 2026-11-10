@@ -17,7 +17,7 @@ export function CallHotkeys() {
   const shortcutsKey = JSON.stringify(shortcuts);
 
   useEffect(() => {
-    const bind = window.cinnyDesktop?.bindHotkeys;
+    const bind = window.pinnipedDesktop?.bindHotkeys;
     if (!bind || shortcuts.length === 0) return;
     bind(shortcuts).then((result) => {
       if (!result.ok) console.warn('Global shortcuts were not bound:', result.error);
@@ -27,7 +27,7 @@ export function CallHotkeys() {
   }, [shortcutsKey]);
 
   useEffect(() => {
-    const onHotkey = window.cinnyDesktop?.onHotkey;
+    const onHotkey = window.pinnipedDesktop?.onHotkey;
     if (!onHotkey) return undefined;
     return onHotkey((id) => {
       const control = callEmbed?.control;

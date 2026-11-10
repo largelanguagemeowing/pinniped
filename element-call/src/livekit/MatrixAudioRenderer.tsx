@@ -108,7 +108,7 @@ export function LivekitRoomAudioRenderer({
   // The Safari audio devices enumeration does not expose an earpiece audio device.
   // We alternatively use the audioContext pan node to only use one of the stereo channels.
 
-  // Cinny (fork): every voice goes through the audio context, so that each listener's own
+  // Pinniped: every voice goes through the audio context, so that each listener's own
   // per-participant level (0-200%, set from the embedding client's context menu) can be
   // applied as a gain node of that track's own, which an audio element's volume (capped at 1)
   // cannot do. The context follows the chosen output device through setSinkId. Where the

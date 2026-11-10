@@ -44,7 +44,8 @@ import {
 } from '../hooks/useCallEmbed';
 import { callChatAtom, callEmbedAtom } from '../state/callEmbed';
 import { CallHotkeys } from '../features/call-hotkeys';
-import { CallEmbed } from '../plugins/call';
+import { IWidgetApiRequest } from 'matrix-widget-api';
+import { CallEmbed, ElementWidgetActions } from '../plugins/call';
 import { useSelectedRoom } from '../hooks/router/useSelectedRoom';
 import { ScreenSize, useScreenSizeContext } from '../hooks/useScreenSize';
 import { useMatrixClient } from '../hooks/useMatrixClient';
@@ -55,7 +56,7 @@ import { useCallMembersChange, useCallSession } from '../hooks/useCall';
 import { useRoomAvatar, useRoomName } from '../hooks/useRoomMeta';
 import { mDirectAtom } from '../state/mDirectList';
 import { useMediaAuthentication } from '../hooks/useMediaAuthentication';
-import { mxcUrlToHttp } from '../utils/matrix';
+import { isUserId, mxcUrlToHttp } from '../utils/matrix';
 import { RoomAvatar, RoomIcon } from './room-avatar';
 import { useRoomNavigate } from '../hooks/useRoomNavigate';
 import { getStateEvent } from '../utils/room';
@@ -394,21 +395,20 @@ function CallUtils({ embed }: { embed: CallEmbed }) {
     }, [setCallEmbed])
   );
 
-  // The call's tile menu asks for "View Profile"; only trust it from our own call iframe.
+  // The call's tile menu asks for "View Profile".
   const openProfile = useOpenCenteredUserRoomProfile();
-  useEffect(() => {
-    const onMessage = (evt: MessageEvent) => {
-      if (evt.source !== embed.iframe.contentWindow || evt.origin !== window.location.origin) {
-        return;
-      }
-      const { type, userId } = evt.data ?? {};
-      if (type === 'cinny:view-profile' && typeof userId === 'string') {
-        openProfile(embed.roomId, undefined, userId);
-      }
-    };
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [embed, openProfile]);
+  useEffect(
+    () =>
+      embed.listenAction<IWidgetApiRequest>(ElementWidgetActions.ViewProfile, (evt) => {
+        evt.preventDefault();
+        embed.call.transport.reply(evt.detail, {});
+        const { userId } = evt.detail.data;
+        if (typeof userId === 'string' && isUserId(userId)) {
+          openProfile(embed.roomId, undefined, userId);
+        }
+      }),
+    [embed, openProfile]
+  );
 
   // Lets the desktop dev shell leave the call cleanly before it reloads the window.
   useEffect(() => {

@@ -88,7 +88,7 @@ export const makeGridLayout: CallLayout<GridLayoutModel> = ({
     useUpdateLayout();
     useVisibleTiles(model.setVisibleTiles);
     const { width, height: minHeight } = useObservableEagerState(minBounds$);
-    // Cinny: screen shares are tiles in the grid too.
+    // Pinniped: screen shares are tiles in the grid too.
     const focus = use(FocusMediaContext);
     const screenShares = useBehavior(focus?.screenShares$ ?? noScreenShares);
     const tileCount = model.grid.length + screenShares.length;

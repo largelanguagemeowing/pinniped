@@ -13,7 +13,7 @@ import {
 const TEXT_UNSTABLE = 'org.matrix.msc1767.text';
 const TEXT_STABLE = 'm.text';
 
-// Fork-only extension: MSC3381 has no notion of a poll deadline. Cinny stores
+// Fork-only extension: MSC3381 has no notion of a poll deadline. Pinniped stores
 // the deadline here and treats the poll as closed after it; the creator's
 // client also sends a real m.poll.end once it notices the deadline passed.
 export const POLL_EXPIRES_KEY = 'de.mreow.poll.expires_ts';

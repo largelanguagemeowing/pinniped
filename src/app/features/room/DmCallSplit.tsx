@@ -1,7 +1,7 @@
 import React, { PointerEventHandler, ReactNode, useCallback, useRef, useState } from 'react';
 import { Box, color, config, toRem } from 'folds';
 
-const STORAGE_KEY = 'cinny.dmCallPaneHeight';
+const STORAGE_KEY = 'pinniped.dmCallPaneHeight';
 const MIN_CALL_HEIGHT = 200;
 const MIN_CHAT_HEIGHT = 160;
 const DEFAULT_CALL_HEIGHT = 320;

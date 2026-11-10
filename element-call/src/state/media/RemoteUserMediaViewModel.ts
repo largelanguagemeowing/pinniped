@@ -43,7 +43,7 @@ export function createRemoteUserMedia(
     statsType: "inbound-rtp",
   });
 
-  // Per-participant volume and mute are Cinny's (the member menu), applied on the audio side,
+  // Per-participant volume and mute are Pinniped's (the member menu), applied on the audio side,
   // so the tile does not drive the participant's volume.
   return {
     ...baseUserMedia,

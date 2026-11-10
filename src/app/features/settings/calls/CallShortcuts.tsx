@@ -24,7 +24,7 @@ export function CallShortcuts() {
   const [bindings, setBindings] = useSetting(settingsAtom, 'callHotkeys');
   const [recording, setRecording] = useState<CallHotkeyAction>();
   const [message, setMessage] = useState<string>();
-  const bridge = window.cinnyDesktop?.bindHotkeys;
+  const bridge = window.pinnipedDesktop?.bindHotkeys;
 
   const apply = (next: CallHotkeyBindings) => {
     setBindings(next);

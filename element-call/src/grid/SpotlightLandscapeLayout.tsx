@@ -29,7 +29,7 @@ import { useBehavior } from "../useBehavior";
 const noScreenShares = constant<ScreenShareViewModel[]>([]);
 
 /**
- * Cinny: the screen shares previewed in the strip. Every share in the call, so a
+ * Pinniped: the screen shares previewed in the strip. Every share in the call, so a
  * stream stays clickable while a participant is focused; without the call context,
  * just the shares in the spotlight.
  */
@@ -56,7 +56,7 @@ const stripStyle = (plan: StripPlan): StripCSSProperties => ({
   "--strip-tile-height": `${plan.tileHeight}px`,
 });
 
-// Cinny: "Hide Members" toggle for the participant strip. Shared
+// Pinniped: "Hide Members" toggle for the participant strip. Shared
 // between the fixed and scrolling layers, so it lives outside React state.
 let stripHidden = false;
 const stripListeners = new Set<() => void>();

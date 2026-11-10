@@ -289,7 +289,7 @@ const CALL_IDLE_MS = 3000;
 /**
  * Tracks pointer/keyboard activity (in the app and inside the call iframe) and flips
  * `callIdleAtom` after a few quiet seconds, so the call view can fade its UI. The call document also
- * gets `data-cinny-idle` so the call UI itself can hide its labels.
+ * gets `data-pinniped-idle` so the call UI itself can hide its labels.
  */
 export const useCallIdle = (embed?: CallEmbed) => {
   const setIdle = useSetAtom(callIdleAtom);
@@ -306,7 +306,7 @@ export const useCallIdle = (embed?: CallEmbed) => {
     const applyIdle = (idle: boolean) => {
       setIdle(idle);
       const root = embed.document?.documentElement;
-      if (root) root.dataset.cinnyIdle = String(idle);
+      if (root) root.dataset.pinnipedIdle = String(idle);
     };
 
     const onActivity = () => {
@@ -375,7 +375,7 @@ export const useScreenShareAudioBridge = (embed: CallEmbed) => {
   const joined = useCallJoined(embed);
   const { screenSharers } = useCallActivity(embed);
   const sharing = joined && screenSharers.has(mx.getSafeUserId());
-  const bridge = window.cinnyDesktop?.screenShareAudio;
+  const bridge = window.pinnipedDesktop?.screenShareAudio;
 
   // The device stays for the whole call: if it vanished while the widget still captures it, the
   // capture can silently move to the real microphone and send it a second time.

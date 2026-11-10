@@ -174,7 +174,7 @@ export function createCallFooterViewModel(
         callModel.setSettingsOpen$,
       ]).pipe(
         map(([isPip, showHeader, setSettingsOpen]) =>
-          // Embedded clients (Cinny) own the call settings
+          // Embedded clients (Pinniped) own the call settings
           widget === null &&
           !isPip &&
           !(headerStyle === HeaderStyle.AppBar && showHeader) &&

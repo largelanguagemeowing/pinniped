@@ -331,11 +331,17 @@ export const InCallView: FC<InCallViewProps> = ({
   const gridBounds = useMemo(
     () => ({
       width: bounds.width - scrollbarWidth,
-      // Cinny hides this footer (out of flow, invisible) and draws its own call
+      // Pinniped hides this footer (out of flow, invisible) and draws its own call
       // bar outside the iframe, so the footer must not take height from the grid.
       height: bounds.height - (edgeToEdge ? 0 : headerBounds.height),
     }),
-    [bounds.width, scrollbarWidth, bounds.height, headerBounds.height, edgeToEdge],
+    [
+      bounds.width,
+      scrollbarWidth,
+      bounds.height,
+      headerBounds.height,
+      edgeToEdge,
+    ],
   );
   const gridBoundsObservable$ = useObservable(
     (inputs$) => inputs$.pipe(map(([gridBounds]) => gridBounds)),
@@ -426,7 +432,7 @@ export const InCallView: FC<InCallViewProps> = ({
     </Toast>
   );
 
-  // Embedded clients (Cinny) show the problem next to the call controls, where
+  // Embedded clients (Pinniped) show the problem next to the call controls, where
   // it stays visible while the call view is hidden.
   useEffect(() => {
     if (widget === null) return;
@@ -615,7 +621,7 @@ export const InCallView: FC<InCallViewProps> = ({
   );
 
   useAppBarSecondaryButton(
-    // Embedded clients (Cinny) own the call settings
+    // Embedded clients (Pinniped) own the call settings
     widget === null ? (
       <SettingsIconButton
         key="settings"
@@ -633,7 +639,7 @@ export const InCallView: FC<InCallViewProps> = ({
   );
   const allConnections = useBehavior(vm.allConnections$);
 
-  // Embedded clients (Cinny) show who is speaking, muted or sharing their screen.
+  // Embedded clients (Pinniped) show who is speaking, muted or sharing their screen.
   useEffect(() => {
     if (widget === null) return;
     const api = widget.api;
@@ -656,7 +662,7 @@ export const InCallView: FC<InCallViewProps> = ({
     audioParticipantsRef.current = audioParticipants;
   }, [audioParticipants]);
 
-  // Embedded clients (Cinny) show WebRTC stats; report raw counters to them.
+  // Embedded clients (Pinniped) show WebRTC stats; report raw counters to them.
   useEffect(() => {
     if (widget === null) return;
     const api = widget.api;

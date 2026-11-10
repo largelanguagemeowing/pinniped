@@ -1,7 +1,7 @@
 // Runs with context isolation; keep the surface minimal.
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('cinnyDesktop', {
+contextBridge.exposeInMainWorld('pinnipedDesktop', {
   platform: process.platform,
   versions: {
     electron: process.versions.electron,

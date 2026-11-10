@@ -2,7 +2,7 @@
 // The vendored tree is upstream tag v0.20.1 with the former patch series
 // (voice-call-layout, sound-overrides) already applied; edit it in place.
 // Usage: node scripts/fork/element-call/build.mjs [outDir]
-// Output defaults to node_modules/.cache/cinny-element-call-fork.
+// Output defaults to node_modules/.cache/pinniped-element-call.
 import { execFileSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -75,7 +75,7 @@ export function buildElementCallFork(outDir) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const out = path.resolve(process.argv[2] ?? 'node_modules/.cache/cinny-element-call-fork');
+  const out = path.resolve(process.argv[2] ?? 'node_modules/.cache/pinniped-element-call');
   buildElementCallFork(out);
   console.log(`Element Call fork built at ${out}`);
 }

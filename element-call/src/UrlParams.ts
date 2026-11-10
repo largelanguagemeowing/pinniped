@@ -253,7 +253,7 @@ export interface UrlConfiguration {
   /**
    * Whether to run neural noise suppression (DeepFilterNet) on the microphone.
    * The embedding client owns this preference; it can change it mid-call with
-   * the `io.cinny.denoise` widget action.
+   * the `club.stablecat.pinniped.call_settings` widget action.
    */
   denoise?: boolean;
   /** The browser's automatic gain control on the microphone; owned by the embedding client. */
@@ -266,7 +266,7 @@ export interface UrlConfiguration {
   voiceGateThreshold?: number;
   /**
    * Preferred microphone / speaker device IDs. The embedding client owns them
-   * and can change them mid-call with the `io.cinny.call_settings` widget action.
+   * and can change them mid-call with the `club.stablecat.pinniped.call_settings` widget action.
    */
   simulcast?: boolean;
   screenShare?: string;

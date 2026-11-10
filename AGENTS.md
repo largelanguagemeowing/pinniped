@@ -31,9 +31,9 @@ We own our dependency versions. Upgrade majors when it helps us, one concern per
 ## Element Call fork
 
 Calls run in an embedded Element Call widget (`element-call/`, vendored in the
-tree). It is NOT built by cinny's own build: `scripts/fork/element-call/build.mjs`
+tree). It is NOT built by Pinniped's own build: `scripts/fork/element-call/build.mjs`
 runs `pnpm install && pnpm build:embedded` in `element-call/` and copies
-`dist/` to `node_modules/.cache/cinny-element-call-fork`, which
+`dist/` to `node_modules/.cache/pinniped-element-call`, which
 `scripts/fork/element-call/prepare.mjs` (called from vite.config.js) embeds
 under `public/element-call/`. The Dockerfile and `element-call.nix` build it
 separately and point `ELEMENT_CALL_FORK_DIST` at the result.
@@ -50,32 +50,32 @@ Fork changes on top of upstream + old patches:
 - **Audio pipeline** (`src/livekit/denoise.ts` and its callers): the mic is
   always captured raw (browser noise suppression and AGC off; AEC stays with
   the browser), DeepFilterNet 3 denoising via `deepfilternet3-noise-filter` as
-  an opt-in toggle (Cinny settings → Calls, off by default; Cinny seeds
+  an opt-in toggle (Pinniped settings → Calls, off by default; Pinniped seeds
   the widget via the `denoise`/`audioInput`/`audioOutput` URL params and updates
-  them mid-call with the `io.cinny.call_settings` widget action; the mic and
+  them mid-call with the `club.stablecat.pinniped.call_settings` widget action; the mic and
   speaker pickers live there too, and the widget's settings modal is not reachable
   when embedded (all its entry points are hidden when `widget !== null`; its
   remaining tabs — effect volume, camera, background blur — are dead there),
   96 kbps Opus, DTX off, in-band FEC off (`disableOpusFec` in
   `src/livekit/bitrateHints.ts` rewrites the Opus fmtp in the answer). An opt-in automatic
-  gain toggle (Cinny settings → Calls → Call Audio, `autoGain` URL param and
-  `io.cinny.call_settings` field) re-constrains the live mic track with the browser's
+  gain toggle (Pinniped settings → Calls → Call Audio, `autoGain` URL param and
+  `club.stablecat.pinniped.call_settings` field) re-constrains the live mic track with the browser's
   AGC (`autoGainSync` in `denoise.ts`), ahead of the denoiser and gate; off by default.
   The DF3 runtime wasm + model (~24 MB) are vendored
   under `element-call/public/df3/` and copied into the widget output by
   `scripts/fork/element-call/build.mjs` (the embedded vite build disables
   publicDir). A previous `denoise-voice-clarity` attempt bundled an AGC/EQ/
   compressor "clarity chain" that sounded fried; it was replaced by pure DF3.
-- **Voice activity gate** (Cinny settings → Calls → Call Audio): only sends the mic
+- **Voice activity gate** (Pinniped settings → Calls → Call Audio): only sends the mic
   while it hears speech (`src/livekit/voiceGate.ts`, a track processor in
   `denoise.ts`'s `applyProcessing`). It sits after DeepFilterNet, which keeps
   processing everything while the gate is closed so its noise model keeps adapting,
   and listens to the denoised signal. Automatic mode (`AdaptiveVoiceGate` in
   `voiceActivity.ts`) follows the noise floor; manual mode uses a 0-1 threshold on
-  a -70..-20 dBFS scale, the same scale as the live meter in Cinny's settings
+  a -70..-20 dBFS scale, the same scale as the live meter in Pinniped's settings
   (`useMicLevel`, `VoiceGateMeter`). Settings reach the widget through the
   `voiceGate`, `voiceGateAuto` and `voiceGateThreshold` URL params and
-  `io.cinny.call_settings`. Fine tuning (stickiness/hysteresis, hold, fade in/out,
+  `club.stablecat.pinniped.call_settings`. Fine tuning (stickiness/hysteresis, hold, fade in/out,
   lookahead, automatic margin, speaking indicator sensitivity and hold) is one
   `VoiceTuning` object, sent whole as the `voiceTuning` param/field; the ranges,
   defaults and descriptions live in `src/app/plugins/call/voiceTuning.ts` (the widget
@@ -91,28 +91,28 @@ Fork changes on top of upstream + old patches:
   invisible to us).
 - **Call stats**: the widget (`src/livekit/callStats.ts`, reported from
   `InCallView`) samples each SFU connection's `RTCPeerConnection` stats once a
-  second and sends the raw counters to Cinny as the `io.cinny.call_stats`
+  second and sends the raw counters to Pinniped as the `club.stablecat.pinniped.call_stats`
   widget action. `CallEmbed` keeps five minutes of history; clicking "Voice
   Connected" opens the ping popout and its Debug view
   (`src/app/features/call-status/stats/`).
 - **Participant activity** (speaking, muted, sharing a screen): the widget derives
   it from its view models (`CallViewModel.participantActivity$`, built in
   `state/CallViewModel/participantActivity.ts`) and sends a snapshot of Matrix user
-  IDs as the `io.cinny.call_activity` action whenever it changes; `CallEmbed`
+  IDs as the `club.stablecat.pinniped.call_activity` action whenever it changes; `CallEmbed`
   keeps the latest and `useCallParticipantActivity` reads it. It does not depend on
-  which tiles are mounted. (It used to scrape `data-cinny-*` attributes off tiles,
+  which tiles are mounted. (It used to scrape `data-pinniped-*` attributes off tiles,
   which only the grid tile set; those attributes remain only as styling hooks.)
 - **Publish errors**: when the media server's JWT service lets us join without
   the `canPublish` grant (it only trusts certain homeservers), `LocalMember`
   raises `PublishNotAllowedError` on `publishError$`. The widget shows it as a
-  toast and sends it to Cinny as `io.cinny.call_error`; `CallStatus` shows it
+  toast and sends it to Pinniped as `club.stablecat.pinniped.call_error`; `CallStatus` shows it
   under "Voice Connected". The widget defaults to `MatrixRTCMode.Compatibility`
   (multi-SFU), so each member publishes through their own homeserver's server.
 - **Soundboard**: sounds live in Matrix data (`club.stablecat.pinniped.user_sounds`
   account data for the user, `club.stablecat.pinniped.room_sounds` state for a
   room or space, `club.stablecat.pinniped.sound_favorites` for favourites;
-  `src/app/plugins/sound-pack/`). Cinny downloads a sound, hands the widget a
-  same-origin `blob:` URL via the `io.cinny.soundboard` action, and the widget
+  `src/app/plugins/sound-pack/`). Pinniped downloads a sound, hands the widget a
+  same-origin `blob:` URL via the `club.stablecat.pinniped.soundboard` action, and the widget
   (`src/livekit/soundboard.ts`, owned by `Publisher`) decodes it and publishes it
   on an audio track of its own (source `unknown`, which `MatrixAudioRenderer`
   already plays) while also playing it locally. The mic track is untouched.

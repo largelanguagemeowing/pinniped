@@ -194,7 +194,7 @@ export class TileStoreBuilder {
     if (this.spotlight !== null) {
       // We actually *don't* want spotlight speakers to appear in both the
       // spotlight and the grid, so they're filtered out here
-      // Cinny: everyone stays in the strip, including whoever is
+      // Pinniped: everyone stays in the strip, including whoever is
       // in the spotlight (and so the speaker swap below never applies).
       if (
         !CINNY_KEEP_SPOTLIGHT_IN_GRID &&

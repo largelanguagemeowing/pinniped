@@ -8,8 +8,8 @@ Please see LICENSE in the repository root for full details.
 /**
  * Every knob of the voice activity gate and the speaking indicator. The
  * embedding client owns them and sends the whole object (URL param
- * `voiceTuning`, JSON, and the `voiceTuning` field of `io.cinny.call_settings`);
- * these defaults only matter when the widget runs without a client. Cinny has
+ * `voiceTuning`, JSON, and the `voiceTuning` field of `club.stablecat.pinniped.call_settings`);
+ * these defaults only matter when the widget runs without a client. Pinniped has
  * its own copy of the defaults and ranges next to its settings UI.
  */
 export interface VoiceTuning {

@@ -26,7 +26,7 @@ export function FeatureCheck({ children }: { children: ReactNode }) {
               </Text>
               <Text size="T300" priority="400">
                 {storageUnavailable
-                  ? 'Cinny could not write to browser storage. Free some disk space, then reload Pinniped. Messages may not be sent or saved until storage is available.'
+                  ? 'Pinniped could not write to browser storage. Free some disk space, then reload Pinniped. Messages may not be sent or saved until storage is available.'
                   : 'No IndexedDB support found. This application requires IndexedDB to store session data locally. Please make sure your browser supports IndexedDB and has it enabled.'}
               </Text>
               {!storageUnavailable && (

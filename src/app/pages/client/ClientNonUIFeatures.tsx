@@ -112,7 +112,7 @@ function DesktopBadgeFeature() {
   const directs = useAtomValue(mDirectAtom);
 
   useEffect(() => {
-    const bridge = window.cinnyDesktop;
+    const bridge = window.pinnipedDesktop;
     if (!bridge?.setBadgeCount) return;
 
     let count = 0;
@@ -129,7 +129,7 @@ function DesktopBadgeFeature() {
     bridge.setBadgeCount(count, overlay, hasUnread);
   }, [roomToUnread, directs]);
 
-  useEffect(() => () => window.cinnyDesktop?.setBadgeCount?.(0, undefined, false), []);
+  useEffect(() => () => window.pinnipedDesktop?.setBadgeCount?.(0, undefined, false), []);
 
   return null;
 }
@@ -159,7 +159,7 @@ function InviteNotifications() {
       noti.onclick = (event) => {
         event.preventDefault();
         if (!window.closed) {
-          window.cinnyDesktop?.showWindow?.();
+          window.pinnipedDesktop?.showWindow?.();
           window.focus();
           navigate(getInboxInvitesPath());
         }
@@ -259,7 +259,7 @@ function MessageNotifications() {
       noti.onclick = (event) => {
         event.preventDefault();
         if (!window.closed) {
-          window.cinnyDesktop?.showWindow?.();
+          window.pinnipedDesktop?.showWindow?.();
           window.focus();
           navigateRoom(roomId, eventId);
         }

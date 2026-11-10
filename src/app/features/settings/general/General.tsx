@@ -711,7 +711,7 @@ function SelectDateFormat() {
 }
 
 function Startup() {
-  const bridge = window.cinnyDesktop;
+  const bridge = window.pinnipedDesktop;
   const [state, setState] = useState<AutostartState>();
 
   useEffect(() => {

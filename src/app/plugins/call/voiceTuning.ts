@@ -1,7 +1,7 @@
 /**
  * Every knob of the voice activity gate and the speaking indicator, with the range, unit and
  * plain-language description the settings page shows. The call widget has its own copy of the
- * defaults (element-call/src/livekit/voiceTuning.ts) for when it runs without Cinny; Cinny always
+ * defaults (element-call/src/livekit/voiceTuning.ts) for when it runs without Pinniped; Pinniped always
  * sends the whole object, so these are the ones in effect.
  */
 export type VoiceTuning = {

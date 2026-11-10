@@ -5,7 +5,7 @@ export type CallError = {
   message?: string;
 };
 
-/** Reads the call widget's `io.cinny.call_error` payload; anything malformed counts as no error. */
+/** Reads the call widget's `club.stablecat.pinniped.call_error` payload; anything malformed counts as no error. */
 export const parseCallError = (data: unknown): CallError | undefined => {
   const { error } = (data ?? {}) as Record<string, unknown>;
   if (typeof error !== 'object' || error === null) return undefined;

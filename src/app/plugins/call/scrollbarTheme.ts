@@ -6,8 +6,8 @@ import { color } from 'folds';
  * and cannot see Pinniped's theme variables, so they are resolved here and written to its document.
  */
 const SCROLLBAR_COLORS = {
-  '--cinny-scrollbar-track': color.Background.ContainerHover,
-  '--cinny-scrollbar-thumb': color.Background.ContainerLine,
+  '--pinniped-scrollbar-track': color.Background.ContainerHover,
+  '--pinniped-scrollbar-thumb': color.Background.ContainerLine,
 } as const;
 
 /** Turns a theme colour (`var(--...)`) into the colour it currently has in this document. */

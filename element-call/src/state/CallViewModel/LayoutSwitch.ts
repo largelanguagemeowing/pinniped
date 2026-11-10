@@ -67,7 +67,7 @@ export function createLayoutModeSwitch(
     // Whenever the user makes a selection, we enter a new mode of behavior:
     userSelection$.pipe(
       map((selection) => {
-        // Cinny: an explicit grid choice sticks, even when someone
+        // Pinniped: an explicit grid choice sticks, even when someone
         // starts a screen share (it shows up as a grid tile instead).
         if (selection === "grid" && CINNY_STICKY_GRID)
           return constant(selection);

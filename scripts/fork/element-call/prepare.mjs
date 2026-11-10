@@ -8,7 +8,7 @@ import { buildElementCallFork, elementCallForkStale } from './build.mjs';
 // whenever element-call/ changes, unless ELEMENT_CALL_FORK_REBUILD=0.
 export function prepareElementCall() {
   const fork = path.resolve(
-    process.env.ELEMENT_CALL_FORK_DIST ?? 'node_modules/.cache/cinny-element-call-fork'
+    process.env.ELEMENT_CALL_FORK_DIST ?? 'node_modules/.cache/pinniped-element-call'
   );
   if (process.env.ELEMENT_CALL_FORK_REBUILD !== '0' && elementCallForkStale(fork)) {
     buildElementCallFork(fork);

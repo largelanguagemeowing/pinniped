@@ -10,7 +10,7 @@ Please see LICENSE in the repository root for full details.
   box-sizing: border-box;
   display: grid;
   gap: var(--gap);
-  /* Cinny: focused view, participants in a strip below. */
+  /* Pinniped: focused view, participants in a strip below. */
   --gap: 8px;
   grid-template-columns: 1fr;
   /* The strip is always exactly one row tall, so the fixed and scrolling layers agree
@@ -29,7 +29,7 @@ Please see LICENSE in the repository root for full details.
 /* CSS makes us put a condition here, even though all we want to do is
 unconditionally select the container so we can use cq units */
 @container spotlight (width > 0) {
-  /* Cinny: the stream tile is the largest 16:9 box that fits, so
+  /* Pinniped: the stream tile is the largest 16:9 box that fits, so
      its name tag and Live badge sit on the video rather than the pane's edges. */
   .spotlight > .slot {
     inline-size: min(100cqi, 100cqb * (16 / 9));
@@ -69,7 +69,7 @@ unconditionally select the container so we can use cq units */
   position: relative;
 }
 
-/* Cinny: the "Hide Members" pill: centred 8px inside the top of the strip, or at the
+/* Pinniped: the "Hide Members" pill: centred 8px inside the top of the strip, or at the
 bottom of the stream once the strip is hidden. */
 .layer {
   position: relative;
@@ -104,7 +104,7 @@ bottom of the stream once the strip is hidden. */
 
 /* Strip tiles are drawn outside the layer, so match hover on them from the root. */
 :global(html):has(
-    [data-cinny-user-id]:hover,
+    [data-pinniped-user-id]:hover,
     [data-testid="screenSharePreview"]:hover
   )
   .stripToggle,

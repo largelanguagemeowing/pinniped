@@ -19,8 +19,8 @@ Please see LICENSE in the repository root for full details.
   scrollbar-gutter: stable;
 }
 
-/* Scrollbar styled like Cinny's own (its Scroll component, shown on hover).
-   The colours come from Cinny's theme: it resolves them and sets these two
+/* Scrollbar styled like Pinniped's own (its Scroll component, shown on hover).
+   The colours come from Pinniped's theme: it resolves them and sets these two
    variables on the widget's document. The fallbacks are for running without it. */
 .inRoom::-webkit-scrollbar {
   inline-size: 0.5rem;
@@ -45,14 +45,14 @@ Please see LICENSE in the repository root for full details.
 
 .inRoom:hover::-webkit-scrollbar-track {
   background-color: var(
-    --cinny-scrollbar-track,
+    --pinniped-scrollbar-track,
     var(--cpd-color-bg-subtle-secondary)
   );
 }
 
 .inRoom:hover::-webkit-scrollbar-thumb {
   background-color: var(
-    --cinny-scrollbar-thumb,
+    --pinniped-scrollbar-thumb,
     var(--cpd-color-bg-subtle-primary)
   );
 }

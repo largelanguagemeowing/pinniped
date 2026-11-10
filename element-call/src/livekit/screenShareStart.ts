@@ -7,5 +7,5 @@ Please see LICENSE in the repository root for full details.
 
 import { Subject } from "rxjs";
 
-/** The client asked to start a screen share, with the options it saved (see the io.cinny.screenshare action). */
+/** The client asked to start a screen share, with the options it saved (see the club.stablecat.pinniped.screenshare action). */
 export const screenShareStart$ = new Subject<void>();

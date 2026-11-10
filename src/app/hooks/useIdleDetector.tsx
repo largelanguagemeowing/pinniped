@@ -44,7 +44,7 @@ export function IdleDetector() {
       applyPresence(idle);
     };
 
-    const desktopIdle = window.cinnyDesktop?.getSystemIdleTime;
+    const desktopIdle = window.pinnipedDesktop?.getSystemIdleTime;
     if (desktopIdle) {
       const poll = async () => {
         try {

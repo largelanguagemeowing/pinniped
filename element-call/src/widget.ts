@@ -76,21 +76,23 @@ export enum ElementWidgetActions {
   // toWidget (fork): the client sets the call audio preferences, data
   // `{ denoise?, autoGain?, voiceGate?, voiceGateAuto?, voiceGateThreshold?, voiceTuning?, simulcast?, screenShare?, screenShareAudio?, soundVolume?, soundboardVolume?, userVolumes?, mutedSoundboards?, mutedSounds?, audioInput?, audioOutput? }`.
   // An empty device ID means the system default.
-  CallSettings = "io.cinny.call_settings",
+  CallSettings = "club.stablecat.pinniped.call_settings",
   // toWidget (fork): start a screen share with the given options, see ScreenShareStart
-  ScreenShare = "io.cinny.screenshare",
+  ScreenShare = "club.stablecat.pinniped.screenshare",
   // fromWidget (fork): a call sound for the client to play, see CallSoundCommand
-  CallSound = "io.cinny.call_sound",
+  CallSound = "club.stablecat.pinniped.call_sound",
   // toWidget (fork): play or stop a soundboard sound, see SoundboardCommand
-  Soundboard = "io.cinny.soundboard",
+  Soundboard = "club.stablecat.pinniped.soundboard",
   // fromWidget (fork): a CallStatsSample once a second while in a call
-  CallStats = "io.cinny.call_stats",
+  CallStats = "club.stablecat.pinniped.call_stats",
   // fromWidget (fork): who is speaking, muted or sharing their screen, whenever that
   // changes; data `{ speaking: string[], muted: string[], screenSharing: string[] }`
-  CallActivity = "io.cinny.call_activity",
+  CallActivity = "club.stablecat.pinniped.call_activity",
   // fromWidget (fork): a non-fatal problem with the call, whenever it changes;
   // data `{ error: { code, title, message } | null }`
-  CallError = "io.cinny.call_error",
+  CallError = "club.stablecat.pinniped.call_error",
+  // fromWidget (fork): open the client's profile card for a participant; data `{ userId }`
+  ViewProfile = "club.stablecat.pinniped.view_profile",
   // This can be sent as from or to widget
   // fromWidget: updates the client about the current device mute state
   // toWidget: the client requests a specific device mute configuration

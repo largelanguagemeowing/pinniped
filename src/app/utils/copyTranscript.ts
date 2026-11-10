@@ -15,7 +15,7 @@ export const formatCopyTimestamp = (ts: number, hour24Clock: boolean): string =>
 // Trailing sentence punctuation after the server name is not part of the ID.
 const USER_ID_IN_TEXT = /@[^\s:@]+:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*(?::\d+)?/g;
 
-// Cinny sends mentions with the raw mxid as body text, so render them the way
+// Mentions are sent with the raw mxid as body text, so render them the way
 // the timeline shows them: "@Display Name".
 const resolveMentionsInBody = (room: Room, body: string): string =>
   body.replace(USER_ID_IN_TEXT, (userId) => {
