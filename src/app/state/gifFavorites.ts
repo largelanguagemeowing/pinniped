@@ -43,14 +43,30 @@ export type GifFavoritesContent = {
   favorites?: StoredFavorite[];
 };
 
-const parseStoredFavorite = (item: any): StoredFavorite | undefined => {
-  if (!item || typeof item.id !== 'string' || typeof item.addedAt !== 'number') return undefined;
-  const { fav } = item;
-  if (fav && (fav.kind === 'klipy' || fav.kind === 'mxc' || fav.kind === 'url')) {
-    return { id: item.id, fav, addedAt: item.addedAt };
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isKlipyGif = (value: unknown): value is KlipyGif =>
+  isRecord(value) && typeof value.id === 'string';
+
+const isFavoriteGif = (value: unknown): value is FavoriteGif => {
+  if (!isRecord(value)) return false;
+  if (value.kind === 'klipy') return isKlipyGif(value.gif);
+  if (value.kind === 'mxc') return typeof value.mxc === 'string' && typeof value.body === 'string';
+  if (value.kind === 'url')
+    return typeof value.videoUrl === 'string' && typeof value.title === 'string';
+  return false;
+};
+
+const parseStoredFavorite = (item: unknown): StoredFavorite | undefined => {
+  if (!isRecord(item) || typeof item.id !== 'string' || typeof item.addedAt !== 'number') {
+    return undefined;
+  }
+  if (isFavoriteGif(item.fav)) {
+    return { id: item.id, fav: item.fav, addedAt: item.addedAt };
   }
   // Legacy format: { id, gif: KlipyGif, addedAt }
-  if (item.gif) {
+  if (isKlipyGif(item.gif)) {
     return { id: item.id, fav: { kind: 'klipy', gif: item.gif }, addedAt: item.addedAt };
   }
   return undefined;
