@@ -98,7 +98,6 @@ import { useOpenSpaceSettings } from '../../../state/hooks/spaceSettings';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
-import { useRoomsNotificationPreferencesContext } from '../../../hooks/useRoomsNotificationPreferences';
 import { SpaceNotificationModeSwitcher } from '../../../components/SpaceNotificationSwitcher';
 import { RoomsTab } from './RoomsTab';
 
@@ -126,7 +125,6 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
       room.roomId,
       useRecursiveChildScopeFactory(mx, roomToParents)
     );
-    const notificationPreferences = useRoomsNotificationPreferencesContext();
     const unread = useRoomsUnread(allChild, roomToUnreadAtom);
 
     const handleMarkAsRead = () => {
@@ -178,8 +176,8 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
               Mark as Read
             </Text>
           </MenuItem>
-          <SpaceNotificationModeSwitcher roomIds={allChild} preferences={notificationPreferences}>
-            {(handleOpen, opened, changing) => (
+          <SpaceNotificationModeSwitcher space={room}>
+            {(handleOpen, opened, changing, summary) => (
               <MenuItem
                 size="300"
                 after={
@@ -193,9 +191,14 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
                 aria-pressed={opened}
                 onClick={handleOpen}
               >
-                <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                  Notifications
-                </Text>
+                <Box grow="Yes" direction="Column">
+                  <Text as="span" size="T300" truncate>
+                    Notifications
+                  </Text>
+                  <Text as="span" size="T200" priority="300" truncate>
+                    {summary}
+                  </Text>
+                </Box>
               </MenuItem>
             )}
           </SpaceNotificationModeSwitcher>
@@ -470,7 +473,9 @@ function SpaceTab({
       {(unread) => (
         <SidebarItem
           active={selected}
-          unread={!!unread && unread.total > 0 && unread.highlight === 0}
+          // An entry exists only while something is unread. Its server count is 0 for
+          // rooms set to mentions only, which must still mark the space as unread.
+          unread={!!unread && unread.highlight === 0}
           ref={targetRef}
           aria-disabled={disabled}
           data-drop-child={dropType === 'make-child'}

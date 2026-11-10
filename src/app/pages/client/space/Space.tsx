@@ -125,7 +125,6 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
 
   const [invitePrompt, setInvitePrompt] = useState(false);
 
-  const notificationPreferences = useRoomsNotificationPreferencesContext();
   const allChild = useSpaceChildren(
     allRoomsAtom,
     room.roomId,
@@ -182,8 +181,8 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
             Mark as Read
           </Text>
         </MenuItem>
-        <SpaceNotificationModeSwitcher roomIds={allChild} preferences={notificationPreferences}>
-          {(handleOpen, opened, changing) => (
+        <SpaceNotificationModeSwitcher space={room}>
+          {(handleOpen, opened, changing, summary) => (
             <MenuItem
               size="300"
               after={
@@ -197,9 +196,14 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
               aria-pressed={opened}
               onClick={handleOpen}
             >
-              <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                Notifications
-              </Text>
+              <Box grow="Yes" direction="Column">
+                <Text as="span" size="T300" truncate>
+                  Notifications
+                </Text>
+                <Text as="span" size="T200" priority="300" truncate>
+                  {summary}
+                </Text>
+              </Box>
             </MenuItem>
           )}
         </SpaceNotificationModeSwitcher>

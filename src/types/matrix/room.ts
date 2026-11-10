@@ -42,6 +42,7 @@ export enum StateEvent {
   PinnipedRoomSounds = 'club.stablecat.pinniped.room_sounds',
   PowerLevelTags = 'in.cinny.room.power_level_tags',
   SpaceAutoJoin = 'club.stablecat.pinniped.space.auto_join',
+  SpaceNotificationDefault = 'club.stablecat.pinniped.space.notification_default',
   /** Pre-rename type; still read when no `SpaceAutoJoin` event exists. */
   LegacySpaceAutoJoin = 'im.kibby.space.auto_join',
 }
@@ -67,6 +68,16 @@ export type MSpaceChildContent = {
 
 export type SpaceAutoJoinContent = {
   auto_join?: boolean;
+};
+
+/** What members who have not set a room preference are notified about. */
+export type SpaceNotificationDefault = 'all' | 'mentions';
+
+/** A member's own choice for a space: the owner's options plus muting it. */
+export type SpaceNotificationMode = SpaceNotificationDefault | 'nothing';
+
+export type SpaceNotificationDefaultContent = {
+  mode?: SpaceNotificationDefault;
 };
 
 export enum NotificationType {

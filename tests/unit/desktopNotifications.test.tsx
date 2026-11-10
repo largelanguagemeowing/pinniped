@@ -66,6 +66,9 @@ vi.mock('../../src/app/hooks/useMediaAuthentication', () => ({
   useMediaAuthentication: () => false,
 }));
 vi.mock('../../src/app/hooks/useSpaceAutoJoinGlobal', () => ({ useSpaceAutoJoinGlobal: vi.fn() }));
+vi.mock('../../src/app/hooks/useNotificationDefaultsSync', () => ({
+  useNotificationDefaultsSync: vi.fn(),
+}));
 vi.mock('../../src/app/hooks/useRoomNavShortcuts', () => ({ useRoomNavShortcuts: vi.fn() }));
 vi.mock('../../src/app/hooks/useRoomNavHistory', () => ({ useRoomNavHistory: vi.fn() }));
 vi.mock('../../src/app/hooks/useCallEmbed', () => ({ useCallJoined: () => false }));

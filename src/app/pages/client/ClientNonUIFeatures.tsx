@@ -37,6 +37,7 @@ import { migrateGifFavorites } from '../../state/gifFavorites';
 import { roomToParentsAtom } from '../../state/room/roomToParents';
 import { mDirectAtom } from '../../state/mDirectList';
 import { useSpaceAutoJoinGlobal } from '../../hooks/useSpaceAutoJoinGlobal';
+import { useNotificationDefaultsSync } from '../../hooks/useNotificationDefaultsSync';
 import { useRoomNavShortcuts } from '../../hooks/useRoomNavShortcuts';
 import { useRoomNavHistory } from '../../hooks/useRoomNavHistory';
 import { renderBadgeOverlay } from '../../utils/desktopBadge';
@@ -400,6 +401,11 @@ function SpaceAutoJoinFeature() {
   return null;
 }
 
+function NotificationDefaultsFeature() {
+  useNotificationDefaultsSync();
+  return null;
+}
+
 function RoomNavShortcutsFeature() {
   useRoomNavShortcuts();
   return null;
@@ -426,6 +432,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <EventSounds />
       <SpaceAutoJoinFeature />
+      <NotificationDefaultsFeature />
       <RoomNavShortcutsFeature />
       <RoomNavHistoryFeature />
       {children}

@@ -11,6 +11,12 @@ import {
 } from './useNotificationMode';
 import { useAsyncCallback } from './useAsyncCallback';
 import { useMatrixClient } from './useMatrixClient';
+import {
+  forgetInheritedNotification,
+  getInheritedNotifications,
+  InheritedNotifications,
+  parseInheritedNotifications,
+} from '../utils/inheritedNotifications';
 
 export type RoomsNotificationPreferences = {
   mute: Set<string>;
@@ -33,40 +39,61 @@ export const useRoomsNotificationPreferencesContext = (): RoomsNotificationPrefe
   return preferences;
 };
 
+export const getRoomsNotificationPreferences = (
+  pushRules?: IPushRules
+): RoomsNotificationPreferences => {
+  const global = pushRules?.global;
+  const room = global?.room ?? [];
+  const override = global?.override ?? [];
+
+  const pref: RoomsNotificationPreferences = {
+    mute: new Set(),
+    specialMessages: new Set(),
+    allMessages: new Set(),
+  };
+
+  override.forEach((rule) => {
+    if (isRoomId(rule.rule_id) && getNotificationMode(rule.actions) === NotificationMode.OFF) {
+      pref.mute.add(rule.rule_id);
+    }
+  });
+  room.forEach((rule) => {
+    if (getNotificationMode(rule.actions) === NotificationMode.OFF) {
+      pref.specialMessages.add(rule.rule_id);
+    } else {
+      pref.allMessages.add(rule.rule_id);
+    }
+  });
+
+  return pref;
+};
+
+/** The preferences the user chose: rules written on a space's behalf are left out. */
+export const withoutInheritedRules = (
+  preferences: RoomsNotificationPreferences,
+  inherited: Readonly<InheritedNotifications>
+): RoomsNotificationPreferences => {
+  const own = (set: Set<string>, mode: RoomNotificationMode) =>
+    new Set([...set].filter((roomId) => inherited[roomId] !== mode));
+  return {
+    mute: own(preferences.mute, RoomNotificationMode.Mute),
+    specialMessages: own(preferences.specialMessages, RoomNotificationMode.SpecialMessages),
+    allMessages: preferences.allMessages,
+  };
+};
+
 export const useRoomsNotificationPreferences = (): RoomsNotificationPreferences => {
   const pushRules = useAccountData(AccountDataEvent.PushRules)?.getContent<IPushRules>();
+  const inherited = useAccountData(AccountDataEvent.PinnipedInheritedNotifications)?.getContent();
 
-  const preferences: RoomsNotificationPreferences = useMemo(() => {
-    const global = pushRules?.global;
-    const room = global?.room ?? [];
-    const override = global?.override ?? [];
-
-    const pref: RoomsNotificationPreferences = {
-      mute: new Set(),
-      specialMessages: new Set(),
-      allMessages: new Set(),
-    };
-
-    override.forEach((rule) => {
-      if (isRoomId(rule.rule_id) && getNotificationMode(rule.actions) === NotificationMode.OFF) {
-        pref.mute.add(rule.rule_id);
-      }
-    });
-    room.forEach((rule) => {
-      if (getNotificationMode(rule.actions) === NotificationMode.OFF) {
-        pref.specialMessages.add(rule.rule_id);
-      }
-    });
-    room.forEach((rule) => {
-      if (getNotificationMode(rule.actions) !== NotificationMode.OFF) {
-        pref.allMessages.add(rule.rule_id);
-      }
-    });
-
-    return pref;
-  }, [pushRules]);
-
-  return preferences;
+  return useMemo(
+    () =>
+      withoutInheritedRules(
+        getRoomsNotificationPreferences(pushRules),
+        parseInheritedNotifications(inherited)
+      ),
+    [pushRules, inherited]
+  );
 };
 
 export enum RoomNotificationMode {
@@ -156,8 +183,16 @@ export const useSetRoomNotificationPreference = (roomId: string) => {
 
   const [modeState, setMode] = useAsyncCallback(
     useCallback(
-      (mode: RoomNotificationMode, previousMode: RoomNotificationMode) =>
-        setRoomNotificationPreference(mx, roomId, mode, previousMode),
+      async (mode: RoomNotificationMode, previousMode: RoomNotificationMode) => {
+        // The room shows "Default" while it follows its space, but the rule the space wrote
+        // is still there and has to be replaced.
+        const spaceRule = getInheritedNotifications(mx)[roomId];
+        const existingMode =
+          previousMode === RoomNotificationMode.Unset && spaceRule ? spaceRule : previousMode;
+        await setRoomNotificationPreference(mx, roomId, mode, existingMode);
+        // A mode chosen here is the user's own; "Default" hands the room back to its space.
+        if (mode !== RoomNotificationMode.Unset) await forgetInheritedNotification(mx, roomId);
+      },
       [mx, roomId]
     )
   );
