@@ -42,6 +42,25 @@ const APP_ICON = path
   .join(__dirname, 'build', 'icon.png')
   .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 
+// Leaves the call the renderer is in, if any, and gives the widget a moment to publish
+// the leave. Never waits longer than a few seconds, so a hung renderer cannot block closing.
+let leavingCall = false;
+let callLeft = false;
+async function leaveCall() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const left = await Promise.race([
+      mainWindow.webContents.executeJavaScript(
+        'window.__leaveCall ? window.__leaveCall().then(() => true) : false'
+      ),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+    if (left) await new Promise((resolve) => setTimeout(resolve, 500));
+  } catch {
+    // not in a call, or the page is not ready
+  }
+}
+
 // Dev only (`just dev-electron`): load the vite dev server (HMR) instead of the
 // built bundle in dist/.
 const DEV_SERVER_URL = process.env.CINNY_DEV_SERVER_URL;
@@ -387,6 +406,23 @@ function createWindow() {
   });
 
   mainWindow.on('close', (event) => {
+    // Closing destroys the call iframe, which would leave the call by killing the widget
+    // mid-call and leave the membership to time out. Leave it first, then close for real.
+    if (!callLeft) {
+      event.preventDefault();
+      if (leavingCall) return;
+      leavingCall = true;
+      leaveCall().finally(() => {
+        leavingCall = false;
+        callLeft = true;
+        if (isQuitting) app.quit();
+        else if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+        setImmediate(() => {
+          callLeft = false;
+        });
+      });
+      return;
+    }
     if (CLOSE_TO_TRAY && tray && !isQuitting) {
       event.preventDefault();
       mainWindow.hide();
@@ -428,17 +464,7 @@ function watchDistForReload() {
   // letting the widget get killed mid-call.
   const reloadAfterLeavingCall = async () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    try {
-      await Promise.race([
-        mainWindow.webContents.executeJavaScript(
-          'window.__leaveCall ? window.__leaveCall() : null'
-        ),
-        new Promise((resolve) => setTimeout(resolve, 3000)),
-      ]);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    } catch {
-      // not in a call, or page not ready
-    }
+    await leaveCall();
     // Plain reload: reloadIgnoringCache bypasses the service worker, which then can't add
     // the access token to authenticated media requests.
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
