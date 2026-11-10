@@ -1,6 +1,7 @@
 import React, { FormEventHandler, useCallback } from 'react';
 import { Box, Text, Button, Spinner, color } from 'folds';
 import { decodeRecoveryKey, deriveRecoveryKeyFromPassphrase } from 'matrix-js-sdk/lib/crypto-api';
+import { SecretStorageKeyDescriptionAesV1 } from 'matrix-js-sdk/lib/secret-storage';
 import { PasswordInput } from './password-input';
 import {
   SecretStorageKeyContent,
@@ -14,7 +15,7 @@ type SecretStorageRecoveryPassphraseProps = {
   processing?: boolean;
   keyContent: SecretStorageKeyContent;
   passphraseContent: SecretStoragePassphraseContent;
-  onDecodedRecoveryKey: (recoveryKey: Uint8Array) => void;
+  onDecodedRecoveryKey: (recoveryKey: Uint8Array<ArrayBuffer>) => void;
 };
 export function SecretStorageRecoveryPassphrase({
   processing,
@@ -26,7 +27,7 @@ export function SecretStorageRecoveryPassphrase({
   const alive = useAlive();
 
   const [driveKeyState, submitPassphrase] = useAsyncCallback<
-    Uint8Array,
+    Uint8Array<ArrayBuffer>,
     Error,
     Parameters<typeof deriveRecoveryKeyFromPassphrase>
   >(
@@ -39,7 +40,11 @@ export function SecretStorageRecoveryPassphrase({
           bits
         );
 
-        const match = await mx.secretStorage.checkKey(decodedRecoveryKey, keyContent as any);
+        // checkKey reads only algorithm/iv/mac; the SDK type also requires name and passphrase.
+        const match = await mx.secretStorage.checkKey(
+          decodedRecoveryKey,
+          keyContent as SecretStorageKeyDescriptionAesV1
+        );
 
         if (!match) {
           throw new Error('Invalid recovery passphrase.');
@@ -116,7 +121,7 @@ export function SecretStorageRecoveryPassphrase({
 type SecretStorageRecoveryKeyProps = {
   processing?: boolean;
   keyContent: SecretStorageKeyContent;
-  onDecodedRecoveryKey: (recoveryKey: Uint8Array) => void;
+  onDecodedRecoveryKey: (recoveryKey: Uint8Array<ArrayBuffer>) => void;
 };
 export function SecretStorageRecoveryKey({
   processing,
@@ -126,12 +131,20 @@ export function SecretStorageRecoveryKey({
   const mx = useMatrixClient();
   const alive = useAlive();
 
-  const [driveKeyState, submitRecoveryKey] = useAsyncCallback<Uint8Array, Error, [string]>(
+  const [driveKeyState, submitRecoveryKey] = useAsyncCallback<
+    Uint8Array<ArrayBuffer>,
+    Error,
+    [string]
+  >(
     useCallback(
       async (recoveryKey) => {
         const decodedRecoveryKey = decodeRecoveryKey(recoveryKey);
 
-        const match = await mx.secretStorage.checkKey(decodedRecoveryKey, keyContent as any);
+        // checkKey reads only algorithm/iv/mac; the SDK type also requires name and passphrase.
+        const match = await mx.secretStorage.checkKey(
+          decodedRecoveryKey,
+          keyContent as SecretStorageKeyDescriptionAesV1
+        );
 
         if (!match) {
           throw new Error('Invalid recovery key.');

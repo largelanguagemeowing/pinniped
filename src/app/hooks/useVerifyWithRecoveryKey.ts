@@ -11,7 +11,7 @@ export const useVerifyWithRecoveryKey = (secretStorageKeyId: string) => {
   const mx = useMatrixClient();
 
   const verifyAndRestoreBackup = useCallback(
-    async (recoveryKey: Uint8Array) => {
+    async (recoveryKey: Uint8Array<ArrayBuffer>) => {
       const crypto = mx.getCrypto();
       if (!crypto) {
         throw new Error('Unexpected Error! Crypto object not found.');
@@ -27,7 +27,9 @@ export const useVerifyWithRecoveryKey = (secretStorageKeyId: string) => {
     [mx, secretStorageKeyId]
   );
 
-  const [verifyState, verify] = useAsyncCallback<void, Error, [Uint8Array]>(verifyAndRestoreBackup);
+  const [verifyState, verify] = useAsyncCallback<void, Error, [Uint8Array<ArrayBuffer>]>(
+    verifyAndRestoreBackup
+  );
 
   return { verifyState, verify, verifying: verifyState.status === AsyncStatus.Loading };
 };
