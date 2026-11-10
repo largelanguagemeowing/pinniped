@@ -2,7 +2,7 @@ import { style } from '@vanilla-extract/css';
 import { config, toRem } from 'folds';
 
 export const RoomSearchDrawer = style({
-  width: toRem(266),
+  width: toRem(256),
   transition: 'width 200ms ease',
 });
 

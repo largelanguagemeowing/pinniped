@@ -15,7 +15,7 @@ export const LiveTimer = style({
 
 export const CallStatus = style([
   {
-    padding: `${toRem(6)} ${config.space.S200}`,
+    padding: `${toRem(8)} ${config.space.S200}`,
     borderTop: `${config.borderWidth.B300} solid ${color.Background.ContainerLine}`,
   },
 ]);

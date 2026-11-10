@@ -6,7 +6,7 @@ import { toRem, color, config, DefaultReset, FocusOutline } from 'folds';
  */
 
 export const Base = style({
-  maxWidth: toRem(498),
+  maxWidth: toRem(496),
   width: `calc(100vw - 2 * ${config.space.S400})`,
   height: toRem(440),
   backgroundColor: color.Surface.Container,
@@ -27,7 +27,7 @@ export const Header = style({
  */
 
 export const Sidebar = style({
-  width: toRem(54),
+  width: toRem(56),
   backgroundColor: color.Surface.Container,
   color: color.Surface.OnContainer,
   position: 'relative',
@@ -43,7 +43,7 @@ export const SidebarStack = style({
 });
 
 export const SidebarDivider = style({
-  width: toRem(18),
+  width: toRem(16),
 });
 
 export const SidebarBtnImg = style({
@@ -191,8 +191,8 @@ export const GifScrollWrap = style({
   minHeight: 0,
 });
 
-// Masonry-style grid using CSS columns. Two columns with 12px gaps match
-// Discord's GIF picker layout within the 498px picker width.
+// Masonry-style grid using CSS columns. Two columns with 12px gaps
+// fit the 496px picker width.
 export const GifGrid = style({
   columnCount: 2,
   columnGap: config.space.S300,

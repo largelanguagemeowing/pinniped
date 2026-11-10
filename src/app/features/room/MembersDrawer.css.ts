@@ -2,7 +2,7 @@ import { keyframes, style } from '@vanilla-extract/css';
 import { config, toRem } from 'folds';
 
 export const MembersDrawer = style({
-  width: toRem(266),
+  width: toRem(256),
 });
 
 export const MembersDrawerHeader = style({

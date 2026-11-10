@@ -9,8 +9,8 @@ export const Profile = style({
 });
 
 export const ProfileAvatar = style({
-  width: toRem(30),
-  height: toRem(30),
+  width: toRem(32),
+  height: toRem(32),
 });
 
 export const ProfileText = style({
