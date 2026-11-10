@@ -22,12 +22,9 @@ const PASSIVE_CODECS = /^(rtx|red|ulpfec|flexfec-03)$/i;
 /**
  * Opus parameters for the audio we send, written into the answer because that is
  * where Chrome reads its sender configuration from. In-band FEC is off: it spends
- * bitrate on redundancy that only helps lossy links. Constant bitrate keeps the
- * encoder at its full target instead of letting it drop towards Opus' 6 kbps
- * floor whenever the bandwidth estimate dips, which is the closest a page gets to
- * a minimum audio bitrate.
+ * bitrate on redundancy that only helps lossy links.
  */
-export function tuneOpus(sdp: string): string {
+export function disableOpusFec(sdp: string): string {
   const lines = sdp.split("\r\n");
   const opus = new Set<string>();
   let inAudio = false;
@@ -40,8 +37,8 @@ export function tuneOpus(sdp: string): string {
   const params = (config: string): string => {
     const kept = config
       .split(";")
-      .filter((p) => p !== "" && !/^(useinbandfec|cbr)=/.test(p.trim()));
-    return [...kept, "useinbandfec=0", "cbr=1"].join(";");
+      .filter((p) => p !== "" && !/^useinbandfec=/.test(p.trim()));
+    return [...kept, "useinbandfec=0"].join(";");
   };
   const out: string[] = [];
   const seen = new Set<string>();
@@ -131,7 +128,7 @@ export function installBitrateHints(): void {
       description?.type === "answer" && description.sdp
         ? {
             ...description,
-            sdp: tuneOpus(
+            sdp: disableOpusFec(
               addBitrateHints(
                 description.sdp,
                 Math.round(screenShareMaxBitrate / 1000),

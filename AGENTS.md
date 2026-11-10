@@ -56,9 +56,8 @@ Fork changes on top of upstream + old patches:
   speaker pickers live there too, and the widget's settings modal is not reachable
   when embedded (all its entry points are hidden when `widget !== null`; its
   remaining tabs — effect volume, camera, background blur — are dead there),
-  96 kbps Opus, DTX off, in-band FEC off and constant bitrate (`tuneOpus` in
-  `src/livekit/bitrateHints.ts` rewrites the Opus fmtp in the answer; a page cannot set a
-  minimum audio bitrate, so CBR keeps the encoder at its target). An opt-in automatic
+  96 kbps Opus, DTX off, in-band FEC off (`disableOpusFec` in
+  `src/livekit/bitrateHints.ts` rewrites the Opus fmtp in the answer). An opt-in automatic
   gain toggle (Cinny settings → Calls → Call Audio, `autoGain` URL param and
   `io.cinny.call_settings` field) re-constrains the live mic track with the browser's
   AGC (`autoGainSync` in `denoise.ts`), ahead of the denoiser and gate; off by default.

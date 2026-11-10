@@ -7,7 +7,7 @@ Please see LICENSE in the repository root for full details.
 
 import { describe, expect, it } from "vitest";
 
-import { addBitrateHints, tuneOpus } from "./bitrateHints";
+import { addBitrateHints, disableOpusFec } from "./bitrateHints";
 
 const sdp = [
   "v=0",
@@ -45,10 +45,10 @@ describe("addBitrateHints", () => {
   });
 });
 
-describe("tuneOpus", () => {
-  it("turns in-band FEC off and constant bitrate on for Opus", () => {
-    expect(tuneOpus(sdp).split("\r\n")).toContain(
-      "a=fmtp:111 minptime=10;useinbandfec=0;cbr=1",
+describe("disableOpusFec", () => {
+  it("turns in-band FEC off for Opus", () => {
+    expect(disableOpusFec(sdp).split("\r\n")).toContain(
+      "a=fmtp:111 minptime=10;useinbandfec=0",
     );
   });
 
@@ -58,19 +58,19 @@ describe("tuneOpus", () => {
       "a=rtpmap:111 opus/48000/2",
       "",
     ].join("\r\n");
-    expect(tuneOpus(bare).split("\r\n")).toContain(
-      "a=fmtp:111 useinbandfec=0;cbr=1",
+    expect(disableOpusFec(bare).split("\r\n")).toContain(
+      "a=fmtp:111 useinbandfec=0",
     );
   });
 
   it("leaves video and SDP without Opus alone", () => {
-    const out = tuneOpus(sdp).split("\r\n");
+    const out = disableOpusFec(sdp).split("\r\n");
     expect(out).toContain("a=fmtp:97 apt=96");
     const noAudio = [
       "m=video 9 UDP/TLS/RTP/SAVPF 96",
       "a=rtpmap:96 VP8/90000",
       "",
     ].join("\r\n");
-    expect(tuneOpus(noAudio)).toBe(noAudio);
+    expect(disableOpusFec(noAudio)).toBe(noAudio);
   });
 });
