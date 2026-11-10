@@ -202,7 +202,7 @@ export function SystemNotification() {
                   : 'Notifications are not supported by the system.'}
               </Text>
             ) : (
-              <span>Show desktop notifications when message arrive.</span>
+              <span>Show desktop notifications when a message arrives.</span>
             )
           }
           after={
@@ -228,7 +228,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Notification Sound"
-          description="Play sound when new message arrive."
+          description="Play a sound when a new message arrives."
           after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
         />
         <SettingTile

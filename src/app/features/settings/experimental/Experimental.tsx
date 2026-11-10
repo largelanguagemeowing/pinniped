@@ -48,7 +48,7 @@ function UrlPreviewServer() {
 
   return (
     <SettingTile
-      title="Url Preview Server"
+      title="URL Preview Server"
       description={
         enabled
           ? `Link previews are fetched from ${server}. Every previewed link is sent to that server.`
