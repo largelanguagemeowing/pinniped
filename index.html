@@ -3,18 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Links opened from a conversation do not tell the target site where they came from.
+         nginx sends the same policy as a header; this covers the desktop app too. -->
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Pinniped</title>
     <meta name="name" content="Pinniped" />
-    <meta name="author" content="Ajay Bura" />
+    <meta name="author" content="Pinniped contributors" />
     <meta
       name="description"
       content="A Matrix client where you can enjoy the conversation using simple, elegant and secure interface protected by e2ee with the power of open source."
     />
-    <meta
-      name="keywords"
-      content="cinny, cinnyapp, cinnychat, matrix, matrix client, matrix.org, element"
-    />
+    <meta name="keywords" content="pinniped, matrix, matrix client" />
 
     <meta property="og:title" content="Pinniped" />
     <meta
