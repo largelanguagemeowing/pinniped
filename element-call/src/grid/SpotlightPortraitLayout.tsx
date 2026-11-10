@@ -9,7 +9,8 @@ import { type ReactNode, type CSSProperties } from "react";
 import { useObservableEagerState } from "observable-hooks";
 import classNames from "classnames";
 
-import { type CallLayout, arrangeTiles } from "./CallLayout";
+import { type CallLayout } from "./CallLayout";
+import { arrangeBelowSpotlight } from "./arrangeGrid";
 import { type SpotlightPortraitLayout as SpotlightPortraitLayoutModel } from "../state/layout-types.ts";
 import styles from "./SpotlightPortraitLayout.module.css";
 import { useUpdateLayout, useVisibleTiles } from "./Grid";
@@ -58,15 +59,16 @@ export const makeSpotlightPortraitLayout: CallLayout<
   }): ReactNode {
     useUpdateLayout();
     useVisibleTiles(model.setVisibleTiles);
-    const { width } = useObservableEagerState(minBounds$);
-    const { gap, tileWidth, tileHeight } = arrangeTiles(
-      width,
-      // TODO: We pretend that the minimum height is the width, because the
-      // actual minimum height is difficult to calculate
-      width,
-      model.grid.length,
-    );
+    const { width, height } = useObservableEagerState(minBounds$);
     const withIndicators = useBehavior(model.spotlight.media$).length > 1;
+    // The grid gets whatever height the 16:9 spotlight leaves, so that the
+    // participants fit under it instead of scrolling behind it.
+    const { gap, tileWidth, tileHeight } = arrangeBelowSpotlight(
+      width,
+      height,
+      model.grid.length,
+      withIndicators,
+    );
 
     return (
       <div

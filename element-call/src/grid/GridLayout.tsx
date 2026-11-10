@@ -18,7 +18,8 @@ import { useObservableEagerState } from "observable-hooks";
 import { type GridLayout as GridLayoutModel } from "../state/layout-types.ts";
 import styles from "./GridLayout.module.css";
 import { useInitial } from "../useInitial";
-import { type CallLayout, arrangeTiles } from "./CallLayout";
+import { type CallLayout } from "./CallLayout";
+import { arrangeGrid } from "./arrangeGrid";
 import { type DragCallback, useUpdateLayout, useVisibleTiles } from "./Grid";
 import { FocusMediaContext } from "./FocusMedia";
 import { ScreenSharePreview } from "./ScreenSharePreview";
@@ -92,7 +93,7 @@ export const makeGridLayout: CallLayout<GridLayoutModel> = ({
     const screenShares = useBehavior(focus?.screenShares$ ?? noScreenShares);
     const tileCount = model.grid.length + screenShares.length;
     const { gap, tileWidth, tileHeight } = useMemo(
-      () => arrangeTiles(width, minHeight, tileCount),
+      () => arrangeGrid(width, minHeight, tileCount),
       [width, minHeight, tileCount],
     );
 

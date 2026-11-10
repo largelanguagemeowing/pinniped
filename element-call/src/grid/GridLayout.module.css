@@ -14,8 +14,13 @@ Please see LICENSE in the repository root for full details.
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  align-content: center;
+  /* "safe": when the tiles overflow, start at the top instead of clipping it. */
+  align-content: safe center;
   gap: var(--gap);
+  /* Must match GRID_INSET in arrangeGrid.ts: the columns are counted in the
+     width left after it. */
+  box-sizing: border-box;
+  padding-inline: 8px;
 }
 
 .scrolling > .slot {

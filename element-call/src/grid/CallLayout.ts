@@ -63,27 +63,39 @@ export function arrangeTiles(
   minHeight: number,
   tileCount: number,
 ): GridArrangement {
+  const gap = width < 800 ? 16 : 20;
+  // Nothing to lay out, or no room to do it in (an unmeasured or collapsed
+  // window). The maths below divides by the height and by the column count,
+  // which come out as 0 here and would give NaN or Infinity tile sizes.
+  if (tileCount < 1 || width < 1 || minHeight < 1)
+    return { tileWidth: 0, tileHeight: 0, gap, columns: 1 };
+
   // The goal here is to determine the grid size and padding that maximizes
   // use of screen space for n tiles without making those tiles too small or
   // too cropped (having an extreme aspect ratio)
-  const gap = width < 800 ? 16 : 20;
   const area = width * minHeight;
   // Magic numbers that make tiles scale up nicely as the window gets larger
   const tileArea = Math.pow(Math.sqrt(area) / 8 + 125, 2);
-  const tilesPerPage = Math.min(tileCount, area / tileArea);
+  // Always show at least one tile, however small the window is
+  const tilesPerPage = Math.max(1, Math.min(tileCount, area / tileArea));
 
-  let columns = Math.min(
-    // Don't create more columns than we have items for
-    tilesPerPage,
-    // The ideal number of columns is given by a packing of equally-sized
-    // squares into a grid.
-    // width / column = height / row.
-    // columns * rows = number of squares.
-    // ∴ columns = sqrt(width / height * number of squares).
-    // Except we actually want 16:9-ish tiles rather than squares, so we
-    // divide the width-to-height ratio by the target aspect ratio.
-    Math.round(
-      Math.sqrt((width / minHeight / tileMinAspectRatio) * tilesPerPage),
+  // At least one column: in a very narrow or short window the rounding below
+  // reaches 0, and the row count (tilesPerPage / columns) would be Infinity.
+  let columns = Math.max(
+    1,
+    Math.min(
+      // Don't create more columns than we have items for
+      tilesPerPage,
+      // The ideal number of columns is given by a packing of equally-sized
+      // squares into a grid.
+      // width / column = height / row.
+      // columns * rows = number of squares.
+      // ∴ columns = sqrt(width / height * number of squares).
+      // Except we actually want 16:9-ish tiles rather than squares, so we
+      // divide the width-to-height ratio by the target aspect ratio.
+      Math.round(
+        Math.sqrt((width / minHeight / tileMinAspectRatio) * tilesPerPage),
+      ),
     ),
   );
   let rows = tilesPerPage / columns;
@@ -105,5 +117,11 @@ export function arrangeTiles(
   else if (tileAspectRatio < tileMinAspectRatio)
     tileHeight = tileWidth / tileMinAspectRatio;
 
-  return { tileWidth, tileHeight, gap, columns };
+  // The gaps alone can be wider than a tiny window; never go negative.
+  return {
+    tileWidth: Math.max(0, tileWidth),
+    tileHeight: Math.max(0, tileHeight),
+    gap,
+    columns,
+  };
 }
