@@ -87,8 +87,13 @@ export function RenderMessageContent({
   };
 
   const [mediaEmbedHosts] = useSetting(settingsAtom, 'mediaEmbedHosts');
+  // A bridged GIF plays straight from its host, which tells that host who is reading. It is a
+  // link embed like any other, so it follows the URL preview setting (off by default in
+  // encrypted rooms); with previews off the message shows as the text it is.
+  const bridgedGif = () => (urlPreview ? parseOoyeGif(trimmedContent, mediaEmbedHosts) : undefined);
   // An OOYE GIF whose video host is not on the list gets a one-click allow prompt.
   const withGifAllowPrompt = (node: ReactNode) => {
+    if (!urlPreview) return node;
     const videoUrl = getOoyeGifVideoUrl(trimmedContent);
     const host = videoUrl && getHostToAllow(videoUrl, mediaEmbedHosts);
     return host ? (
@@ -200,7 +205,7 @@ export function RenderMessageContent({
   );
 
   if (msgType === MsgType.Text) {
-    const ooyeGif = parseOoyeGif(trimmedContent, mediaEmbedHosts);
+    const ooyeGif = bridgedGif();
     if (ooyeGif) {
       return (
         <OoyeGifContent
@@ -247,7 +252,7 @@ export function RenderMessageContent({
   }
 
   if (msgType === MsgType.Notice) {
-    const ooyeGif = parseOoyeGif(trimmedContent, mediaEmbedHosts);
+    const ooyeGif = bridgedGif();
     if (ooyeGif) {
       return (
         <OoyeGifContent
