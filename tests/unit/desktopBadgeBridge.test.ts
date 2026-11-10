@@ -11,7 +11,8 @@ describe('Windows badge IPC', () => {
     const createFromDataURL = vi.fn(() => overlay);
     const Window = vi.fn().mockImplementation(function () {
       return {
-        webContents: { on: vi.fn(), setWindowOpenHandler: vi.fn() },
+        webContents: { on: vi.fn(), once: vi.fn(), setWindowOpenHandler: vi.fn() },
+        getTitle: () => 'Pinniped',
         once: vi.fn(),
         on: vi.fn(),
         loadURL: vi.fn(),
@@ -33,6 +34,8 @@ describe('Windows badge IPC', () => {
         requestSingleInstanceLock: () => true,
         on: vi.fn(),
         whenReady: () => Promise.resolve(),
+        getVersion: () => '0.0.0',
+        getPath: () => '/userdata',
       },
       ipcMain: {
         handle: vi.fn(),
@@ -51,7 +54,7 @@ describe('Windows badge IPC', () => {
     };
     runInNewContext(readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8'), {
       __dirname: '/app/electron',
-      process: { platform: 'win32', env: {}, argv: [] },
+      process: { platform: 'win32', env: {}, argv: [], uptime: () => 0, versions: {} },
       require: (name: string) => {
         if (name === 'electron') return electron;
         if (name === 'path') return { join: (...parts: string[]) => parts.join('/') };

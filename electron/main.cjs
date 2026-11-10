@@ -18,6 +18,23 @@ const { buildAppMenu } = require('./menu.cjs');
 const { createRichPresenceServer } = require('./rich-presence.cjs');
 const screenShareAudio = require('./screenshare-audio.cjs');
 
+// Startup log: wall-clock lines on stdout plus a timing summary once the page is interactive.
+const startupMarks = [];
+function mark(name) {
+  startupMarks.push([name, process.uptime() * 1000]);
+}
+function log(...args) {
+  const t = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const ms = String(new Date().getMilliseconds()).padStart(3, '0');
+  console.log(`${t}.${ms} ›`, ...args);
+}
+function logStartupTiming() {
+  const rows = startupMarks.map(([name, ms]) => `|  ${`${name}:`.padEnd(32)} ${ms.toFixed(2)}`);
+  console.log(`Startup timing:\n${rows.join('\n')}`);
+}
+mark('process-start');
+log('Starting app.');
+
 // dist sits next to electron/ in both dev and the packaged asar
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 // Unpacked from the asar (see asarUnpack): the OS reads the icon by path.
@@ -41,7 +58,7 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 
-// Windows keeps running in the tray when the window is closed, like Discord,
+// Windows keeps running in the tray when the window is closed,
 // so notifications and sounds still arrive. Quit from the tray menu.
 const CLOSE_TO_TRAY = process.platform === 'win32';
 
@@ -93,7 +110,7 @@ ipcMain.handle('screenshare-audio:link', (_event, active, output) =>
 );
 ipcMain.handle('screenshare-audio:release', () => screenShareAudio.release());
 
-// Launch at login, like Discord. Windows/macOS use the OS login items. Linux has no such
+// Launch at login. Windows/macOS use the OS login items. Linux has no such
 // API in Electron: outside a sandbox we write an XDG autostart entry, inside Flatpak (which
 // cannot reach the host's ~/.config/autostart) we ask the Background portal over D-Bus.
 // Autostart launches pass --hidden when "start minimized" is on; the window then goes to the
@@ -380,6 +397,24 @@ function createWindow() {
     mainWindow = null;
   });
 
+  const wc = mainWindow.webContents;
+  log(`window.created "${mainWindow.getTitle()}"`);
+  mark('window-created');
+  wc.once('did-start-loading', () => mark('load-start'));
+  wc.once('did-finish-load', () => {
+    log('webContents.did-finish-load');
+    mark('did-finish-load');
+    logStartupTiming();
+  });
+  wc.on('did-fail-load', (_e, code, desc, url) => log(`did-fail-load ${code} ${desc} ${url}`));
+  wc.on('render-process-gone', (_e, details) =>
+    log('render-process-gone', JSON.stringify(details))
+  );
+  mainWindow.once('ready-to-show', () => {
+    log('window.ready-to-show');
+    mark('ready-to-show');
+  });
+
   mainWindow.loadURL(DEV_SERVER_URL || `${APP_ORIGIN}/`);
   if (process.env.CINNY_DEV_RELOAD) watchDistForReload();
 }
@@ -455,12 +490,30 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', showMainWindow);
 
   app.whenReady().then(() => {
+    log('App ready');
+    mark('app-ready');
+    log(
+      `Pinniped ${app.getVersion()} (electron ${process.versions.electron}, chrome ${process.versions.chrome}, node ${process.versions.node})`
+    );
+    log(
+      `Platform: ${process.platform} ${process.arch}, session: ${process.env.XDG_SESSION_TYPE || 'n/a'}`
+    );
+    log(`userData: ${app.getPath('userData')}`);
+    log(
+      DEV_SERVER_URL ? `Dev server: ${DEV_SERVER_URL}` : `Loading ${APP_ORIGIN}/ from ${DIST_DIR}`
+    );
     Menu.setApplicationMenu(buildAppMenu());
     registerAppHandler(DIST_DIR);
+    log('App protocol registered');
     enableScreenShare();
     enableMediaAuth();
+    log('Screen share and media auth enabled');
+    mark('handlers-ready');
     createWindow();
-    if (CLOSE_TO_TRAY) createTray();
+    if (CLOSE_TO_TRAY) {
+      createTray();
+      log('Tray created');
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -472,6 +525,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.on('before-quit', () => {
+    log('before-quit');
     isQuitting = true;
     rpServer?.stop();
     hotkeys.unregisterAll();
