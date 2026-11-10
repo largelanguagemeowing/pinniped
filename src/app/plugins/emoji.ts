@@ -131,3 +131,21 @@ export const emojiShortcodeMap: Map<string, EmojiReplacement> = new Map(
       .map((sc) => [sc.toLowerCase(), { key: e.unicode, shortcode: e.shortcode }]);
   })
 );
+
+/** The base emoji for a unicode string, which may be one of its skin tone variants. */
+export const findEmojiByUnicode = (unicode: string): IEmoji | undefined =>
+  emojis.find((e) => e.unicode === unicode) ??
+  emojis.find((e) => e.skins?.some((skin) => skin.unicode === unicode));
+
+/** The emoji's unicode in the given skin tone (0 or no variant: unchanged). */
+export const getEmojiUnicodeForTone = (emoji: IEmoji, tone: number): string => {
+  if (!tone || !emoji.skins) return emoji.unicode;
+  // Skin tone modifiers are U+1F3FB (light) to U+1F3FF (dark). Take the variant that uses only
+  // the wanted modifier, which is also the right one for emoji showing several people.
+  const wanted = String.fromCodePoint(0x1f3fa + tone);
+  const skin = emoji.skins.find((s) => {
+    const mods = s.unicode.match(/[\u{1F3FB}-\u{1F3FF}]/gu);
+    return mods !== null && mods.every((m) => m === wanted);
+  });
+  return skin?.unicode ?? emoji.unicode;
+};

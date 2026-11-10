@@ -53,6 +53,8 @@ export interface Settings {
   isPeopleDrawer: boolean;
   showPresenceInMemberList: boolean;
   showPresenceInDMList: boolean;
+  /** Preferred emoji skin tone: 0 is the default yellow, 1-5 are light to dark. */
+  emojiSkinTone: number;
   memberSortFilterIndex: number;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
@@ -129,6 +131,7 @@ const defaultSettings: Settings = {
   isPeopleDrawer: true,
   showPresenceInMemberList: true,
   showPresenceInDMList: true,
+  emojiSkinTone: 0,
   memberSortFilterIndex: 0,
   messageLayout: 0,
   messageSpacing: '400',

@@ -29,6 +29,7 @@ import { useAsyncSearch, UseAsyncSearchOptions } from '../../hooks/useAsyncSearc
 import { useDebounce } from '../../hooks/useDebounce';
 import { useThrottle } from '../../hooks/useThrottle';
 import { addRecentEmoji } from '../../plugins/recent-emoji';
+import { SkinToneSelector } from './components/SkinToneSelector';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { ImagePack, ImageUsage, PackImageReader } from '../../plugins/custom-emoji';
 import { getEmoticonSearchStr } from '../../plugins/utils';
@@ -544,13 +545,18 @@ export function EmojiBoard({
           <Box direction="Column" gap="200">
             {onTabChange && <EmojiBoardTabs tab={tab} onTabChange={onTabChange} />}
             {!gifTab && (
-              <SearchInput
-                key={tab}
-                query={result?.query}
-                onChange={handleOnChange}
-                allowTextCustomEmoji={allowTextCustomEmoji}
-                onTextCustomEmojiSelect={handleTextCustomEmojiSelect}
-              />
+              <Box gap="200" alignItems="Center">
+                <Box grow="Yes" direction="Column">
+                  <SearchInput
+                    key={tab}
+                    query={result?.query}
+                    onChange={handleOnChange}
+                    allowTextCustomEmoji={allowTextCustomEmoji}
+                    onTextCustomEmojiSelect={handleTextCustomEmojiSelect}
+                  />
+                </Box>
+                {emojiTab && <SkinToneSelector />}
+              </Box>
             )}
           </Box>
         }

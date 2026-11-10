@@ -4,7 +4,9 @@ import { MatrixClient } from 'matrix-js-sdk';
 import { EmojiItemInfo, EmojiType } from '../types';
 import * as css from './styles.css';
 import { PackImageReader } from '../../../plugins/custom-emoji';
-import { IEmoji } from '../../../plugins/emoji';
+import { IEmoji, getEmojiUnicodeForTone } from '../../../plugins/emoji';
+import { useSetting } from '../../../state/hooks/settings';
+import { settingsAtom } from '../../../state/settings';
 import { mxcUrlToHttp } from '../../../utils/matrix';
 
 export const getEmojiItemInfo = (element: Element): EmojiItemInfo | undefined => {
@@ -27,6 +29,8 @@ type EmojiItemProps = {
   emoji: IEmoji;
 };
 export function EmojiItem({ emoji }: EmojiItemProps) {
+  const [skinTone] = useSetting(settingsAtom, 'emojiSkinTone');
+  const unicode = getEmojiUnicodeForTone(emoji, skinTone);
   return (
     <Box
       as="button"
@@ -37,10 +41,10 @@ export function EmojiItem({ emoji }: EmojiItemProps) {
       title={emoji.label}
       aria-label={`${emoji.label} emoji`}
       data-emoji-type={EmojiType.Emoji}
-      data-emoji-data={emoji.unicode}
+      data-emoji-data={unicode}
       data-emoji-shortcode={emoji.shortcode}
     >
-      {emoji.unicode}
+      {unicode}
     </Box>
   );
 }
