@@ -34,7 +34,7 @@ export type SearchResult = {
   highlights: string[];
   groups: ResultGroup[];
   /**
-   * What the server reports having done with our `org.stablecat.search` request.
+   * What the server reports having done with our `club.stablecat.search` request.
    * undefined when the response carried no marker: the server does not know the
    * extension and answered a plain spec search, so only the spec parts applied.
    */
@@ -47,7 +47,7 @@ export type SearchResult = {
  * servers ignore, and the server echoes the options it honoured under the same
  * key in the response. See docker/synapse/stablecat_search.py in the server repo.
  */
-export const SEARCH_EXTENSION_KEY = 'org.stablecat.search';
+export const SEARCH_EXTENSION_KEY = 'club.stablecat.search';
 export type SearchExtensions = {
   prefix?: boolean;
   afterTs?: number;

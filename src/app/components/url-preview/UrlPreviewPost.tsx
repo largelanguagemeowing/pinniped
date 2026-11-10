@@ -13,7 +13,7 @@ import * as css from './UrlPreviewPost.css';
 import { isMxcUrl } from '../../utils/mxc';
 
 // The homeserver adds these next to the og:* keys for fediverse-style posts.
-const POST = 'com.stablecat.post.';
+const POST = 'club.stablecat.post.';
 const MEDIA_MAX = 10;
 
 type PostMedia = {
