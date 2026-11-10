@@ -29,6 +29,15 @@ describe('polls', () => {
     expect(poll?.expiresAt).toBe(1234);
   });
 
+  it('sends the deadline under the Pinniped name and still reads the earlier one', () => {
+    const content = makePollStartContent('Pizza?', ['yes', 'no'], 1, 1234);
+    expect(content['club.stablecat.pinniped.poll.expires_ts']).toBe(1234);
+
+    const { 'club.stablecat.pinniped.poll.expires_ts': deadline, ...rest } = content;
+    expect(parsePollStart({ ...rest, 'de.mreow.poll.expires_ts': deadline })?.expiresAt).toBe(1234);
+    expect(parsePollStart(rest)?.expiresAt).toBeUndefined();
+  });
+
   it('parses stable-namespaced polls from other clients', () => {
     const poll = parsePollStart({
       'm.poll.start': {

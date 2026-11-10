@@ -16,7 +16,9 @@ const TEXT_STABLE = 'm.text';
 // Fork-only extension: MSC3381 has no notion of a poll deadline. Pinniped stores
 // the deadline here and treats the poll as closed after it; the creator's
 // client also sends a real m.poll.end once it notices the deadline passed.
-export const POLL_EXPIRES_KEY = 'de.mreow.poll.expires_ts';
+export const POLL_EXPIRES_KEY = 'club.stablecat.pinniped.poll.expires_ts';
+/** The name the deadline was sent under before it moved to Pinniped's namespace. */
+const LEGACY_POLL_EXPIRES_KEY = 'de.mreow.poll.expires_ts';
 
 export const POLL_QUESTION_MAX_LENGTH = 300;
 export const POLL_ANSWER_MAX_LENGTH = 100;
@@ -80,7 +82,7 @@ export const parsePollStart = (content: IContent): PollData | undefined => {
   // A missing or unrecognised kind is undisclosed (MSC3381).
   const disclosed = M_POLL_KIND_DISCLOSED.matches(poll.kind);
 
-  const rawExpires = content[POLL_EXPIRES_KEY];
+  const rawExpires = content[POLL_EXPIRES_KEY] ?? content[LEGACY_POLL_EXPIRES_KEY];
   const expiresAt = typeof rawExpires === 'number' && rawExpires > 0 ? rawExpires : undefined;
 
   return {

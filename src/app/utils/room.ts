@@ -22,7 +22,7 @@ import {
 import { CryptoBackend } from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 import { getLocalReadTs } from '../state/readMarkers';
 import { AccountDataEvent } from '../../types/matrix/accountData';
-import { MATRIX_GIF_PROPERTY_NAME } from '../../types/matrix/common';
+import { isGifVideoContent } from '../../types/matrix/common';
 import { getEventTimeline, getFirstLinkedTimeline } from './timeline';
 import { getPollQuestion, isPollStartType } from './poll';
 import { stripUnsafeTextChars } from './sanitize';
@@ -472,7 +472,7 @@ export const getEventBodyForNotification = (mEvent: MatrixEvent): string => {
     case MsgType.Image:
       return 'Sent an image';
     case MsgType.Video:
-      return content[MATRIX_GIF_PROPERTY_NAME] === true ? 'Sent a GIF' : 'Sent a video';
+      return isGifVideoContent(content) ? 'Sent a GIF' : 'Sent a video';
     case MsgType.Audio:
       return 'Sent an audio message';
     case MsgType.File:

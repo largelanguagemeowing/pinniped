@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { MatrixClient, MatrixEvent, MsgType } from 'matrix-js-sdk';
 import { KlipyGif } from '../utils/klipy';
-import { IImageInfo, MATRIX_GIF_PROPERTY_NAME } from '../../types/matrix/common';
+import { IImageInfo, isGifVideoContent } from '../../types/matrix/common';
 import { parseOoyeGif } from '../utils/ooye';
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { getAccountData } from '../utils/room';
@@ -178,7 +178,7 @@ export const getEventFavoriteGif = (
     };
   }
 
-  if (msgType === MsgType.Video && content[MATRIX_GIF_PROPERTY_NAME] === true) {
+  if (msgType === MsgType.Video && isGifVideoContent(content)) {
     const mxc = content.file?.url ?? content.url;
     if (typeof mxc !== 'string') return undefined;
     const filename = content.filename ?? content.body ?? 'gif.mp4';

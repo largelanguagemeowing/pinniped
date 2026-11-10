@@ -5,7 +5,25 @@ export const MATRIX_BLUR_HASH_PROPERTY_NAME = 'xyz.amorgan.blurhash';
 export const MATRIX_SPOILER_PROPERTY_NAME = 'page.codeberg.everypizza.msc4193.spoiler';
 export const MATRIX_SPOILER_REASON_PROPERTY_NAME =
   'page.codeberg.everypizza.msc4193.spoiler.reason';
-export const MATRIX_GIF_PROPERTY_NAME = 'io.cinny.gif';
+/** Marks an `m.video` that should behave like a GIF: looped, muted, no controls. */
+export const MATRIX_GIF_PROPERTY_NAME = 'club.stablecat.pinniped.gif';
+/** The name the marker was sent under before it moved to Pinniped's namespace. */
+const LEGACY_GIF_PROPERTY_NAME = 'io.cinny.gif';
+/** The same marker as bridges and other clients send it, inside `info`. */
+const MAUTRIX_GIF_INFO_PROPERTY_NAME = 'fi.mau.gif';
+
+/** Whether a video message asks to be shown as a GIF, under any of the names in use. */
+export const isGifVideoContent = (content: Record<string, unknown>): boolean => {
+  if (content[MATRIX_GIF_PROPERTY_NAME] === true || content[LEGACY_GIF_PROPERTY_NAME] === true) {
+    return true;
+  }
+  const { info } = content;
+  return (
+    typeof info === 'object' &&
+    info !== null &&
+    (info as Record<string, unknown>)[MAUTRIX_GIF_INFO_PROPERTY_NAME] === true
+  );
+};
 
 export type IImageInfo = {
   w?: number;

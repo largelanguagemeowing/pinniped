@@ -9,7 +9,9 @@ export const M_RPC_ACTIVITY = 'm.rpc.activity';
 export const RICH_PRESENCE_PROFILE_FIELDS = [MSC4320_RPC, M_RPC];
 
 // Fork extension: absolute Unix milliseconds, refreshed while the publisher is alive.
-export const RICH_PRESENCE_EXPIRES_AT = 'de.mreow.pinniped.expires_at';
+export const RICH_PRESENCE_EXPIRES_AT = 'club.stablecat.pinniped.expires_at';
+/** The name it was published under before it moved to Pinniped's namespace. */
+const LEGACY_RICH_PRESENCE_EXPIRES_AT = 'de.mreow.pinniped.expires_at';
 export const RICH_PRESENCE_TTL = 5 * 60 * 1000;
 
 export type RichPresenceProgress = {
@@ -62,7 +64,9 @@ const parseProgress = (value: unknown): RichPresenceProgress | undefined => {
 
 export const parseRichPresence = (value: unknown): RichPresence | undefined => {
   if (!isRecord(value)) return undefined;
-  const expiresAt = optionalNumber(value[RICH_PRESENCE_EXPIRES_AT]);
+  const expiresAt = optionalNumber(
+    value[RICH_PRESENCE_EXPIRES_AT] ?? value[LEGACY_RICH_PRESENCE_EXPIRES_AT]
+  );
   if (expiresAt !== undefined && expiresAt <= Date.now()) return undefined;
 
   if (value.type === MSC4320_RPC_MEDIA || value.type === M_RPC_MEDIA) {

@@ -80,6 +80,17 @@ describe('rich presence expiry', () => {
     ).toBeDefined();
   });
 
+  it('honours an expiry published under the earlier name', () => {
+    const payload = { type: MSC4320_RPC_ACTIVITY, name: 'Game' };
+    expect(RICH_PRESENCE_EXPIRES_AT).toBe('club.stablecat.pinniped.expires_at');
+    expect(
+      parseRichPresence({ ...payload, 'de.mreow.pinniped.expires_at': startTime })
+    ).toBeUndefined();
+    expect(
+      parseRichPresence({ ...payload, 'de.mreow.pinniped.expires_at': startTime + 1 })?.expiresAt
+    ).toBe(startTime + 1);
+  });
+
   it('renews unchanged activity each minute and stops renewing after disconnect', async () => {
     await mount(<RichPresencePublisher />);
     await act(async () => activity({ name: 'Game' }));

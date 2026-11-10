@@ -24,7 +24,7 @@ import {
   IThumbnailContent,
   IVideoContent,
   IVideoInfo,
-  MATRIX_GIF_PROPERTY_NAME,
+  isGifVideoContent,
   MATRIX_SPOILER_PROPERTY_NAME,
   MATRIX_SPOILER_REASON_PROPERTY_NAME,
 } from '../../../types/matrix/common';
@@ -249,7 +249,7 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
   const videoInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
   const safeMimeType = getBlobSafeMimeType(videoInfo?.mimetype ?? '');
-  const gifLike = content[MATRIX_GIF_PROPERTY_NAME] === true;
+  const gifLike = isGifVideoContent(content);
 
   if (!videoInfo || !safeMimeType.startsWith('video') || typeof mxcUrl !== 'string') {
     if (mxcUrl) {
