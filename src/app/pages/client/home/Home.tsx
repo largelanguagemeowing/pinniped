@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, forwardRef, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Avatar,
@@ -7,18 +7,14 @@ import {
   Icon,
   IconButton,
   Icons,
-  Menu,
-  MenuItem,
-  PopOut,
-  RectCords,
+  Input,
   Text,
   Tooltip,
   TooltipProvider,
   config,
-  toRem,
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import FocusTrap from 'focus-trap-react';
+import * as css from './Home.css';
 import { factoryRoomIdByActivity } from '../../../utils/sort';
 import {
   NavCategory,
@@ -46,103 +42,48 @@ import { useDirectRooms } from '../direct/useDirectRooms';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { VirtualTile } from '../../../components/virtualizer';
 import { RoomNavItem } from '../../../features/room-nav';
-import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
 import { PageNav, PageNavHeader, PageNavContent } from '../../../components/page';
-import { useRoomsUnread } from '../../../state/hooks/unread';
-import { markAsRead } from '../../../utils/notifications';
-import { stopPropagation } from '../../../utils/keyboard';
 import { InvitesNavItem } from '../inbox/Inbox';
-import { useSetting } from '../../../state/hooks/settings';
-import { settingsAtom } from '../../../state/settings';
 import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
 
-type HomeMenuProps = {
-  requestClose: () => void;
+type HomeHeaderProps = {
+  /** The DM filter text. Undefined when there are no DMs to filter, which shows the title instead. */
+  filter?: string;
+  onFilterChange: (filter: string) => void;
 };
-const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, ref) => {
-  const directs = useDirectRooms();
-  const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
-  const unread = useRoomsUnread(directs, roomToUnreadAtom);
-  const mx = useMatrixClient();
-
-  const handleMarkAsRead = () => {
-    if (!unread) return;
-    directs.forEach((rId) => markAsRead(mx, rId, hideActivity));
-    requestClose();
-  };
-
+function HomeHeader({ filter, onFilterChange }: HomeHeaderProps) {
   return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
-          radii="300"
-          aria-disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-      </Box>
-    </Menu>
-  );
-});
-
-function HomeHeader() {
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
-  };
-
-  return (
-    <>
-      <PageNavHeader>
-        <Box alignItems="Center" grow="Yes" gap="300">
-          <Box grow="Yes">
+    <PageNavHeader>
+      <Box alignItems="Center" grow="Yes" gap="300">
+        <Box grow="Yes" direction="Column">
+          {filter === undefined ? (
             <Text size="H4" truncate>
               Home
             </Text>
-          </Box>
-          <Box>
-            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
-            </IconButton>
-          </Box>
+          ) : (
+            <Input
+              variant="Surface"
+              size="300"
+              radii="300"
+              className={css.DmFilter}
+              outlined={false}
+              placeholder="Find a conversation"
+              aria-label="Find a conversation"
+              value={filter}
+              onChange={(evt) => onFilterChange(evt.target.value)}
+              onKeyDown={(evt) => {
+                if (evt.key === 'Escape') onFilterChange('');
+              }}
+              after={<Icon src={Icons.Search} size="50" />}
+            />
+          )}
         </Box>
-      </PageNavHeader>
-      <PopOut
-        anchor={menuAnchor}
-        position="Bottom"
-        align="End"
-        offset={6}
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              returnFocusOnDeactivate: false,
-              onDeactivate: () => setMenuAnchor(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-              isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <HomeMenu requestClose={() => setMenuAnchor(undefined)} />
-          </FocusTrap>
-        }
-      />
-    </>
+      </Box>
+    </PageNavHeader>
   );
 }
 
@@ -189,10 +130,13 @@ export function Home() {
   const invitesSelected = useHomeInvitesSelected();
   const noRoomToDisplay = directs.length === 0;
 
-  const sortedDirects = useMemo(
-    () => Array.from(directs).sort(factoryRoomIdByActivity(mx)),
-    [mx, directs]
-  );
+  const [dmFilter, setDmFilter] = useState('');
+  const sortedDirects = useMemo(() => {
+    const sorted = Array.from(directs).sort(factoryRoomIdByActivity(mx));
+    const term = dmFilter.trim().toLowerCase();
+    if (!term) return sorted;
+    return sorted.filter((roomId) => mx.getRoom(roomId)?.name.toLowerCase().includes(term));
+  }, [mx, directs, dmFilter]);
 
   const directVirtualizer = useVirtualizer({
     count: sortedDirects.length,
@@ -204,7 +148,7 @@ export function Home() {
 
   return (
     <PageNav>
-      <HomeHeader />
+      <HomeHeader filter={noRoomToDisplay ? undefined : dmFilter} onFilterChange={setDmFilter} />
       {noRoomToDisplay ? (
         <HomeEmpty />
       ) : (
