@@ -28,6 +28,7 @@ import {
   PopOut,
   RectCords,
   Scroll,
+  Spinner,
   Text,
   color,
   config,
@@ -177,6 +178,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(roomId));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(roomId));
     const [sendError, setSendError] = useState<string>();
+    // Stickers and GIFs being fetched or uploaded ahead of their send.
+    const [preparingMedia, setPreparingMedia] = useState(0);
     const replyUserID = replyDraft?.userId;
 
     const powerLevelTags = usePowerLevelTags(room, powerLevels);
@@ -519,49 +522,76 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       moveCursor(editor);
     };
 
-    const handleStickerSelect = async (mxc: string, shortcode: string, label: string) => {
-      const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
-      if (!stickerUrl) return;
-
-      const info = await getImageInfo(
-        await loadImageElement(stickerUrl),
-        await getImageUrlBlob(stickerUrl)
-      );
-
-      const content: IContent = {
-        body: label,
-        url: mxc,
-        info,
-      };
-      mx.sendEvent(roomId, EventType.Sticker, addReplyRelation(content, replyDraft) as any);
+    // A picked sticker or GIF is fetched, and usually uploaded, before it can be sent. Show that
+    // it is on its way, and say so when it does not make it.
+    const sendPickedMedia = async (
+      kind: 'GIF' | 'Sticker',
+      prepare: () => Promise<() => Promise<unknown>>
+    ) => {
+      setSendError(undefined);
+      setPreparingMedia((count) => count + 1);
+      let send: () => Promise<unknown>;
+      try {
+        send = await prepare();
+      } catch (err) {
+        console.error(`Failed to prepare ${kind}`, err);
+        setSendError(
+          `${kind} not sent: it could not be loaded. Check your connection and try again.`
+        );
+        return;
+      } finally {
+        setPreparingMedia((count) => count - 1);
+      }
       setReplyDraft(undefined);
+      send().catch(() => setSendError(SEND_FAILURE_MESSAGE));
     };
 
-    const handleGifSelect = async (fav: FavoriteGif) => {
-      const sendGifContent = (content: IContent) => {
-        const finalContent = addReplyRelation(content, replyDraft);
-        mx.sendMessage(roomId, finalContent as any);
-        setReplyDraft(undefined);
-      };
+    const handleStickerSelect = (mxc: string, shortcode: string, label: string) =>
+      sendPickedMedia('Sticker', async () => {
+        const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
+        if (!stickerUrl) throw new Error('Sticker has no media URL');
 
-      const safeGifName = (name: string, fallback: string) =>
-        name
-          .replace(/[/\\?%*:|"<>/]/g, '')
-          .trim()
-          .slice(0, 50) || fallback;
+        const info = await getImageInfo(
+          await loadImageElement(stickerUrl),
+          await getImageUrlBlob(stickerUrl)
+        );
 
-      try {
+        const content: IContent = {
+          body: label,
+          url: mxc,
+          info,
+        };
+        return () =>
+          mx.sendEvent(roomId, EventType.Sticker, addReplyRelation(content, replyDraft) as any);
+      });
+
+    const handleGifSelect = (fav: FavoriteGif) =>
+      sendPickedMedia('GIF', async () => {
+        const gifSender = (content: IContent) => () =>
+          mx.sendMessage(roomId, addReplyRelation(content, replyDraft) as any);
+
+        const safeGifName = (name: string, fallback: string) =>
+          name
+            .replace(/[/\\?%*:|"<>/]/g, '')
+            .trim()
+            .slice(0, 50) || fallback;
+
+        const fetchBlob = async (url: string): Promise<Blob> => {
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`GIF download failed with status ${resp.status}`);
+          return resp.blob();
+        };
+
         // An unencrypted mxc favourite going into an unencrypted room can
         // reuse the already uploaded content without a re-upload.
         if (fav.kind === 'mxc' && !fav.video && !fav.encInfo && !room.hasEncryptionStateEvent()) {
-          sendGifContent({
+          return gifSender({
             msgtype: MsgType.Image,
             body: fav.body,
             filename: fav.body,
             url: fav.mxc,
             info: fav.info,
           });
-          return;
         }
 
         let blob: Blob;
@@ -569,24 +599,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         let videoGif = fav.kind === 'url' || (fav.kind === 'mxc' && fav.video === true);
         if (fav.kind === 'klipy') {
           const format = getGifToSend(fav.gif);
-          if (!format?.url) return;
+          if (!format?.url) throw new Error('GIF has no sendable format');
           videoGif = isGifVideo(format);
-          const resp = await fetch(format.url);
-          if (!resp.ok) return;
-          blob = await resp.blob();
+          blob = await fetchBlob(format.url);
           filename = `${safeGifName(fav.gif.title || 'gif', 'gif')}.${videoGif ? 'mp4' : 'gif'}`;
         } else if (fav.kind === 'mxc') {
           const mediaUrl = mxcUrlToHttp(mx, fav.mxc, useAuthentication);
-          if (!mediaUrl) return;
+          if (!mediaUrl) throw new Error('GIF has no media URL');
           if (fav.encInfo) {
             const { encInfo } = fav;
             blob = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
               decryptFile(encBuf, fav.info?.mimetype ?? 'image/gif', encInfo)
             );
           } else {
-            const resp = await fetch(mediaUrl);
-            if (!resp.ok) return;
-            blob = await resp.blob();
+            blob = await fetchBlob(mediaUrl);
           }
           const extension = videoGif ? 'mp4' : 'gif';
           const baseName = fav.body.replace(/\.(?:gif|mp4)$/i, '');
@@ -594,9 +620,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             ? fav.body
             : `${safeGifName(baseName, 'gif')}.${extension}`;
         } else {
-          const resp = await fetch(fav.videoUrl);
-          if (!resp.ok) return;
-          blob = await resp.blob();
+          blob = await fetchBlob(fav.videoUrl);
           filename = `${safeGifName(fav.title || 'gif', 'gif')}.mp4`;
         }
 
@@ -610,7 +634,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
         const uploadData = await mx.uploadContent(uploadFile);
         const mxc = uploadData?.content_uri;
-        if (!mxc) return;
+        if (!mxc) throw new Error('GIF upload returned no content URI');
 
         const item: TUploadItem = {
           file,
@@ -623,11 +647,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           : await getImageMsgContent(mx, item, mxc);
         if (videoGif) content[MATRIX_GIF_PROPERTY_NAME] = true;
 
-        sendGifContent(content);
-      } catch (e) {
-        console.error('Failed to send GIF', e);
-      }
-    };
+        return gifSender(content);
+      });
 
     return (
       <div ref={ref}>
@@ -932,8 +953,21 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           bottom={
-            sendError ? (
+            sendError || preparingMedia > 0 ? (
               <Box direction="Column">
+                {preparingMedia > 0 && (
+                  <Box
+                    role="status"
+                    alignItems="Center"
+                    gap="200"
+                    style={{ padding: config.space.S200 }}
+                  >
+                    <Spinner size="100" variant="Secondary" />
+                    <Text size="T200" priority="300">
+                      Sending…
+                    </Text>
+                  </Box>
+                )}
                 {sendError && (
                   <Text
                     role="alert"
