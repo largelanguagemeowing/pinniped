@@ -31,6 +31,8 @@ import { useStateEventCallback } from '../../hooks/useStateEventCallback';
 import { useSyncState } from '../../hooks/useSyncState';
 import { useRoomsNotificationPreferencesContext } from '../../hooks/useRoomsNotificationPreferences';
 
+const PREFERENCES_SETTLE_MS = 150;
+
 export type RoomToUnreadAction =
   | {
       type: 'RESET';
@@ -271,11 +273,16 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     };
   }, [mx, setUnreadAtom]);
 
+  // Applying a space's notification mode writes one push rule per room, and each
+  // write lands here; wait for the burst to settle instead of rebuilding for each.
   useEffect(() => {
-    setUnreadAtom({
-      type: 'RESET',
-      unreadInfos: getUnreadInfos(mx),
-    });
+    const timer = setTimeout(() => {
+      setUnreadAtom({
+        type: 'RESET',
+        unreadInfos: getUnreadInfos(mx),
+      });
+    }, PREFERENCES_SETTLE_MS);
+    return () => clearTimeout(timer);
   }, [mx, setUnreadAtom, roomsNotificationPreferences]);
 
   useEffect(() => {
