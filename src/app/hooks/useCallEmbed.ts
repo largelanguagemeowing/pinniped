@@ -25,6 +25,7 @@ import { settingsAtom } from '../state/settings';
 import { playCallEndSound } from '../sound/play';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useTheme } from './useTheme';
+import { applyCallScrollbarColors } from '../plugins/call/scrollbarTheme';
 import { callEmbedAtom, callIdleAtom } from '../state/callEmbed';
 import { useResizeObserver } from './useResizeObserver';
 import { CallControlState } from '../plugins/call/CallControlState';
@@ -186,6 +187,16 @@ export const useCallThemeSync = (embed: CallEmbed) => {
     const name: ElementCallThemeKind = theme.kind === ThemeKind.Dark ? 'dark' : 'light';
 
     embed.setTheme(name);
+
+    // The theme class may not be on <body> yet when this runs, so read the colours a frame later.
+    // The widget document is replaced if the iframe reloads, so give it the colours again then too.
+    const applyScrollbar = () => applyCallScrollbarColors(embed.document);
+    const frame = requestAnimationFrame(applyScrollbar);
+    embed.iframe.addEventListener('load', applyScrollbar);
+    return () => {
+      cancelAnimationFrame(frame);
+      embed.iframe.removeEventListener('load', applyScrollbar);
+    };
   }, [theme.kind, embed]);
 };
 

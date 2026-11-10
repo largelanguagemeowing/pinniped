@@ -11,7 +11,50 @@ Please see LICENSE in the repository root for full details.
   height: 100%;
   width: 100%;
   overflow-x: hidden;
-  overflow-y: auto;
+  /* Always reserve the scrollbar's space (always "scroll" plus a stable gutter)
+     instead of letting it appear and disappear. The layouts size their tiles to
+     the width left beside it, so a scrollbar that comes and goes changes the
+     layout, and the layout can then keep the scrollbar in place by itself. */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+/* Scrollbar styled like Cinny's own (its Scroll component, shown on hover).
+   The colours come from Cinny's theme: it resolves them and sets these two
+   variables on the widget's document. The fallbacks are for running without it. */
+.inRoom::-webkit-scrollbar {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+}
+
+.inRoom::-webkit-scrollbar-track,
+.inRoom::-webkit-scrollbar-thumb {
+  border: 0.125rem solid transparent;
+  background-clip: padding-box;
+  background-color: transparent;
+  border-radius: 9999px;
+}
+
+.inRoom::-webkit-scrollbar-thumb {
+  min-block-size: 2.1875rem;
+}
+
+.inRoom::-webkit-scrollbar-corner {
+  background-color: transparent;
+}
+
+.inRoom:hover::-webkit-scrollbar-track {
+  background-color: var(
+    --cinny-scrollbar-track,
+    var(--cpd-color-bg-subtle-secondary)
+  );
+}
+
+.inRoom:hover::-webkit-scrollbar-thumb {
+  background-color: var(
+    --cinny-scrollbar-thumb,
+    var(--cpd-color-bg-subtle-primary)
+  );
 }
 
 .header {
