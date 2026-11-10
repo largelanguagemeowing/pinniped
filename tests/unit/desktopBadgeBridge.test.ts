@@ -54,6 +54,8 @@ describe('Windows badge IPC', () => {
     };
     runInNewContext(readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8'), {
       __dirname: '/app/electron',
+      // A bare context has none of Node's globals; the main process reads its own origin on load.
+      URL,
       process: { platform: 'win32', env: {}, argv: [], uptime: () => 0, versions: {} },
       require: (name: string) => {
         if (name === 'electron') return electron;
