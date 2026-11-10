@@ -31,6 +31,8 @@ import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { getNotificationModeActions, NotificationMode } from '../../../hooks/useNotificationMode';
 import { stopPropagation } from '../../../utils/keyboard';
+import { rateLimitedActions } from '../../../utils/matrix';
+import { AccountDataEvent } from '../../../../types/matrix/accountData';
 
 type DefaultRuleActions = {
   kind: PushRuleKind;
@@ -124,15 +126,55 @@ const resetPushRules = async (mx: MatrixClient): Promise<void> => {
   }
 };
 
+const CUSTOM_RULE_KINDS = [
+  PushRuleKind.Override,
+  PushRuleKind.ContentSpecific,
+  PushRuleKind.RoomSpecific,
+  PushRuleKind.SenderSpecific,
+  PushRuleKind.Underride,
+];
+
+/**
+ * Deletes every push rule that was created by the user or a client: keywords,
+ * per-room rules and mutes, sender rules. The built-in `.m.*` rules cannot be
+ * deleted (the server refuses), so they stay as they are. The per-space modes
+ * and the record of rules written for them go too; otherwise they would write
+ * the rules straight back.
+ */
+const deleteAllPushRules = async (mx: MatrixClient): Promise<void> => {
+  await mx.setAccountData(AccountDataEvent.PinnipedSpaceNotifications, { spaces: {} });
+  await mx.setAccountData(AccountDataEvent.PinnipedInheritedNotifications, { rooms: {} });
+
+  const pushRules: IPushRules = await mx.getPushRules();
+  const rules = CUSTOM_RULE_KINDS.flatMap((kind) =>
+    (pushRules.global[kind] ?? [])
+      .filter((rule) => !rule.rule_id.startsWith('.'))
+      .map((rule) => ({ kind, ruleId: rule.rule_id }))
+  );
+  // One at a time: the rules share a single account data event.
+  await rateLimitedActions(rules, ({ kind, ruleId }) => mx.deletePushRule('global', kind, ruleId));
+};
+
 type ResetPromptProps = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  run: (mx: MatrixClient) => Promise<void>;
   onDone: () => void;
   onCancel: () => void;
 };
-function ResetPrompt({ onDone, onCancel }: ResetPromptProps) {
+function ResetPrompt({
+  title,
+  description,
+  confirmLabel,
+  run,
+  onDone,
+  onCancel,
+}: ResetPromptProps) {
   const mx = useMatrixClient();
 
   const [resetState, reset] = useAsyncCallback<void, MatrixError, []>(
-    useCallback(() => resetPushRules(mx), [mx])
+    useCallback(() => run(mx), [mx, run])
   );
 
   useEffect(() => {
@@ -152,7 +194,7 @@ function ResetPrompt({ onDone, onCancel }: ResetPromptProps) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog variant="Surface" role="dialog" aria-label="Reset Notifications">
+          <Dialog variant="Surface" role="dialog" aria-label={title}>
             <Header
               style={{
                 padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -162,7 +204,7 @@ function ResetPrompt({ onDone, onCancel }: ResetPromptProps) {
               size="500"
             >
               <Box grow="Yes">
-                <Text size="H4">Reset Notifications</Text>
+                <Text size="H4">{title}</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
                 <Icon src={Icons.Cross} />
@@ -170,13 +212,10 @@ function ResetPrompt({ onDone, onCancel }: ResetPromptProps) {
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Box direction="Column" gap="200">
-                <Text priority="400">
-                  Restore default message notification rules? Any keyword notifications will be
-                  removed. Room specific notification settings are not affected.
-                </Text>
+                <Text priority="400">{description}</Text>
                 {resetState.status === AsyncStatus.Error && (
                   <Text style={{ color: color.Critical.Main }} size="T300">
-                    Failed to reset notifications! {resetState.error.message}
+                    Failed! {resetState.error.message}
                   </Text>
                 )}
               </Box>
@@ -195,7 +234,7 @@ function ResetPrompt({ onDone, onCancel }: ResetPromptProps) {
                 }
               >
                 <Text size="B400">
-                  {resetState.status === AsyncStatus.Loading ? 'Resetting...' : 'Reset'}
+                  {resetState.status === AsyncStatus.Loading ? 'Working...' : confirmLabel}
                 </Text>
               </Button>
             </Box>
@@ -206,8 +245,27 @@ function ResetPrompt({ onDone, onCancel }: ResetPromptProps) {
   );
 }
 
+type Prompt = 'reset' | 'delete-all';
+
+const PROMPTS: Record<Prompt, Omit<ResetPromptProps, 'onDone' | 'onCancel'>> = {
+  reset: {
+    title: 'Reset Notifications',
+    description:
+      'Restore default message notification rules? Any keyword notifications will be removed. Room specific notification settings are not affected.',
+    confirmLabel: 'Reset',
+    run: resetPushRules,
+  },
+  'delete-all': {
+    title: 'Delete All Push Rules',
+    description:
+      "Delete every push rule you or any client has created: keywords, room specific settings, mutes and your choices for spaces? Built-in rules cannot be deleted and stay as they are. Space owners' default settings will apply again afterwards. This cannot be undone.",
+    confirmLabel: 'Delete All',
+    run: deleteAllPushRules,
+  },
+};
+
 export function ResetNotification() {
-  const [prompt, setPrompt] = useState(false);
+  const [prompt, setPrompt] = useState<Prompt>();
 
   return (
     <Box direction="Column" gap="100">
@@ -228,14 +286,43 @@ export function ResetNotification() {
               variant="Critical"
               fill="Soft"
               outlined
-              onClick={() => setPrompt(true)}
+              onClick={() => setPrompt('reset')}
             >
               <Text size="B300">Reset</Text>
             </Button>
           }
         />
       </SequenceCard>
-      {prompt && <ResetPrompt onDone={() => setPrompt(false)} onCancel={() => setPrompt(false)} />}
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Delete All Push Rules"
+          description="Delete every push rule you or a client created, including room specific settings and mutes. Built-in rules stay."
+          after={
+            <Button
+              size="300"
+              radii="300"
+              variant="Critical"
+              fill="Soft"
+              outlined
+              onClick={() => setPrompt('delete-all')}
+            >
+              <Text size="B300">Delete All</Text>
+            </Button>
+          }
+        />
+      </SequenceCard>
+      {prompt && (
+        <ResetPrompt
+          {...PROMPTS[prompt]}
+          onDone={() => setPrompt(undefined)}
+          onCancel={() => setPrompt(undefined)}
+        />
+      )}
     </Box>
   );
 }
