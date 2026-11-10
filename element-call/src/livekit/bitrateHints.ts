@@ -19,6 +19,59 @@ const MIN_KBPS = 800;
 
 const PASSIVE_CODECS = /^(rtx|red|ulpfec|flexfec-03)$/i;
 
+/**
+ * Opus parameters for the audio we send, written into the answer because that is
+ * where Chrome reads its sender configuration from. In-band FEC is off: it spends
+ * bitrate on redundancy that only helps lossy links. Constant bitrate keeps the
+ * encoder at its full target instead of letting it drop towards Opus' 6 kbps
+ * floor whenever the bandwidth estimate dips, which is the closest a page gets to
+ * a minimum audio bitrate.
+ */
+export function tuneOpus(sdp: string): string {
+  const lines = sdp.split("\r\n");
+  const opus = new Set<string>();
+  let inAudio = false;
+  for (const line of lines) {
+    if (line.startsWith("m=")) inAudio = line.startsWith("m=audio");
+    const m = /^a=rtpmap:(\d+) opus\//i.exec(line);
+    if (inAudio && m) opus.add(m[1]);
+  }
+  if (opus.size === 0) return sdp;
+  const params = (config: string): string => {
+    const kept = config
+      .split(";")
+      .filter((p) => p !== "" && !/^(useinbandfec|cbr)=/.test(p.trim()));
+    return [...kept, "useinbandfec=0", "cbr=1"].join(";");
+  };
+  const out: string[] = [];
+  const seen = new Set<string>();
+  inAudio = false;
+  for (const line of lines) {
+    if (line.startsWith("m=")) {
+      inAudio = line.startsWith("m=audio");
+      out.push(line);
+      continue;
+    }
+    const fmtp = /^a=fmtp:(\d+) (.*)$/.exec(line);
+    if (inAudio && fmtp && opus.has(fmtp[1])) {
+      seen.add(fmtp[1]);
+      out.push(`a=fmtp:${fmtp[1]} ${params(fmtp[2])}`);
+      continue;
+    }
+    out.push(line);
+    // Opus without an fmtp line gets one straight after its rtpmap.
+    const rtpmap = /^a=rtpmap:(\d+) opus\//i.exec(line);
+    if (
+      inAudio &&
+      rtpmap &&
+      !lines.some((l) => l.startsWith(`a=fmtp:${rtpmap[1]} `))
+    ) {
+      out.push(`a=fmtp:${rtpmap[1]} ${params("")}`);
+    }
+  }
+  return out.join("\r\n");
+}
+
 /** Adds the bitrate hints to every real video codec in the SDP. */
 export function addBitrateHints(sdp: string, maxKbps: number): string {
   const hints = `x-google-start-bitrate=${START_KBPS};x-google-min-bitrate=${MIN_KBPS};x-google-max-bitrate=${maxKbps}`;
@@ -78,9 +131,11 @@ export function installBitrateHints(): void {
       description?.type === "answer" && description.sdp
         ? {
             ...description,
-            sdp: addBitrateHints(
-              description.sdp,
-              Math.round(screenShareMaxBitrate / 1000),
+            sdp: tuneOpus(
+              addBitrateHints(
+                description.sdp,
+                Math.round(screenShareMaxBitrate / 1000),
+              ),
             ),
           }
         : description;
