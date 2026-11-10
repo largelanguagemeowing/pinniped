@@ -48,4 +48,4 @@ dev-electron:
       kill -0 $watcher 2>/dev/null || { echo "vite dev server exited" >&2; exit 1; }
       sleep 0.2
     done
-    CINNY_DEV_SERVER_URL=http://localhost:{{dev_port}} CINNY_DEV_RELOAD=1 npm run electron:start
+    PINNIPED_DEV_SERVER_URL=http://localhost:{{dev_port}} PINNIPED_DEV_RELOAD=1 npm run electron:start

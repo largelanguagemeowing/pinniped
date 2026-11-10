@@ -15,7 +15,7 @@ import { type MediaViewModel } from "./media/MediaViewModel";
 import { type UserMediaViewModel } from "./media/UserMediaViewModel";
 import { type RingingMediaViewModel } from "./media/RingingMediaViewModel";
 
-const CINNY_KEEP_SPOTLIGHT_IN_GRID = true;
+const PINNIPED_KEEP_SPOTLIGHT_IN_GRID = true;
 
 function debugEntries(entries: GridTileData[]): string[] {
   return entries.map((e) => e.media.displayName$.value);
@@ -197,7 +197,7 @@ export class TileStoreBuilder {
       // Pinniped: everyone stays in the strip, including whoever is
       // in the spotlight (and so the speaker swap below never applies).
       if (
-        !CINNY_KEEP_SPOTLIGHT_IN_GRID &&
+        !PINNIPED_KEEP_SPOTLIGHT_IN_GRID &&
         !(media.type === "user" && media.local) &&
         this.spotlight.media.includes(media)
       )
@@ -207,7 +207,7 @@ export class TileStoreBuilder {
       // shift, so instead what we do is take the speaker's grid tile and swap
       // the media out, so it can remain where it is in the layout.
       if (
-        !CINNY_KEEP_SPOTLIGHT_IN_GRID &&
+        !PINNIPED_KEEP_SPOTLIGHT_IN_GRID &&
         media === this.prevSpotlightSpeaker &&
         this.spotlight.media.length === 1 &&
         "speaking$" in this.spotlight.media[0] &&

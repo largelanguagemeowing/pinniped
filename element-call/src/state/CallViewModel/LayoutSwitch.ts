@@ -18,7 +18,7 @@ import { type GridMode, type WindowMode } from "./CallViewModel.ts";
 import { constant, type Behavior } from "../Behavior.ts";
 import { type ObservableScope } from "../ObservableScope.ts";
 
-const CINNY_STICKY_GRID = true;
+const PINNIPED_STICKY_GRID = true;
 
 /**
  * Creates a layout mode switch that allows switching between grid and spotlight modes.
@@ -69,7 +69,7 @@ export function createLayoutModeSwitch(
       map((selection) => {
         // Pinniped: an explicit grid choice sticks, even when someone
         // starts a screen share (it shows up as a grid tile instead).
-        if (selection === "grid" && CINNY_STICKY_GRID)
+        if (selection === "grid" && PINNIPED_STICKY_GRID)
           return constant(selection);
         if (selection === "grid")
           // The user has selected grid mode. Start by respecting their choice,

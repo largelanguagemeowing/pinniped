@@ -162,8 +162,8 @@ import {
 } from "../media/RingingMediaViewModel.ts";
 
 // Pinniped: show two participants as equal tiles instead of a PiP.
-const CINNY_EQUAL_TILES = true;
-const CINNY_SHARES_IN_GRID = true;
+const PINNIPED_EQUAL_TILES = true;
+const PINNIPED_SHARES_IN_GRID = true;
 
 const logger = rootLogger.getChild("[CallViewModel]");
 //TODO
@@ -1137,7 +1137,7 @@ export function createCallViewModel$(
       // Pinniped: screen shares are tiles in the grid itself (GridLayout), not a
       // floating spotlight.
       spotlight:
-        !CINNY_SHARES_IN_GRID &&
+        !PINNIPED_SHARES_IN_GRID &&
         spotlight.some((vm) => vm.type === "screen share")
           ? spotlight
           : undefined,
@@ -1275,7 +1275,7 @@ export function createCallViewModel$(
               switchMap((gridMode) => {
                 switch (gridMode) {
                   case "grid":
-                    return CINNY_EQUAL_TILES
+                    return PINNIPED_EQUAL_TILES
                       ? gridLayoutMedia$
                       : oneOnOneLandscapeLayoutMedia$.pipe(
                           switchMap((oneOnOne) =>
