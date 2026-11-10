@@ -535,6 +535,7 @@ describe("LocalMembership", () => {
         isScreenShareEnabled: false,
         trackPublications: [],
         getTrackPublication: () => undefined,
+        setAttributes: vi.fn().mockResolvedValue(undefined),
       } as unknown as LocalParticipant,
     }),
     state$: constant(ConnectionState.LivekitConnected),
