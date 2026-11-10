@@ -22,13 +22,14 @@ import { useEmojiGroupIcons } from './useEmojiGroupIcons';
 import { preventScrollWithArrowKey, stopPropagation } from '../../utils/keyboard';
 import { useRelevantImagePacks } from '../../hooks/useImagePacks';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { useRecentEmoji } from '../../hooks/useRecentEmoji';
+import { useRecentPickerEmoji } from '../../hooks/useRecentPickerEmoji';
 import { isUserId, mxcUrlToHttp } from '../../utils/matrix';
 import { editableActiveElement, targetFromEvent } from '../../utils/dom';
 import { useAsyncSearch, UseAsyncSearchOptions } from '../../hooks/useAsyncSearch';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useThrottle } from '../../hooks/useThrottle';
 import { addRecentEmoji } from '../../plugins/recent-emoji';
+import { addRecentCustomEmoji } from '../../plugins/recent-custom-emoji';
 import { toggleFavoriteEmoji } from '../../plugins/favorite-emoji';
 import { useFavoriteEmoji } from '../../hooks/useFavoriteEmoji';
 import { SkinToneSelector } from './components/SkinToneSelector';
@@ -80,7 +81,11 @@ const useGroups = (
 ): [EmojiGroupItem[], StickerGroupItem[]] => {
   const mx = useMatrixClient();
 
-  const recentEmojis = useRecentEmoji(mx, 21);
+  const customEmoticons = useMemo(
+    () => imagePacks.flatMap((pack) => pack.getImages(ImageUsage.Emoticon)),
+    [imagePacks]
+  );
+  const recentEmojis = useRecentPickerEmoji(mx, customEmoticons, 21);
   const favoriteEmojis = useFavoriteEmoji(mx);
   const labels = useEmojiGroupLabels();
 
@@ -481,6 +486,9 @@ export function EmojiBoard({
     }
     if (emojiInfo.type === EmojiType.CustomEmoji) {
       onCustomEmojiSelect?.(emojiInfo.data, emojiInfo.shortcode);
+      if (!evt.altKey && !evt.shiftKey && addToRecentEmoji) {
+        addRecentCustomEmoji(mx, emojiInfo.data);
+      }
     }
     if (emojiInfo.type === EmojiType.Sticker) {
       onStickerSelect?.(emojiInfo.data, emojiInfo.shortcode, emojiInfo.label);

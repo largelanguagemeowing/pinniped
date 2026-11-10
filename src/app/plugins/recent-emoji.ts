@@ -10,6 +10,23 @@ export type IRecentEmojiContent = {
   recent_emoji?: [EmojiUnicode, EmojiUsageCount][];
 };
 
+/** Recent unicode emoji with how many times each was used, most used first. */
+export const getRecentEmojiEntries = (mx: MatrixClient): [IEmoji, EmojiUsageCount][] => {
+  const recentEmoji = getAccountData(
+    mx,
+    AccountDataEvent.ElementRecentEmoji
+  )?.getContent<IRecentEmojiContent>().recent_emoji;
+  if (!Array.isArray(recentEmoji)) return [];
+
+  return [...recentEmoji]
+    .sort((e1, e2) => e2[1] - e1[1])
+    .reduce<[IEmoji, EmojiUsageCount][]>((list, [unicode, count]) => {
+      const emoji = findEmojiByUnicode(unicode);
+      if (emoji) list.push([emoji, count]);
+      return list;
+    }, []);
+};
+
 export const getRecentEmojis = (mx: MatrixClient, limit?: number): IEmoji[] => {
   const recentEmojiEvent = getAccountData(mx, AccountDataEvent.ElementRecentEmoji);
   const recentEmoji = recentEmojiEvent?.getContent<IRecentEmojiContent>().recent_emoji;
