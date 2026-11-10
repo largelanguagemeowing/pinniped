@@ -1,4 +1,12 @@
-import React, { ComponentProps, HTMLAttributes, Suspense, forwardRef, lazy } from 'react';
+import React, {
+  ComponentProps,
+  HTMLAttributes,
+  Suspense,
+  forwardRef,
+  lazy,
+  useEffect,
+  useRef,
+} from 'react';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Scroll, Text, as } from 'folds';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -43,6 +51,25 @@ export const TextViewer = as<'div', TextViewerProps>(
       copyToClipboard(text);
     };
 
+    // Select All would otherwise take in the whole page behind the viewer. Keep it to the text.
+    const preRef = useRef<HTMLPreElement>(null);
+    useEffect(() => {
+      const handleKeyDown = (evt: KeyboardEvent) => {
+        const pre = preRef.current;
+        if (!pre || evt.key.toLowerCase() !== 'a' || !(evt.ctrlKey || evt.metaKey)) return;
+        if (evt.altKey || evt.shiftKey) return;
+        evt.preventDefault();
+        const selection = window.getSelection();
+        if (!selection) return;
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     return (
       <Box
         className={classNames(css.TextViewer, className)}
@@ -74,6 +101,7 @@ export const TextViewer = as<'div', TextViewerProps>(
         >
           <Scroll hideTrack variant="Background" visibility="Hover">
             <TextViewerContent
+              ref={preRef}
               className={css.TextViewerPrePadding}
               text={text}
               langName={langName}
