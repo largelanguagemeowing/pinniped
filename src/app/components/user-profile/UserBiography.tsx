@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import parse from 'html-react-parser';
-import { Box, Text, as, config } from 'folds';
+import { Box, Text, as, color, config, toRem } from 'folds';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { parseBlockMD, parseInlineMD } from '../../plugins/markdown';
@@ -39,11 +39,19 @@ export const UserBiography = as<'div', UserBiographyProps>(({ biography, ...prop
       <Text
         as="div"
         ref={textRef}
+        size="T300"
         priority="300"
         style={{
           overflowWrap: 'anywhere',
           ...(expanded
-            ? { maxHeight: '40vh', overflowY: 'auto' }
+            ? {
+                maxHeight: 'min(40vh, 15rem)',
+                overflowY: 'auto',
+                // A thin themed scrollbar, not the browser's chunky grey one with arrows.
+                scrollbarWidth: 'thin',
+                scrollbarColor: `${color.SurfaceVariant.ContainerLine} transparent`,
+                paddingRight: toRem(8),
+              }
             : { maxHeight: `${COLLAPSED_LINES}lh`, overflow: 'hidden' }),
         }}
       >
