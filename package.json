@@ -22,7 +22,7 @@
     "check:prettier": "prettier --check .",
     "fix:prettier": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky install",
+    "prepare": "husky",
     "bump": "node scripts/update-version.js",
     "electron:start": "electron electron/main.cjs",
     "electron:dist": "npm run build && electron-builder --config electron/electron-builder.yml --linux",
@@ -30,7 +30,7 @@
     "electron:dist:mac": "npm run build && electron-builder --config electron/electron-builder.yml --mac"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": "eslint",
+    "src/**/*.{ts,tsx,js,jsx}": "eslint",
     "*": "prettier --ignore-unknown --write"
   },
   "keywords": [],
