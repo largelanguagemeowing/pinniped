@@ -1,9 +1,11 @@
-import React, { ReactNode } from 'react';
+import React, { MouseEventHandler, ReactNode } from 'react';
 import { IconSrc, Icons } from 'folds';
 import { MatrixEvent } from 'matrix-js-sdk';
 import { IMemberContent, Membership } from '../../types/matrix/room';
 import { getMxIdLocalPart } from '../utils/matrix';
 import { isMembershipChanged } from '../utils/room';
+import { InlineUsername } from '../components/message/layout';
+import { stripUnsafeTextChars } from '../utils/sanitize';
 
 export type ParsedResult = {
   icon: IconSrc;
@@ -12,13 +14,37 @@ export type ParsedResult = {
 
 export type MemberEventParser = (mEvent: MatrixEvent) => ParsedResult;
 
-export const useMemberEventParser = (): MemberEventParser => {
+/**
+ * The name a membership line shows for a user: the display name the event carries, or failing
+ * that the local part of the user ID, or the ID itself. Never empty, and without the invisible
+ * and direction-override characters a name could use to reorder the sentence around it.
+ */
+const displayNameOf = (userId: string, displayName?: unknown): string =>
+  (typeof displayName === 'string' ? stripUnsafeTextChars(displayName).trim() : '') ||
+  stripUnsafeTextChars(getMxIdLocalPart(userId) ?? '') ||
+  stripUnsafeTextChars(userId);
+
+/**
+ * Turns membership events into a line of text. The names in it are buttons that carry the
+ * user's ID in `data-user-id` and call `onUserClick` on click and on right-click, like the
+ * sender's name on a message.
+ */
+export const useMemberEventParser = (
+  onUserClick: MouseEventHandler<HTMLButtonElement>
+): MemberEventParser => {
+  const name = (userId: string, label: string): ReactNode => (
+    <InlineUsername data-user-id={userId} onClick={onUserClick} onContextMenu={onUserClick}>
+      {label}
+    </InlineUsername>
+  );
+
   const parseMemberEvent: MemberEventParser = (mEvent) => {
     const content = mEvent.getContent<IMemberContent>();
     const prevContent = mEvent.getPrevContent() as IMemberContent;
     const senderId = mEvent.getSender();
     const userId = mEvent.getStateKey();
-    const reason = typeof content.reason === 'string' ? content.reason : undefined;
+    const reason =
+      typeof content.reason === 'string' ? stripUnsafeTextChars(content.reason) : undefined;
 
     if (!senderId || !userId)
       return {
@@ -26,11 +52,8 @@ export const useMemberEventParser = (): MemberEventParser => {
         body: 'Broken membership event',
       };
 
-    const senderName = getMxIdLocalPart(senderId);
-    const userName =
-      typeof content.displayname === 'string'
-        ? content.displayname || getMxIdLocalPart(userId)
-        : getMxIdLocalPart(userId);
+    const senderName = displayNameOf(senderId);
+    const userName = displayNameOf(userId, content.displayname);
 
     if (isMembershipChanged(mEvent)) {
       if (content.membership === Membership.Invite) {
@@ -39,9 +62,9 @@ export const useMemberEventParser = (): MemberEventParser => {
             icon: Icons.ArrowGoRightPlus,
             body: (
               <>
-                <b>{senderName}</b>
+                {name(senderId, senderName)}
                 {' accepted '}
-                <b>{userName}</b>
+                {name(userId, userName)}
                 {`'s join request `}
                 {reason}
               </>
@@ -53,9 +76,9 @@ export const useMemberEventParser = (): MemberEventParser => {
           icon: Icons.ArrowGoRightPlus,
           body: (
             <>
-              <b>{senderName}</b>
+              {name(senderId, senderName)}
               {' invited '}
-              <b>{userName}</b> {reason}
+              {name(userId, userName)} {reason}
             </>
           ),
         };
@@ -66,7 +89,7 @@ export const useMemberEventParser = (): MemberEventParser => {
           icon: Icons.ArrowGoRightPlus,
           body: (
             <>
-              <b>{userName}</b>
+              {name(userId, userName)}
               {' request to join room '}
               {reason}
             </>
@@ -79,7 +102,7 @@ export const useMemberEventParser = (): MemberEventParser => {
           icon: Icons.ArrowGoRight,
           body: (
             <>
-              <b>{userName}</b>
+              {name(userId, userName)}
               {' joined the room'}
             </>
           ),
@@ -93,15 +116,15 @@ export const useMemberEventParser = (): MemberEventParser => {
             body:
               senderId === userId ? (
                 <>
-                  <b>{userName}</b>
+                  {name(userId, userName)}
                   {' rejected the invitation '}
                   {reason}
                 </>
               ) : (
                 <>
-                  <b>{senderName}</b>
+                  {name(senderId, senderName)}
                   {' rejected '}
-                  <b>{userName}</b>
+                  {name(userId, userName)}
                   {`'s join request `}
                   {reason}
                 </>
@@ -115,15 +138,15 @@ export const useMemberEventParser = (): MemberEventParser => {
             body:
               senderId === userId ? (
                 <>
-                  <b>{userName}</b>
+                  {name(userId, userName)}
                   {' revoked joined request '}
                   {reason}
                 </>
               ) : (
                 <>
-                  <b>{senderName}</b>
+                  {name(senderId, senderName)}
                   {' revoked '}
-                  <b>{userName}</b>
+                  {name(userId, userName)}
                   {`'s invite `}
                   {reason}
                 </>
@@ -136,9 +159,9 @@ export const useMemberEventParser = (): MemberEventParser => {
             icon: Icons.ArrowGoLeft,
             body: (
               <>
-                <b>{senderName}</b>
+                {name(senderId, senderName)}
                 {' unbanned '}
-                <b>{userName}</b> {reason}
+                {name(userId, userName)} {reason}
               </>
             ),
           };
@@ -149,15 +172,15 @@ export const useMemberEventParser = (): MemberEventParser => {
           body:
             senderId === userId ? (
               <>
-                <b>{userName}</b>
+                {name(userId, userName)}
                 {' left the room '}
                 {reason}
               </>
             ) : (
               <>
-                <b>{senderName}</b>
+                {name(senderId, senderName)}
                 {' kicked '}
-                <b>{userName}</b> {reason}
+                {name(userId, userName)} {reason}
               </>
             ),
         };
@@ -168,9 +191,9 @@ export const useMemberEventParser = (): MemberEventParser => {
           icon: Icons.ArrowGoLeft,
           body: (
             <>
-              <b>{senderName}</b>
+              {name(senderId, senderName)}
               {' banned '}
-              <b>{userName}</b> {reason}
+              {name(userId, userName)} {reason}
             </>
           ),
         };
@@ -178,23 +201,20 @@ export const useMemberEventParser = (): MemberEventParser => {
     }
 
     if (content.displayname !== prevContent.displayname) {
-      const prevUserName =
-        typeof prevContent.displayname === 'string'
-          ? prevContent.displayname || getMxIdLocalPart(userId)
-          : getMxIdLocalPart(userId);
+      const prevUserName = displayNameOf(userId, prevContent.displayname);
 
       return {
         icon: Icons.Mention,
         body:
           typeof content.displayname === 'string' ? (
             <>
-              <b>{prevUserName}</b>
+              {name(userId, prevUserName)}
               {' changed display name to '}
-              <b>{userName}</b>
+              {name(userId, userName)}
             </>
           ) : (
             <>
-              <b>{prevUserName}</b>
+              {name(userId, prevUserName)}
               {' removed their display name '}
             </>
           ),
@@ -206,12 +226,12 @@ export const useMemberEventParser = (): MemberEventParser => {
         body:
           content.avatar_url && typeof content.avatar_url === 'string' ? (
             <>
-              <b>{userName}</b>
+              {name(userId, userName)}
               {' changed their avatar'}
             </>
           ) : (
             <>
-              <b>{userName}</b>
+              {name(userId, userName)}
               {' removed their avatar '}
             </>
           ),

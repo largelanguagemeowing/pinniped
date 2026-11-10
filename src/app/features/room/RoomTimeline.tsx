@@ -544,7 +544,6 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       }),
     [mx, room, linkifyOpts, spoilerClickHandler, mentionClickHandler, useAuthentication]
   );
-  const parseMemberEvent = useMemberEventParser();
 
   const [timeline, setTimeline] = useState<Timeline>(() =>
     eventId ? getEmptyTimeline() : getInitialTimeline(room)
@@ -1016,6 +1015,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     },
     [room, space, openUserRoomProfile]
   );
+  const parseMemberEvent = useMemberEventParser(handleUserClick);
 
   const handleReplyClick: MouseEventHandler<HTMLButtonElement> = useCallback(
     (evt, startThread = false) => {

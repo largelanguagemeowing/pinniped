@@ -24,6 +24,20 @@ export const Username = as<'span'>(({ as: AsUsername = 'span', className, ...pro
   <AsUsername className={classNames(css.Username, className)} {...props} ref={ref} />
 ));
 
+/** A clickable username inside a sentence; see `UsernameInline` for how it differs. */
+export const InlineUsername = as<'button'>(
+  ({ as: AsInlineUsername = 'button', className, children, ...props }, ref) => (
+    <AsInlineUsername
+      type="button"
+      className={classNames(css.Username, css.UsernameInline, className)}
+      {...props}
+      ref={ref}
+    >
+      <b className={css.UsernameBold}>{children}</b>
+    </AsInlineUsername>
+  )
+);
+
 export const UsernameBold = as<'b'>(({ as: AsUsernameBold = 'b', className, ...props }, ref) => (
   <AsUsernameBold className={classNames(css.UsernameBold, className)} {...props} ref={ref} />
 ));

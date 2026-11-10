@@ -180,6 +180,26 @@ export const Username = style({
   },
 });
 
+/**
+ * A username button inside a sentence ("alice invited bob"). `Username` is one truncated line
+ * for a message header; here the name is part of running text, so it takes the text's font and
+ * colour and wraps with it, however long it is.
+ */
+export const UsernameInline = style({
+  overflow: 'visible',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  maxWidth: '100%',
+  verticalAlign: 'baseline',
+  textAlign: 'start',
+  font: 'inherit',
+  color: 'inherit',
+  margin: 0,
+  padding: 0,
+  background: 'none',
+  border: 0,
+});
+
 export const UsernameBold = style({
   fontWeight: 550,
 });
