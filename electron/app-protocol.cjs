@@ -73,6 +73,8 @@ function registerAppHandler(root) {
 
   protocol.handle(SCHEME, async (request) => {
     const url = new URL(request.url);
+    // One origin only: any other host would be the same app under a separate, empty profile.
+    if (url.host !== HOST) return new Response('Not found', { status: 404 });
     let filePath = path.normalize(path.join(root, decodeURIComponent(url.pathname)));
 
     if (filePath !== root && !filePath.startsWith(root + path.sep)) {

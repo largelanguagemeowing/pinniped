@@ -63,7 +63,7 @@ async function leaveCall() {
 
 // Dev only (`just dev-electron`): load the vite dev server (HMR) instead of the
 // built bundle in dist/.
-const DEV_SERVER_URL = process.env.CINNY_DEV_SERVER_URL;
+const DEV_SERVER_URL = process.env.PINNIPED_DEV_SERVER_URL;
 
 // Dev runs get their own profile. Otherwise they share the installed app's profile, lose the
 // single-instance lock below, quit, and just focus the installed window instead of the dev build.
@@ -71,7 +71,7 @@ const DEV_SERVER_URL = process.env.CINNY_DEV_SERVER_URL;
 if (DEV_SERVER_URL) app.setPath('userData', path.join(app.getPath('appData'), 'pinniped-dev'));
 
 // Dev only (`just dev-electron`): expose DevTools over CDP on localhost for layout debugging.
-if (process.env.CINNY_DEV_RELOAD) app.commandLine.appendSwitch('remote-debugging-port', '9333');
+if (process.env.PINNIPED_DEV_RELOAD) app.commandLine.appendSwitch('remote-debugging-port', '9333');
 
 let mainWindow = null;
 let tray = null;
@@ -305,8 +305,20 @@ ipcMain.on('badge:set', (_event, payload) => {
   }
 });
 
+// The origins the app itself is served from, as scheme plus host and port. They are compared
+// whole: a prefix match would also accept app://cinny.example or http://localhost:51730.
+// (URL#origin is no use here: Node reports "null" for the app: scheme.)
+const originOf = (url) => {
+  const { protocol, host } = new URL(url);
+  return `${protocol}//${host}`;
+};
+const INTERNAL_ORIGINS = new Set([APP_ORIGIN, DEV_SERVER_URL].filter(Boolean).map(originOf));
 function isInternalUrl(url) {
-  return url.startsWith(APP_ORIGIN) || (DEV_SERVER_URL && url.startsWith(DEV_SERVER_URL));
+  try {
+    return INTERNAL_ORIGINS.has(originOf(url));
+  } catch {
+    return false;
+  }
 }
 
 // privileged scheme must be registered before the app is ready
@@ -452,7 +464,7 @@ function createWindow() {
   });
 
   mainWindow.loadURL(DEV_SERVER_URL || `${APP_ORIGIN}/`);
-  if (process.env.CINNY_DEV_RELOAD) watchDistForReload();
+  if (process.env.PINNIPED_DEV_RELOAD) watchDistForReload();
 }
 
 // Dev only (`just dev-electron`): reload the window whenever `vite build --watch`
