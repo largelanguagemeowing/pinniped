@@ -1,4 +1,4 @@
-import { IContent, MatrixClient, MsgType } from 'matrix-js-sdk';
+import { IContent, MatrixClient, MsgType, RelationType } from 'matrix-js-sdk';
 import to from 'await-to-js';
 import {
   IThumbnailContent,
@@ -14,7 +14,8 @@ import {
   loadVideoElement,
 } from '../../utils/dom';
 import { encryptFile, getImageInfo, getThumbnailContent, getVideoInfo } from '../../utils/matrix';
-import { TUploadItem } from '../../state/room/roomInputDrafts';
+import { IReplyDraft, TUploadItem } from '../../state/room/roomInputDrafts';
+import { ATTACHMENTS_CONTENT_KEY } from '../../utils/attachments';
 import { encodeBlurHash } from '../../utils/blurHash';
 import { scaleYDimension } from '../../utils/common';
 
@@ -168,4 +169,76 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
     content.url = mxc;
   }
   return content;
+};
+
+export const addReplyRelation = (content: IContent, replyDraft?: IReplyDraft): IContent => {
+  if (!replyDraft) return content;
+
+  const relation: Record<string, unknown> = {
+    'm.in_reply_to': {
+      event_id: replyDraft.eventId,
+    },
+  };
+  if (replyDraft.relation?.rel_type === RelationType.Thread) {
+    relation.event_id = replyDraft.relation.event_id;
+    relation.rel_type = RelationType.Thread;
+    relation.is_falling_back = false;
+  }
+
+  return { ...content, 'm.relates_to': relation };
+};
+
+type UploadMessages = {
+  /** One message content per uploaded file, in the order they were picked. */
+  files: IContent[];
+  /** What was typed alongside the files, as a text message content. */
+  caption?: IContent;
+  /** Shared by every file when there are several, see utils/attachments.ts. */
+  groupId?: string;
+  replyDraft?: IReplyDraft;
+};
+
+/**
+ * The events a send with files goes out as: one per file, since that is what every Matrix client
+ * can show.
+ *
+ * - Several files carry the same group id, so Pinniped draws them as one grid.
+ * - The typed text is the caption of the first file, so it reads as one message. With no file to
+ *   carry it, it is sent as plain text.
+ * - Only the first event carries a reply: the files are one message, and a reply on each would
+ *   show the quoted message once per file in clients that do not group them. Inside a thread every
+ *   event keeps the relation, or the later files would land in the main timeline.
+ */
+export const getUploadMessages = ({
+  files,
+  caption,
+  groupId,
+  replyDraft,
+}: UploadMessages): IContent[] => {
+  const grouped = groupId
+    ? files.map((content) => ({ ...content, [ATTACHMENTS_CONTENT_KEY]: groupId }))
+    : files;
+
+  let messages: IContent[] = grouped;
+  if (caption) {
+    messages =
+      grouped.length > 0
+        ? [
+            {
+              ...grouped[0],
+              body: caption.body,
+              ...(caption.format
+                ? { format: caption.format, formatted_body: caption.formatted_body }
+                : {}),
+              'm.mentions': caption['m.mentions'],
+            },
+            ...grouped.slice(1),
+          ]
+        : [caption];
+  }
+
+  const inThread = replyDraft?.relation?.rel_type === RelationType.Thread;
+  return messages.map((content, index) =>
+    index === 0 || inThread ? addReplyRelation(content, replyDraft) : content
+  );
 };

@@ -80,7 +80,6 @@ import { useFilePicker } from '../../hooks/useFilePicker';
 import { useFilePasteHandler } from '../../hooks/useFilePasteHandler';
 import { useFileDropZone } from '../../hooks/useFileDrop';
 import {
-  IReplyDraft,
   TUploadItem,
   TUploadMetadata,
   roomIdToMsgDraftAtomFamily,
@@ -105,7 +104,6 @@ import { getImageUrlBlob, loadImageElement } from '../../utils/dom';
 import { safeFile } from '../../utils/mimeTypes';
 import { stripMetadata } from '../../utils/stripMetadata';
 import { fulfilledPromiseSettledResult, randomStr } from '../../utils/common';
-import { ATTACHMENTS_CONTENT_KEY } from '../../utils/attachments';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import {
@@ -113,6 +111,8 @@ import {
   getFileMsgContent,
   getImageMsgContent,
   getVideoMsgContent,
+  addReplyRelation,
+  getUploadMessages,
 } from './msgContent';
 import { getMemberDisplayName, getMentionContent, trimReplyFromBody } from '../../utils/room';
 import { CommandAutocomplete } from './CommandAutocomplete';
@@ -147,23 +147,6 @@ const gifIconStyles: CSSProperties = {
 
 const SEND_FAILURE_MESSAGE =
   'Message not sent. Check your connection and available disk space, then retry the failed message.';
-
-const addReplyRelation = (content: IContent, replyDraft?: IReplyDraft): IContent => {
-  if (!replyDraft) return content;
-
-  const relation: Record<string, unknown> = {
-    'm.in_reply_to': {
-      event_id: replyDraft.eventId,
-    },
-  };
-  if (replyDraft.relation?.rel_type === RelationType.Thread) {
-    relation.event_id = replyDraft.relation.event_id;
-    relation.rel_type = RelationType.Thread;
-    relation.is_falling_back = false;
-  }
-
-  return { ...content, 'm.relates_to': relation };
-};
 
 interface RoomInputProps {
   editor: Editor;
@@ -353,33 +336,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const fetchedContents = fulfilledPromiseSettledResult(
         await Promise.allSettled(contentsPromises)
       );
-      // Several files go out as one event each, tagged with a shared group id so
-      // they show as one grid (see utils/attachments.ts).
-      const groupId = fetchedContents.length > 1 ? randomStr(16) : undefined;
-      const contents = groupId
-        ? fetchedContents.map((content) => ({ ...content, [ATTACHMENTS_CONTENT_KEY]: groupId }))
-        : fetchedContents;
-      // The typed text goes out as the caption of the first file, so it reads as
-      // one message. With no file to carry it, it is sent as plain text.
-      const outgoing: IContent[] = caption
-        ? contents.length > 0
-          ? [
-              {
-                ...contents[0],
-                body: caption.body,
-                ...(caption.format
-                  ? { format: caption.format, formatted_body: caption.formatted_body }
-                  : {}),
-                'm.mentions': caption['m.mentions'],
-              },
-              ...contents.slice(1),
-            ]
-          : [caption]
-        : contents;
+      const outgoing = getUploadMessages({
+        files: fetchedContents,
+        caption,
+        groupId: fetchedContents.length > 1 ? randomStr(16) : undefined,
+        replyDraft,
+      });
       const sendResults = await Promise.allSettled(
-        outgoing.map((content) =>
-          mx.sendMessage(roomId, addReplyRelation(content, replyDraft) as any)
-        )
+        outgoing.map((content) => mx.sendMessage(roomId, content as any))
       );
       setSendError(
         sendResults.some((result) => result.status === 'rejected')
