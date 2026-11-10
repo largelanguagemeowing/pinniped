@@ -323,14 +323,19 @@ export const InCallView: FC<InCallViewProps> = ({
   const [headerRef, headerBounds] = useMeasure();
   const [footerRef, footerBounds] = useMeasure();
 
+  // useMeasure includes the vertical scrollbar of the container; tiles sized to
+  // that width would slide underneath it.
+  const scrollbarWidth = containerRef1.current
+    ? containerRef1.current.offsetWidth - containerRef1.current.clientWidth
+    : 0;
   const gridBounds = useMemo(
     () => ({
-      width: bounds.width,
+      width: bounds.width - scrollbarWidth,
       // Cinny hides this footer (out of flow, invisible) and draws its own call
       // bar outside the iframe, so the footer must not take height from the grid.
       height: bounds.height - (edgeToEdge ? 0 : headerBounds.height),
     }),
-    [bounds.width, bounds.height, headerBounds.height, edgeToEdge],
+    [bounds.width, scrollbarWidth, bounds.height, headerBounds.height, edgeToEdge],
   );
   const gridBoundsObservable$ = useObservable(
     (inputs$) => inputs$.pipe(map(([gridBounds]) => gridBounds)),
