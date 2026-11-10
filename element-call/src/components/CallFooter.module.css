@@ -30,6 +30,14 @@ Please see LICENSE in the repository root for full details.
   display: none;
 }
 
+/* The embedding client draws the call controls itself, outside the widget. The
+   footer keeps its box, which the edge-to-edge layout reserves room for, but it
+   is out of flow, unseen and out of the tab order. */
+.footer.embedded {
+  position: absolute;
+  visibility: hidden;
+}
+
 .footer.overlay {
   /* Note that the footer is still position: sticky in this case so that certain
     tiles can move up out of the way of the footer when visible. */

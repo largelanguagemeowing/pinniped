@@ -35,6 +35,7 @@ import {
 } from "./MediaMuteAndSwitchButton";
 import { type ViewModel } from "../state/ViewModel";
 import { useBehavior } from "../useBehavior";
+import { widget } from "../widget";
 
 export interface AudioOutputSwitcher {
   targetOutput: string;
@@ -295,6 +296,7 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
       className={classNames(styles.footer, {
         [styles.overlay]: asOverlay,
         [styles.hidden]: !showFooter,
+        [styles.embedded]: widget !== null,
       })}
     >
       <div className={styles.settingsLogoContainer}>

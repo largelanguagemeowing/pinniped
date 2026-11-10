@@ -80,6 +80,7 @@ import { type HomeserverConnected } from "./HomeserverConnected.ts";
 import { type LocalTransport } from "./LocalTransport.ts";
 import { areLivekitTransportsEqual } from "../remoteMembers/MatrixLivekitMembers.ts";
 import { screenShareStart$ } from "../../../livekit/screenShareStart";
+import { screenShareStop$ } from "../../../hostControl";
 
 /** Backoff for rejoining the MatrixRTC session after the membership manager gave up. */
 const MEMBERSHIP_REJOIN_BASE_DELAY_MS = 1_000;
@@ -959,6 +960,10 @@ export const createLocalMembership$ = ({
     // The client starts a share with the options it chose (its screen share picker).
     screenShareStart$.pipe(scope.bind()).subscribe(() => {
       if (!sharingScreen$.value) applyScreenShare();
+    });
+    // The client's own button ends the share.
+    screenShareStop$.pipe(scope.bind()).subscribe(() => {
+      if (sharingScreen$.value) applyScreenShare();
     });
   }
 

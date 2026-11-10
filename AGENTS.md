@@ -89,6 +89,17 @@ Fork changes on top of upstream + old patches:
   soundboard, shared-screen audio) is measured where any sound above digital silence
   counts; remote participants use the indicator sensitivity setting (their gate is
   invisible to us).
+- **Call controls**: Pinniped draws the call bar itself and never touches the
+  widget's document. Its buttons reach the widget as the
+  `club.stablecat.pinniped.call_control` action (layout, end screen share, deafen,
+  idle, scrollbar colours; `src/hostControl.ts` in the widget,
+  `src/app/plugins/call/view.ts` and `CallControl.ts` here), and the widget
+  reports what they show as `club.stablecat.pinniped.call_view` (layout, own
+  screen share, height of the watched stream). Input inside the call view comes
+  back as `club.stablecat.pinniped.user_activity`, and a tile's View Profile as
+  `club.stablecat.pinniped.view_profile`. Embedded, the widget hides its own
+  footer and page background in its own CSS (`data-pinniped-embedded`). New
+  behaviour across the boundary goes into these actions, not into DOM access.
 - **Call stats**: the widget (`src/livekit/callStats.ts`, reported from
   `InCallView`) samples each SFU connection's `RTCPeerConnection` stats once a
   second and sends the raw counters to Pinniped as the `club.stablecat.pinniped.call_stats`

@@ -25,7 +25,7 @@ import { settingsAtom } from '../state/settings';
 import { playCallEndSound } from '../sound/play';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useTheme } from './useTheme';
-import { applyCallScrollbarColors } from '../plugins/call/scrollbarTheme';
+import { getCallScrollbarColors } from '../plugins/call/scrollbarTheme';
 import { callEmbedAtom, callIdleAtom } from '../state/callEmbed';
 import { useResizeObserver } from './useResizeObserver';
 import { CallControlState } from '../plugins/call/CallControlState';
@@ -189,13 +189,13 @@ export const useCallThemeSync = (embed: CallEmbed) => {
     embed.setTheme(name);
 
     // The theme class may not be on <body> yet when this runs, so read the colours a frame later.
-    // The widget document is replaced if the iframe reloads, so give it the colours again then too.
-    const applyScrollbar = () => applyCallScrollbarColors(embed.document);
+    // A widget that is still loading misses them, so they are sent again once it is ready.
+    const applyScrollbar = () => embed.setScrollbarColors(getCallScrollbarColors());
     const frame = requestAnimationFrame(applyScrollbar);
-    embed.iframe.addEventListener('load', applyScrollbar);
+    const stopListening = embed.onReady(applyScrollbar);
     return () => {
       cancelAnimationFrame(frame);
-      embed.iframe.removeEventListener('load', applyScrollbar);
+      stopListening();
     };
   }, [theme.kind, embed]);
 };
@@ -287,9 +287,9 @@ export const useCallEmbedPlacementSync = (
 const CALL_IDLE_MS = 3000;
 
 /**
- * Tracks pointer/keyboard activity (in the app and inside the call iframe) and flips
- * `callIdleAtom` after a few quiet seconds, so the call view can fade its UI. The call document also
- * gets `data-pinniped-idle` so the call UI itself can hide its labels.
+ * Tracks pointer/keyboard activity (in the app, and inside the call view as the widget reports it)
+ * and flips `callIdleAtom` after a few quiet seconds, so the call view can fade its UI. The widget
+ * is told too, so the call UI itself can hide its labels.
  */
 export const useCallIdle = (embed?: CallEmbed) => {
   const setIdle = useSetAtom(callIdleAtom);
@@ -301,12 +301,15 @@ export const useCallIdle = (embed?: CallEmbed) => {
     }
 
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const attached = new Set<Document>();
+    let lastIdle: boolean | undefined;
 
     const applyIdle = (idle: boolean) => {
       setIdle(idle);
-      const root = embed.document?.documentElement;
-      if (root) root.dataset.pinnipedIdle = String(idle);
+      // Activity arrives on every pointer move; the widget only needs the changes.
+      if (idle !== lastIdle) {
+        lastIdle = idle;
+        embed.setIdle(idle);
+      }
     };
 
     const onActivity = () => {
@@ -316,24 +319,14 @@ export const useCallIdle = (embed?: CallEmbed) => {
     };
 
     const events = ['mousemove', 'mousedown', 'keydown', 'wheel'] as const;
-    const attach = (doc?: Document) => {
-      if (!doc || attached.has(doc)) return;
-      attached.add(doc);
-      events.forEach((evt) => doc.addEventListener(evt, onActivity, { passive: true }));
-    };
-    const attachAll = () => {
-      attach(document);
-      attach(embed.document);
-    };
-
-    attachAll();
-    embed.iframe.addEventListener('load', attachAll);
+    events.forEach((evt) => document.addEventListener(evt, onActivity, { passive: true }));
+    const stopListening = embed.onUserActivity(onActivity);
     onActivity();
 
     return () => {
       clearTimeout(timer);
-      embed.iframe.removeEventListener('load', attachAll);
-      attached.forEach((doc) => events.forEach((evt) => doc.removeEventListener(evt, onActivity)));
+      events.forEach((evt) => document.removeEventListener(evt, onActivity));
+      stopListening();
       setIdle(false);
     };
   }, [embed, setIdle]);

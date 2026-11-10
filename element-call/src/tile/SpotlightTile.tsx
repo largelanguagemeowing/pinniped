@@ -58,6 +58,7 @@ import { type ScreenShareViewModel } from "../state/media/ScreenShareViewModel";
 import { type RemoteScreenShareViewModel } from "../state/media/RemoteScreenShareViewModel";
 import { type MediaViewModel } from "../state/media/MediaViewModel";
 import { Slider } from "../Slider";
+import { streamHeight$ } from "../hostControl";
 import { platform } from "../Platform";
 import { type RingingMediaViewModel } from "../state/media/RingingMediaViewModel";
 
@@ -180,12 +181,48 @@ interface SpotlightScreenShareItemProps extends SpotlightMemberMediaItemBaseProp
   videoEnabled: boolean;
 }
 
+/**
+ * Pinniped: tells the embedding client the resolution of the screen share on show
+ * (its header says e.g. "720p"), from the video element inside the given tile.
+ */
+const useReportStreamHeight = (
+  tile: HTMLElement | null,
+  visible: boolean,
+  video: unknown,
+  videoEnabled: boolean,
+): void => {
+  useEffect(() => {
+    if (tile === null || !visible) return;
+    const update = (): void =>
+      streamHeight$.next(tile.querySelector("video")?.videoHeight || null);
+    // Neither event bubbles, so they are caught on their way down to the video.
+    tile.addEventListener("resize", update, true);
+    tile.addEventListener("loadedmetadata", update, true);
+    update();
+    return (): void => {
+      tile.removeEventListener("resize", update, true);
+      tile.removeEventListener("loadedmetadata", update, true);
+      streamHeight$.next(null);
+    };
+  }, [tile, visible, video, videoEnabled]);
+};
+
 const SpotlightScreenShareItem: FC<SpotlightScreenShareItemProps> = ({
   vm,
+  ref: refProp,
   ...props
 }) => {
+  const [tile, setTile] = useState<HTMLDivElement | null>(null);
+  const ref = useMergedRefs(refProp, setTile);
+  useReportStreamHeight(
+    tile,
+    props["aria-hidden"] !== true,
+    props.video,
+    props.videoEnabled,
+  );
   return (
     <MediaView
+      ref={ref}
       videoFit="contain"
       mirror={false}
       data-pinniped-live

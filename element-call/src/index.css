@@ -87,6 +87,11 @@ body {
 
 /* This prohibits the view to scroll for pages smaller than 122px in width
 we use this for mobile pip webviews */
+/* Embedded in a client, the call view sits on the client's own background. */
+:root[data-pinniped-embedded] body {
+  background: none;
+}
+
 .no-scroll-body {
   position: fixed;
   width: 100%;

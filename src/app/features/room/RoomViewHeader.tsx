@@ -84,6 +84,7 @@ import { roomSearchDrawerActiveAtom } from '../../state/roomSearch';
 import { RoomSearchBar } from '../message-search/RoomSearchBar';
 import { useCallParticipantActivity } from '../../hooks/useCallSpeakers';
 import { CallEmbed } from '../../plugins/call/CallEmbed';
+import { CallControlEvent } from '../../plugins/call/CallControl';
 import {
   useCallEmbed,
   useCallJoined,
@@ -400,26 +401,25 @@ function CallButton() {
   );
 }
 
-/** Resolution of the shared screen, read from the call's video element (e.g. "720p"). */
+/** Resolution of the shared screen being watched, as the call reports it (e.g. "720p"). */
 function useStreamQuality(embed?: CallEmbed): string | undefined {
-  const [quality, setQuality] = useState<string>();
+  const [height, setHeight] = useState<number>();
 
   useEffect(() => {
     if (!embed) {
-      setQuality(undefined);
+      setHeight(undefined);
       return undefined;
     }
-    const update = () => {
-      const video = embed.document?.querySelector<HTMLVideoElement>('[data-pinniped-live] video');
-      const height = video?.videoHeight;
-      setQuality(height ? `${height}p` : undefined);
-    };
+    const { control } = embed;
+    const update = () => setHeight(control.streamHeight);
     update();
-    const timer = setInterval(update, 2000);
-    return () => clearInterval(timer);
+    control.on(CallControlEvent.StateUpdate, update);
+    return () => {
+      control.off(CallControlEvent.StateUpdate, update);
+    };
   }, [embed]);
 
-  return quality;
+  return height ? `${height}p` : undefined;
 }
 
 function CallChatToggleButton() {

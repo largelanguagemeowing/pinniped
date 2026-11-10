@@ -65,6 +65,8 @@ export class CallEmbed {
 
   private readonly errorListeners = new Set<() => void>();
 
+  private readonly userActivityListeners = new Set<() => void>();
+
   /** An outgoing call that rings the other side; the call itself plays the start sound. */
   public readonly ringing: boolean;
 
@@ -227,11 +229,7 @@ export class CallEmbed {
     this.container = container;
 
     const controlState = initialControlState ?? new CallControlState(true, false, true);
-    this.control = new CallControl(controlState, call, iframe);
-    this.control.startObserving();
-    iframe.onload = () => {
-      this.control.startObserving();
-    };
+    this.control = new CallControl(controlState, call);
 
     let initialMediaEvent = true;
     this.disposables.push(
@@ -284,15 +282,27 @@ export class CallEmbed {
       })
     );
 
+    this.disposables.push(
+      this.listenAction<IWidgetApiRequest>(ElementWidgetActions.CallView, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail, {});
+        this.control.onViewState(evt.detail.data);
+      })
+    );
+
+    this.disposables.push(
+      this.listenAction<IWidgetApiRequest>(ElementWidgetActions.UserActivity, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail, {});
+        this.userActivityListeners.forEach((listener) => listener());
+      })
+    );
+
     this.start();
   }
 
   get roomId(): string {
     return this.room.roomId;
-  }
-
-  get document(): Document | undefined {
-    return this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
   }
 
   public setTheme(theme: ElementCallThemeKind) {
@@ -311,6 +321,24 @@ export class CallEmbed {
 
   public soundboard(command: SoundboardCommand) {
     return this.call.transport.send(ElementWidgetActions.Soundboard, command);
+  }
+
+  /** Tells the call view whether the user is idle, so it fades its labels with the rest of the UI. */
+  public setIdle(idle: boolean) {
+    this.control.request({ idle });
+  }
+
+  /** Gives the call view the scrollbar colours of the current theme. */
+  public setScrollbarColors(scrollbar: { track: string; thumb: string }) {
+    this.control.request({ scrollbar });
+  }
+
+  /** Pointer or keyboard input inside the call view, which this document does not see. */
+  public onUserActivity(callback: () => void) {
+    this.userActivityListeners.add(callback);
+    return () => {
+      this.userActivityListeners.delete(callback);
+    };
   }
 
   public onActivity(callback: () => void) {
@@ -390,7 +418,6 @@ export class CallEmbed {
     });
     this.call.stop();
     this.container.removeChild(this.iframe);
-    this.control.dispose();
 
     this.mx.off(ClientEvent.Event, this.onEvent);
     this.mx.off(MatrixEventEvent.Decrypted, this.onEventDecrypted);

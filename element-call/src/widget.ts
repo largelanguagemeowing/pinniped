@@ -45,6 +45,7 @@ import {
   soundboardCommand$,
 } from "./livekit/soundboard";
 import { screenShareStart$ } from "./livekit/screenShareStart";
+import { applyHostCallControl, reportUserActivity } from "./hostControl";
 import { callSoundCommand$ } from "./livekit/callSounds";
 import {
   audioInput,
@@ -93,6 +94,13 @@ export enum ElementWidgetActions {
   CallError = "club.stablecat.pinniped.call_error",
   // fromWidget (fork): open the client's profile card for a participant; data `{ userId }`
   ViewProfile = "club.stablecat.pinniped.view_profile",
+  // toWidget (fork): the client's own call controls, see HostCallControl
+  CallControl = "club.stablecat.pinniped.call_control",
+  // fromWidget (fork): the state those controls show, see CallViewState
+  CallView = "club.stablecat.pinniped.call_view",
+  // fromWidget (fork): the user moved the pointer or typed inside the call view;
+  // at most once a second, no data
+  UserActivity = "club.stablecat.pinniped.user_activity",
   // This can be sent as from or to widget
   // fromWidget: updates the client about the current device mute state
   // toWidget: the client requests a specific device mute configuration
@@ -285,6 +293,23 @@ export const initializeWidget = (
           api.transport.reply(ev.detail, {});
         },
       );
+
+      // The client draws the call controls; this is how they reach the call.
+      api.on(
+        `action:${ElementWidgetActions.CallControl}`,
+        (ev: CustomEvent<IWidgetApiRequest>) => {
+          ev.preventDefault();
+          applyHostCallControl(ev.detail.data);
+          api.transport.reply(ev.detail, {});
+        },
+      );
+      reportUserActivity(() => {
+        api.transport
+          .send(ElementWidgetActions.UserActivity, {})
+          .catch(() => undefined);
+      });
+      // Lets the styles tell an embedded call view from a standalone one.
+      document.documentElement.dataset.pinnipedEmbedded = "true";
 
       // Soundboard sounds go to the Publisher of the call, which owns the track.
       api.on(

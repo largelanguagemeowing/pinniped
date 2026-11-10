@@ -213,7 +213,7 @@ export function CallControl({
           enabled={screenshare}
           // Starting a share asks for its options first, as in the call bar.
           onToggle={() =>
-            screenshare ? callEmbed.control.toggleScreenshare() : setPickingShare(true)
+            screenshare ? callEmbed.control.stopScreenshare() : setPickingShare(true)
           }
           disabled={!callJoined}
         />

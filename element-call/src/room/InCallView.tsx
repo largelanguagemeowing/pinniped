@@ -20,7 +20,7 @@ import {
 import useMeasure from "react-use-measure";
 import { type MatrixRTCSession } from "matrix-js-sdk/lib/matrixrtc";
 import classNames from "classnames";
-import { map } from "rxjs";
+import { combineLatest, map } from "rxjs";
 import { useObservable } from "observable-hooks";
 import { logger as rootLogger } from "matrix-js-sdk/lib/logger";
 import { useTranslation } from "react-i18next";
@@ -29,6 +29,11 @@ import { Header, LeftNav, RightNav, RoomHeaderInfo } from "../Header";
 import { HeaderStyle, useUrlParams } from "../UrlParams";
 import { useCallViewKeyboardShortcuts } from "../useCallViewKeyboardShortcuts";
 import { ElementWidgetActions, widget } from "../widget";
+import {
+  type CallViewState,
+  layoutRequest$,
+  streamHeight$,
+} from "../hostControl";
 import {
   sampleConnection,
   type CallStatsConnection,
@@ -654,6 +659,28 @@ export const InCallView: FC<InCallViewProps> = ({
         .catch(() => {});
     });
     return (): void => subscription.unsubscribe();
+  }, [vm]);
+
+  // Embedded clients (Pinniped) draw the layout and screen share buttons themselves:
+  // tell them what those show, and take their layout choice.
+  useEffect(() => {
+    if (widget === null) return;
+    const api = widget.api;
+    const state = combineLatest([
+      vm.gridMode$,
+      vm.sharingScreen$,
+      streamHeight$,
+    ]).subscribe(([layout, screenSharing, streamHeight]) => {
+      const view: CallViewState = { layout, screenSharing, streamHeight };
+      api.transport.send(ElementWidgetActions.CallView, view).catch(() => {});
+    });
+    const requests = layoutRequest$.subscribe((layout) =>
+      vm.setGridMode(layout),
+    );
+    return (): void => {
+      state.unsubscribe();
+      requests.unsubscribe();
+    };
   }, [vm]);
 
   // The stats sampler names remote streams by Matrix user, from the latest room items.

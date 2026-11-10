@@ -2,6 +2,12 @@ import { ClientWidgetApi } from 'matrix-widget-api';
 import EventEmitter from 'events';
 import { CallControlState } from './CallControlState';
 import { ElementMediaStateDetail, ElementMediaStatePayload, ElementWidgetActions } from './types';
+import {
+  CallControlRequest,
+  CallViewState,
+  initialCallViewState,
+  parseCallViewState,
+} from './view';
 
 export enum CallControlEvent {
   StateUpdate = 'state_update',
@@ -9,62 +15,24 @@ export enum CallControlEvent {
   UserToggle = 'user_toggle',
 }
 
+/**
+ * Pinniped's side of the call controls. The widget draws none of its own while embedded: every
+ * button here reaches it as a widget action, and the widget reports back what the buttons show.
+ */
 export class CallControl extends EventEmitter implements CallControlState {
   private state: CallControlState;
 
+  private view: CallViewState = initialCallViewState;
+
   private call: ClientWidgetApi;
-
-  private iframe: HTMLIFrameElement;
-
-  private bodyMutationObserver: MutationObserver;
-
-  private controlMutationObserver: MutationObserver;
 
   private mediaStatePromiseResolver: undefined | (() => void);
 
-  private get document(): Document | undefined {
-    return this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
-  }
-
-  private get screenshareButton(): HTMLElement | undefined {
-    const screenshareBtn = this.document?.querySelector(
-      '[data-testid="incall_screenshare"]'
-    ) as HTMLElement | null;
-
-    return screenshareBtn ?? undefined;
-  }
-
-  private get leaveButton(): Element | undefined {
-    const leaveBtn = this.document?.querySelector('[data-testid="incall_leave"]');
-
-    return leaveBtn ?? undefined;
-  }
-
-  private get spotlightButton(): HTMLInputElement | undefined {
-    const spotlightButton = this.document?.querySelector(
-      'input[value="spotlight"]'
-    ) as HTMLInputElement | null;
-
-    return spotlightButton ?? undefined;
-  }
-
-  private get gridButton(): HTMLInputElement | undefined {
-    const gridButton = this.document?.querySelector(
-      'input[value="grid"]'
-    ) as HTMLInputElement | null;
-
-    return gridButton ?? undefined;
-  }
-
-  constructor(state: CallControlState, call: ClientWidgetApi, iframe: HTMLIFrameElement) {
+  constructor(state: CallControlState, call: ClientWidgetApi) {
     super();
 
     this.state = state;
     this.call = call;
-    this.iframe = iframe;
-
-    this.bodyMutationObserver = new MutationObserver(this.onBodyMutation.bind(this));
-    this.controlMutationObserver = new MutationObserver(this.onControlMutation.bind(this));
   }
 
   public getState(): CallControlState {
@@ -91,6 +59,11 @@ export class CallControl extends EventEmitter implements CallControlState {
     return this.state.spotlight;
   }
 
+  /** Height in pixels of the screen share being watched, if there is one. */
+  public get streamHeight(): number | undefined {
+    return this.view.streamHeight;
+  }
+
   public async applyState() {
     await this.setMediaState({
       audio_enabled: this.microphone,
@@ -100,52 +73,16 @@ export class CallControl extends EventEmitter implements CallControlState {
     this.emitStateUpdate();
   }
 
-  public startObserving() {
-    if (!this.document) return;
-
-    this.bodyMutationObserver.observe(this.document.body, {
-      childList: true,
-      subtree: false, // only direct children of body
-    });
-    this.onBodyMutation();
-  }
-
-  private onBodyMutation() {
-    if (!this.document) return;
-
-    this.document.body.style.setProperty('background', 'none', 'important');
-
-    const controls = this.leaveButton?.parentElement?.parentElement;
-    if (controls) {
-      controls.style.setProperty('position', 'absolute');
-      controls.style.setProperty('visibility', 'hidden');
-    }
-
-    this.observeControls();
-  }
-
-  private observeControls() {
-    this.controlMutationObserver.disconnect();
-
-    const screenshareBtn = this.screenshareButton;
-    if (screenshareBtn) {
-      this.controlMutationObserver.observe(screenshareBtn, {
-        attributes: true,
-        attributeFilter: ['data-kind'],
-      });
-    }
-    const spotlightBtn = this.spotlightButton;
-    if (spotlightBtn) {
-      this.controlMutationObserver.observe(spotlightBtn, {
-        attributes: true,
-      });
-    }
-
-    this.onControlMutation();
-  }
-
   public applySound() {
     this.setSound(this.sound);
+  }
+
+  /**
+   * Sends a request to the call view. A widget that is not listening yet does not answer, which
+   * is not an error here: the state is applied again once it reports its media state.
+   */
+  public request(control: CallControlRequest): void {
+    this.call.transport.send(ElementWidgetActions.CallControl, control).catch(() => undefined);
   }
 
   private async setMediaState(state: ElementMediaStatePayload) {
@@ -164,23 +101,7 @@ export class CallControl extends EventEmitter implements CallControlState {
   }
 
   private setSound(sound: boolean): void {
-    // The widget's own output switch (the `window.controls` API Element's native apps use):
-    // it mutes the call's audio renderers, which a plain `muted` on the audio elements cannot,
-    // since voices play through an audio context.
-    try {
-      (
-        this.iframe.contentWindow as
-          (Window & { controls?: { setAudioEnabled?: (enabled: boolean) => void } }) | null
-      )?.controls?.setAudioEnabled?.(sound);
-    } catch {
-      // not same-origin or not loaded yet; the elements below still get muted
-    }
-    const callDocument = this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
-    if (callDocument) {
-      callDocument.querySelectorAll('audio').forEach((el) => {
-        el.muted = !sound;
-      });
-    }
+    this.request({ outputEnabled: sound });
   }
 
   public onMediaState(evt: CustomEvent<ElementMediaStateDetail>) {
@@ -208,16 +129,15 @@ export class CallControl extends EventEmitter implements CallControlState {
     }
   }
 
-  private onControlMutation() {
-    const screenshare: boolean = this.screenshareButton?.getAttribute('data-kind') === 'primary';
-    const spotlight: boolean = this.spotlightButton?.checked ?? false;
-
+  /** The widget reported its layout, our screen share and the watched stream (`call_view`). */
+  public onViewState(data: unknown) {
+    this.view = parseCallViewState(data, this.view);
     this.state = new CallControlState(
       this.microphone,
       this.video,
       this.sound,
-      screenshare,
-      spotlight
+      this.view.screenSharing,
+      this.view.layout === 'spotlight'
     );
     this.emitStateUpdate();
   }
@@ -259,21 +179,13 @@ export class CallControl extends EventEmitter implements CallControlState {
     this.emitStateUpdate();
   }
 
-  public toggleScreenshare() {
-    this.screenshareButton?.click();
+  /** Ends our screen share. Starting one goes through the picker (`CallEmbed.startScreenshare`). */
+  public stopScreenshare() {
+    this.request({ screenShare: false });
   }
 
   public toggleSpotlight() {
-    if (this.spotlight) {
-      this.gridButton?.click();
-      return;
-    }
-    this.spotlightButton?.click();
-  }
-
-  public dispose() {
-    this.bodyMutationObserver.disconnect();
-    this.controlMutationObserver.disconnect();
+    this.request({ layout: this.spotlight ? 'grid' : 'spotlight' });
   }
 
   private emitStateUpdate() {

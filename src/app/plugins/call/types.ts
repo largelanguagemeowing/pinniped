@@ -42,6 +42,12 @@ export enum ElementWidgetActions {
   CallError = 'club.stablecat.pinniped.call_error',
   /** Fork, from the widget: open the profile card of a participant, data `{ userId }`. */
   ViewProfile = 'club.stablecat.pinniped.view_profile',
+  /** Fork: Pinniped's own call controls, see CallControlRequest in ./view. */
+  CallControl = 'club.stablecat.pinniped.call_control',
+  /** Fork, from the widget: what those controls show, see CallViewState in ./view. */
+  CallView = 'club.stablecat.pinniped.call_view',
+  /** Fork, from the widget: the user moved the pointer or typed in the call view (at most once a second). */
+  UserActivity = 'club.stablecat.pinniped.user_activity',
 }
 
 export const screenShareResolutions = [
