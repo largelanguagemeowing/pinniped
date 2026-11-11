@@ -3,12 +3,11 @@ import { loadElectronMain } from './support/electronMain';
 
 describe('Windows badge IPC', () => {
   it('keeps the unread dot with count zero and clears the overlay when read', async () => {
-    const { app, ipcMain, windows } = await loadElectronMain('win32');
+    const { app, ipcMain, windows, fromPage } = await loadElectronMain('win32');
     const [window] = windows;
     // What the mocked nativeImage.createFromDataURL returns.
     const overlay = { png: true };
-    const update = (payload: unknown) =>
-      ipcMain.emit('badge:set', { sender: window.webContents }, payload);
+    const update = (payload: unknown) => ipcMain.emit('badge:set', fromPage(window), payload);
 
     update({ count: 0, hasUnread: true, overlay: 'data:image/png;base64,dot' });
     expect(app.setBadgeCount).toHaveBeenLastCalledWith(0);

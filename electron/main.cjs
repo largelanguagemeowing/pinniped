@@ -78,6 +78,40 @@ async function leaveCall() {
 // built bundle in dist/.
 const DEV_SERVER_URL = process.env.PINNIPED_DEV_SERVER_URL;
 
+// The origins the app itself is served from, as scheme plus host and port. They are compared
+// whole: a prefix match would also accept app://cinny.example or http://localhost:51730.
+// (URL#origin is no use here: Node reports "null" for the app: scheme.)
+const originOf = (url) => {
+  const { protocol, host } = new URL(url);
+  return `${protocol}//${host}`;
+};
+const INTERNAL_ORIGINS = new Set([APP_ORIGIN, DEV_SERVER_URL].filter(Boolean).map(originOf));
+function isInternalUrl(url) {
+  try {
+    return INTERNAL_ORIGINS.has(originOf(url));
+  } catch {
+    return false;
+  }
+}
+
+// IPC is only taken from the app's own window, while it shows the app: not from another
+// webContents, and not from a page that is not ours. Preloads only run in the main frame, so
+// subframes have no IPC to begin with.
+const fromApp = (event) =>
+  !!mainWindow &&
+  !mainWindow.isDestroyed() &&
+  event.sender === mainWindow.webContents &&
+  isInternalUrl(event.senderFrame?.url ?? '');
+const handleFromApp = (channel, handler) =>
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!fromApp(event)) throw new Error(`${channel} is only available to Pinniped's own page`);
+    return handler(event, ...args);
+  });
+const onFromApp = (channel, listener) =>
+  ipcMain.on(channel, (event, ...args) => {
+    if (fromApp(event)) listener(event, ...args);
+  });
+
 // Dev runs get their own profile. Otherwise they share the installed app's profile, lose the
 // single-instance lock below, quit, and just focus the installed window instead of the dev build.
 // A separate profile also starts signed out, like a new device.
@@ -120,14 +154,14 @@ const ensureRichPresenceServer = () => {
   return rpServer;
 };
 
-ipcMain.handle('rich-presence:start', async () => {
+handleFromApp('rich-presence:start', async () => {
   try {
     return await ensureRichPresenceServer().start();
   } catch (err) {
     return { ok: false, error: String(err?.message ?? err) };
   }
 });
-ipcMain.handle('rich-presence:stop', async () => {
+handleFromApp('rich-presence:stop', async () => {
   try {
     await rpServer?.stop();
   } catch {
@@ -136,11 +170,11 @@ ipcMain.handle('rich-presence:stop', async () => {
 });
 
 // System audio for screen shares on Linux; see screenshare-audio.cjs.
-ipcMain.handle('screenshare-audio:prepare', () => screenShareAudio.prepare());
-ipcMain.handle('screenshare-audio:link', (_event, active, output) =>
+handleFromApp('screenshare-audio:prepare', () => screenShareAudio.prepare());
+handleFromApp('screenshare-audio:link', (_event, active, output) =>
   screenShareAudio.link(active === true, typeof output === 'string' ? output : '')
 );
-ipcMain.handle('screenshare-audio:release', () => screenShareAudio.release());
+handleFromApp('screenshare-audio:release', () => screenShareAudio.release());
 
 // Launch at login. Windows/macOS use the OS login items. Linux has no such
 // API in Electron: outside a sandbox we write an XDG autostart entry, inside Flatpak (which
@@ -230,16 +264,16 @@ const setStartup = async (enabled, minimized) => {
 hotkeys.on('activated', (id) => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('hotkey:activated', id);
 });
-ipcMain.handle('hotkeys:bind', (_event, shortcuts) => hotkeys.bind(shortcuts));
+handleFromApp('hotkeys:bind', (_event, shortcuts) => hotkeys.bind(shortcuts));
 
-ipcMain.handle('startup:get', () => {
+handleFromApp('startup:get', () => {
   try {
     return getStartup();
   } catch {
     return { enabled: false, minimized: true };
   }
 });
-ipcMain.handle('startup:set', async (_event, enabled, minimized) => {
+handleFromApp('startup:set', async (_event, enabled, minimized) => {
   try {
     await setStartup(enabled === true, minimized !== false);
   } catch {
@@ -255,8 +289,7 @@ ipcMain.handle('startup:set', async (_event, enabled, minimized) => {
 // homeserver URL and token at login and clears them at logout (see src/sw-session.ts).
 let mediaAuth = null;
 const MEDIA_URL_PATTERNS = ['*://*/*_matrix/client/v1/media/*', '*://*/*_matrix/media/v3/*'];
-ipcMain.on('media-auth:set', (event, baseUrl, accessToken) => {
-  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return;
+onFromApp('media-auth:set', (_event, baseUrl, accessToken) => {
   try {
     const url = new URL(baseUrl);
     if (!/^https?:$/.test(url.protocol) || typeof accessToken !== 'string' || !accessToken) {
@@ -291,12 +324,12 @@ function enableMediaAuth() {
 
 // Seconds since the last keyboard/mouse input anywhere on the system; the
 // renderer uses it for idle detection.
-ipcMain.handle('system:idle-time', () => powerMonitor.getSystemIdleTime());
+handleFromApp('system:idle-time', () => powerMonitor.getSystemIdleTime());
 
 // Unread mentions and DMs shown on the app icon: dock badge (macOS), Unity
 // launcher count (Linux, where the desktop supports it) and a taskbar overlay
 // on Windows, where the renderer draws the bubble and sends it as a PNG data URL.
-ipcMain.on('badge:set', (_event, payload) => {
+onFromApp('badge:set', (_event, payload) => {
   const count = Number.isInteger(payload?.count) && payload.count > 0 ? payload.count : 0;
   const hasUnread = count > 0 || payload?.hasUnread === true;
   app.setBadgeCount(count);
@@ -318,24 +351,32 @@ ipcMain.on('badge:set', (_event, payload) => {
   }
 });
 
-// The origins the app itself is served from, as scheme plus host and port. They are compared
-// whole: a prefix match would also accept app://cinny.example or http://localhost:51730.
-// (URL#origin is no use here: Node reports "null" for the app: scheme.)
-const originOf = (url) => {
-  const { protocol, host } = new URL(url);
-  return `${protocol}//${host}`;
-};
-const INTERNAL_ORIGINS = new Set([APP_ORIGIN, DEV_SERVER_URL].filter(Boolean).map(originOf));
-function isInternalUrl(url) {
-  try {
-    return INTERNAL_ORIGINS.has(originOf(url));
-  } catch {
-    return false;
-  }
-}
-
 // privileged scheme must be registered before the app is ready
 registerAppScheme();
+
+// Electron grants every permission to every page unless told otherwise. Pinniped's own pages get
+// what they use: calls (microphone and camera, screen share, picking the speaker, keeping the
+// screen awake), notifications, writing to the clipboard and fullscreen video. Anything else, and
+// anything a page from another origin asks for, is denied.
+const APP_PERMISSIONS = new Set([
+  'media',
+  'display-capture',
+  'speaker-selection',
+  'screen-wake-lock',
+  'notifications',
+  'clipboard-sanitized-write',
+  'fullscreen',
+]);
+const isPermissionGranted = (permission, url) =>
+  APP_PERMISSIONS.has(permission) && isInternalUrl(url);
+function restrictPermissions() {
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback, details) =>
+    callback(isPermissionGranted(permission, details.requestingUrl))
+  );
+  session.defaultSession.setPermissionCheckHandler((_contents, permission, requestingOrigin) =>
+    isPermissionGranted(permission, requestingOrigin)
+  );
+}
 
 // getDisplayMedia() (screen share in calls) needs an explicit handler in
 // Electron; on Wayland desktopCapturer routes through the xdg-desktop-portal
@@ -569,7 +610,7 @@ function createTray() {
 
 // Clicking a notification while the window sits hidden in the tray: the
 // renderer's window.focus() cannot unhide it, so the main process does.
-ipcMain.on('window:show', showMainWindow);
+onFromApp('window:show', showMainWindow);
 
 // single instance; focus existing window on second launch
 if (!app.requestSingleInstanceLock()) {
@@ -593,9 +634,10 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(buildAppMenu());
     registerAppHandler(DIST_DIR);
     log('App protocol registered');
+    restrictPermissions();
     enableScreenShare();
     enableMediaAuth();
-    log('Screen share and media auth enabled');
+    log('Permissions, screen share and media auth set up');
     mark('handlers-ready');
     createWindow();
     if (CLOSE_TO_TRAY) {

@@ -55,6 +55,10 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
   const ipcMain = emitter();
   const handlers = new Map<string, Listener>();
   const windows: FakeWindow[] = [];
+  const permissions = {
+    request: undefined as Listener | undefined,
+    check: undefined as Listener | undefined,
+  };
   const app = {
     ...emitter(),
     setAppUserModelId: vi.fn(),
@@ -87,6 +91,12 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
     session: {
       defaultSession: {
         setDisplayMediaRequestHandler: vi.fn(),
+        setPermissionRequestHandler: (handler: Listener) => {
+          permissions.request = handler;
+        },
+        setPermissionCheckHandler: (handler: Listener) => {
+          permissions.check = handler;
+        },
         webRequest: { onBeforeSendHeaders: vi.fn() },
       },
     },
@@ -128,5 +138,11 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
   await Promise.resolve();
   await Promise.resolve();
 
-  return { electron, app, ipcMain, handlers, windows };
+  /** An IPC event as the app's own page in `window` sends it. */
+  const fromPage = (window: FakeWindow, url = 'app://cinny/home') => ({
+    sender: window.webContents,
+    senderFrame: { url },
+  });
+
+  return { electron, app, ipcMain, handlers, windows, permissions, fromPage };
 };
