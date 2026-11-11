@@ -2,13 +2,17 @@ import type { ForkPalette } from './derive';
 import { ayuPalettes } from './palettes/ayu';
 import { catppuccinPalettes } from './palettes/catppuccin';
 import { catthodePalettes } from './palettes/catthode';
+import { colorFatiguePalettes } from './palettes/colorFatigue';
+import { coolCowboyPalettes } from './palettes/coolCowboy';
 import { draculaPalettes } from './palettes/dracula';
 import { everforestPalettes } from './palettes/everforest';
 import { gruvboxPalettes } from './palettes/gruvbox';
 import { kanagawaPalettes } from './palettes/kanagawa';
+import { kansoPalettes } from './palettes/kanso';
 import { nordPalettes } from './palettes/nord';
 import { oledPalettes } from './palettes/oled';
 import { rosePinePalettes } from './palettes/rosePine';
+import { sequoiaPalettes } from './palettes/sequoia';
 import { tokyoNightPalettes } from './palettes/tokyoNight';
 
 export type ForkThemeMeta = {
@@ -92,4 +96,16 @@ export const forkThemeRegistry: ForkThemeMeta[] = [
   },
   { id: 'oled-midnight', name: 'OLED Midnight', palette: oledPalettes['oled-midnight'] },
   { id: 'catthode', name: 'Catthode', palette: catthodePalettes.catthode },
+  {
+    id: 'color-fatigue-dark',
+    name: 'Color Fatigue Dark',
+    palette: colorFatiguePalettes['color-fatigue-dark'],
+  },
+  { id: 'cool-cowboy', name: 'Cool Cowboy', palette: coolCowboyPalettes['cool-cowboy'] },
+  { id: 'kanso-ink', name: 'Kanso Ink', palette: kansoPalettes['kanso-ink'] },
+  {
+    id: 'sequoia-monochrome',
+    name: 'Sequoia Monochrome',
+    palette: sequoiaPalettes['sequoia-monochrome'],
+  },
 ];
