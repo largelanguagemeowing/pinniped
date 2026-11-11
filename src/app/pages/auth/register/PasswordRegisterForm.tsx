@@ -10,7 +10,14 @@ import {
   Text,
   color,
 } from 'folds';
-import React, { ChangeEventHandler, useCallback, useMemo, useState } from 'react';
+import React, {
+  ChangeEventHandler,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AuthDict,
   AuthType,
@@ -29,10 +36,12 @@ import {
 } from '../../../utils/matrix-uia';
 import { getDeviceDisplayName } from '../../../utils/device';
 import { useUIACompleted, useUIAFlow, useUIAParams } from '../../../hooks/useUIAFlows';
-import { AsyncState, AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
+import { AsyncState, AsyncStatus } from '../../../hooks/useAsyncCallback';
+import { useAlive } from '../../../hooks/useAlive';
+import { useDebounce } from '../../../hooks/useDebounce';
 import { useAutoDiscoveryInfo } from '../../../hooks/useAutoDiscoveryInfo';
 import { RegisterError, RegisterResult, register, useRegisterComplete } from './registerUtil';
-import { FieldError } from '../FiledError';
+import { FieldError, FieldHint } from '../FiledError';
 import {
   AutoDummyStageDialog,
   AutoTermsStageDialog,
@@ -44,6 +53,13 @@ import { useRegisterEmail } from '../../../hooks/useRegisterEmail';
 import { ConfirmPasswordMatch } from '../../../components/ConfirmPasswordMatch';
 import { UIAFlowOverlay } from '../../../components/UIAFlowOverlay';
 import { RequestEmailTokenCallback, RequestEmailTokenResponse } from '../../../hooks/types';
+import {
+  TokenValidity,
+  UsernameAvailability,
+  checkRegistrationToken,
+  checkUsernameAvailable,
+  suggestEmailFix,
+} from './registerHelpers';
 
 export const SUPPORTED_REGISTER_STAGES = [
   AuthType.RegistrationToken,
@@ -89,6 +105,8 @@ type RegisterUIAFlowProps = {
   registerEmailState: AsyncState<RequestEmailTokenResponse, MatrixError>;
   registerEmail: RequestEmailTokenCallback;
   onRegister: (registerReqData: RegisterRequest) => void;
+  onPollRegister: (registerReqData: RegisterRequest) => Promise<void>;
+  onCancel: () => void;
 };
 function RegisterUIAFlow({
   formData,
@@ -97,6 +115,8 @@ function RegisterUIAFlow({
   registerEmailState,
   registerEmail,
   onRegister,
+  onPollRegister,
+  onCancel,
 }: RegisterUIAFlowProps) {
   const completed = useUIACompleted(authData);
   const { getStageToComplete } = useUIAFlow(authData, flow);
@@ -116,9 +136,20 @@ function RegisterUIAFlow({
     [onRegister, formData]
   );
 
-  const handleCancel = useCallback(() => {
-    window.location.reload();
-  }, []);
+  const handlePoll = useCallback(
+    (authDict: AuthDict) => {
+      const { password, username } = formData;
+      return onPollRegister({
+        auth: authDict,
+        password,
+        username,
+        initial_device_display_name: getDeviceDisplayName(),
+      });
+    },
+    [onPollRegister, formData]
+  );
+
+  const handleCancel = onCancel;
 
   if (!stageToComplete) return null;
   return (
@@ -157,6 +188,7 @@ function RegisterUIAFlow({
           requestEmailToken={registerEmail}
           emailTokenState={registerEmailState}
           submitAuthDict={handleAuthDict}
+          pollAuthDict={handlePoll}
           onCancel={handleCancel}
         />
       )}
@@ -194,13 +226,111 @@ export function PasswordRegisterForm({
 
   const [ongoingFlow, setOngoingFlow] = useState<UIAFlow>();
 
-  const [registerEmailState, registerEmail] = useRegisterEmail(mx);
+  const [registerEmailState, registerEmail, resetRegisterEmail] = useRegisterEmail(mx);
 
-  const [registerState, handleRegister] = useAsyncCallback<
-    RegisterResult,
-    MatrixError,
-    [RegisterRequest]
-  >(useCallback(async (registerReqData) => register(mx, registerReqData), [mx]));
+  const alive = useAlive();
+  const registerReqRef = useRef(0);
+  const [registerState, setRegisterState] = useState<AsyncState<RegisterResult, MatrixError>>({
+    status: AsyncStatus.Idle,
+  });
+  const handleRegister = useCallback(
+    async (registerReqData: RegisterRequest) => {
+      registerReqRef.current += 1;
+      const req = registerReqRef.current;
+      setRegisterState({ status: AsyncStatus.Loading });
+      try {
+        const data = await register(mx, registerReqData);
+        if (alive() && req === registerReqRef.current) {
+          setRegisterState({ status: AsyncStatus.Success, data });
+        }
+      } catch (e) {
+        if (alive() && req === registerReqRef.current) {
+          setRegisterState({ status: AsyncStatus.Error, error: e as MatrixError });
+        }
+      }
+    },
+    [mx, alive]
+  );
+  // Background retry of the email stage while the person is in their inbox. It only touches
+  // the UI once the server moves on (link clicked, account created), so there is no flicker
+  // and no "not verified yet" error while we wait.
+  const handlePollRegister = useCallback(
+    async (registerReqData: RegisterRequest) => {
+      const req = registerReqRef.current;
+      try {
+        const data = await register(mx, registerReqData);
+        const [pendingAuth] = data;
+        const stillWaiting = pendingAuth && !pendingAuth.completed?.includes(AuthType.Email);
+        if (stillWaiting || !alive() || req !== registerReqRef.current) return;
+        setRegisterState({ status: AsyncStatus.Success, data });
+      } catch {
+        // Transient failures are retried on the next tick; a real error surfaces on "I clicked the link".
+      }
+    },
+    [mx, alive]
+  );
+  const handleCancelFlow = useCallback(() => {
+    registerReqRef.current += 1;
+    setOngoingFlow(undefined);
+    setRegisterState({ status: AsyncStatus.Idle });
+    resetRegisterEmail();
+  }, [resetRegisterEmail]);
+
+  // Live checks so problems show up next to the field instead of after "Create account".
+  const [usernameStatus, setUsernameStatus] = useState<UsernameAvailability>();
+  const [tokenStatus, setTokenStatus] = useState<TokenValidity>();
+  const [emailSuggestion, setEmailSuggestion] = useState<string>();
+  const usernameAbort = useRef<AbortController>(undefined);
+  const tokenAbort = useRef<AbortController>(undefined);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  const checkUsername = useDebounce(
+    useCallback(
+      (username: string) => {
+        usernameAbort.current?.abort();
+        if (!username) {
+          setUsernameStatus(undefined);
+          return;
+        }
+        const ctrl = new AbortController();
+        usernameAbort.current = ctrl;
+        checkUsernameAvailable(baseUrl, username, ctrl.signal).then((st) => {
+          if (!ctrl.signal.aborted) setUsernameStatus(st);
+        });
+      },
+      [baseUrl]
+    ),
+    { wait: 400 }
+  );
+  const checkToken = useDebounce(
+    useCallback(
+      (token: string) => {
+        tokenAbort.current?.abort();
+        if (!token) {
+          setTokenStatus(undefined);
+          return;
+        }
+        const ctrl = new AbortController();
+        tokenAbort.current = ctrl;
+        checkRegistrationToken(baseUrl, token, ctrl.signal).then((st) => {
+          if (!ctrl.signal.aborted) setTokenStatus(st);
+        });
+      },
+      [baseUrl]
+    ),
+    { wait: 400 }
+  );
+  useEffect(() => {
+    if (defaultRegisterToken) checkToken(defaultRegisterToken.trim());
+    if (defaultUsername) checkUsername(defaultUsername.trim());
+  }, [defaultRegisterToken, defaultUsername, checkToken, checkUsername]);
+  useEffect(
+    () => () => {
+      usernameAbort.current?.abort();
+      tokenAbort.current?.abort();
+    },
+    []
+  );
   const [ongoingAuthData, customRegisterResp] =
     registerState.status === AsyncStatus.Success ? registerState.data : [];
   const registerError =
@@ -230,6 +360,14 @@ export function PasswordRegisterForm({
 
     if (!username) {
       usernameInput.focus();
+      return;
+    }
+    if (usernameStatus === 'taken' || usernameStatus === 'invalid') {
+      usernameInput.focus();
+      return;
+    }
+    if (token && tokenStatus === 'invalid') {
+      tokenInput?.focus();
       return;
     }
 
@@ -267,9 +405,23 @@ export function PasswordRegisterForm({
             defaultValue={defaultUsername}
             name="usernameInput"
             size="500"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            onChange={(e) => {
+              setUsernameStatus(undefined);
+              checkUsername(e.currentTarget.value.trim());
+            }}
             outlined
             required
           />
+          {usernameStatus === 'available' && <FieldHint message="This username is available." />}
+          {usernameStatus === 'taken' && !registerError && (
+            <FieldError message="This username is already taken." />
+          )}
+          {usernameStatus === 'invalid' && !registerError && (
+            <FieldError message="Use only lowercase letters, numbers and . _ = - /" />
+          )}
           {registerError?.errcode === RegisterError.UserTaken && (
             <FieldError message="This username is already taken." />
           )}
@@ -291,6 +443,7 @@ export function PasswordRegisterForm({
                   ref={passRef}
                   onChange={doMatch}
                   name="passwordInput"
+                  autoComplete="new-password"
                   variant="Background"
                   size="500"
                   outlined
@@ -321,12 +474,14 @@ export function PasswordRegisterForm({
                   ref={confPassRef}
                   onChange={doMatch}
                   name="confirmPasswordInput"
+                  autoComplete="new-password"
                   variant="Background"
                   size="500"
                   style={{ color: match ? undefined : color.Critical.Main }}
                   outlined
                   required
                 />
+                {!match && <FieldError message="The passwords do not match." />}
               </Box>
             </>
           )}
@@ -343,9 +498,20 @@ export function PasswordRegisterForm({
               defaultValue={defaultRegisterToken}
               name="tokenInput"
               size="500"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              onChange={(e) => {
+                setTokenStatus(undefined);
+                checkToken(e.currentTarget.value.trim());
+              }}
               required={requiredStageInFlows(uiaFlows, AuthType.RegistrationToken)}
               outlined
             />
+            {tokenStatus === 'valid' && <FieldHint message="Token is valid." />}
+            {tokenStatus === 'invalid' && (
+              <FieldError message="This token is wrong, expired or used up. Check for typos or ask your admin for a new one." />
+            )}
           </Box>
         )}
         {hasStageInFlows(uiaFlows, AuthType.Email) && (
@@ -357,11 +523,40 @@ export function PasswordRegisterForm({
               variant="Background"
               defaultValue={defaultEmail}
               name="emailInput"
+              ref={emailInputRef}
               type="email"
+              autoComplete="email"
               size="500"
+              onChange={() => setEmailSuggestion(undefined)}
+              onBlur={(e) => setEmailSuggestion(suggestEmailFix(e.currentTarget.value.trim()))}
               required={requiredStageInFlows(uiaFlows, AuthType.Email)}
               outlined
             />
+            {emailSuggestion && (
+              <Text size="T300">
+                Did you mean{' '}
+                <Button
+                  type="button"
+                  size="300"
+                  variant="Primary"
+                  fill="None"
+                  onClick={() => {
+                    if (emailInputRef.current) emailInputRef.current.value = emailSuggestion;
+                    setEmailSuggestion(undefined);
+                  }}
+                >
+                  <Text as="span" size="B300">
+                    {emailSuggestion}
+                  </Text>
+                </Button>
+                ?
+              </Text>
+            )}
+            {!requiredStageInFlows(uiaFlows, AuthType.Email) && (
+              <Text size="T200" priority="300">
+                Lets you reset your password if you forget it. We send a confirmation link.
+              </Text>
+            )}
           </Box>
         )}
 
@@ -407,6 +602,8 @@ export function PasswordRegisterForm({
             registerEmail={registerEmail}
             registerEmailState={registerEmailState}
             onRegister={handleRegister}
+            onPollRegister={handlePollRegister}
+            onCancel={handleCancelFlow}
           />
         )}
       {registerState.status === AsyncStatus.Loading && (

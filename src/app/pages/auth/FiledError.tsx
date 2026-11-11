@@ -11,3 +11,12 @@ export function FieldError({ message }: { message: string }) {
     </Box>
   );
 }
+
+export function FieldHint({ message }: { message: string }) {
+  return (
+    <Box style={{ color: color.Success.Main }} alignItems="Center" gap="100">
+      <Icon size="50" filled src={Icons.Check} />
+      <Text size="T200">{message}</Text>
+    </Box>
+  );
+}

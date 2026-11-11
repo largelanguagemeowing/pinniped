@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, FormEventHandler } from 'react';
 import { Dialog, Text, Box, Button, config, Input } from 'folds';
 import { AuthType } from 'matrix-js-sdk';
 import { StageComponentProps } from './types';
+import { describeTokenStageError } from '../../pages/auth/register/registerHelpers';
 
 function RegistrationTokenErrorDialog({
   title,
@@ -49,9 +50,9 @@ function RegistrationTokenErrorDialog({
             required
           />
         </Box>
-        <Button variant="Critical" type="submit">
+        <Button variant="Primary" type="submit">
           <Text as="span" size="B400">
-            Retry
+            Try again
           </Text>
         </Button>
         <Button variant="Critical" fill="None" outlined type="button" onClick={onCancel}>
@@ -90,11 +91,12 @@ export function RegistrationTokenStageDialog({
   }, [handleSubmit, token, errorCode]);
 
   if (errorCode) {
+    const friendly = describeTokenStageError(errorCode, error);
     return (
       <RegistrationTokenErrorDialog
         defaultToken={token}
-        title={errorCode}
-        message={error ?? 'Invalid registration token provided.'}
+        title={friendly.title}
+        message={friendly.message}
         onRetry={handleSubmit}
         onCancel={onCancel}
       />
@@ -106,7 +108,7 @@ export function RegistrationTokenStageDialog({
       <RegistrationTokenErrorDialog
         defaultToken={token}
         title="Registration Token"
-        message="Please submit registration token provided by you homeserver admin."
+        message="Enter the registration token your server admin gave you."
         onRetry={handleSubmit}
         onCancel={onCancel}
       />
