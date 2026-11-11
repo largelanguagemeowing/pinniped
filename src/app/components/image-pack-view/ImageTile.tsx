@@ -3,12 +3,16 @@ import { Badge, Box, Button, Chip, Icon, Icons, Input, Text } from 'folds';
 import { UsageSwitcher, useUsageStr } from './UsageSwitcher';
 import { mxcUrlToHttp } from '../../utils/matrix';
 import * as css from './style.css';
-import { ImageUsage, imageUsageEqual, PackImageReader } from '../../plugins/custom-emoji';
+import {
+  ImageUsage,
+  imageUsageEqual,
+  PackImageReader,
+  toShortcode,
+} from '../../plugins/custom-emoji';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { SettingTile } from '../setting-tile';
 import { useObjectURL } from '../../hooks/useObjectURL';
 import { createUploadAtom, TUploadAtom } from '../../state/upload';
-import { replaceSpaceWithDash } from '../../utils/common';
 
 type ImageTileProps = {
   defaultShortcode: string;
@@ -108,6 +112,7 @@ type ImageTileEditProps = {
   defaultShortcode: string;
   useAuthentication: boolean;
   packUsage: ImageUsage[];
+  perImageUsage: boolean;
   image: PackImageReader;
   onCancel: (shortcode: string) => void;
   onSave: (shortcode: string, image: PackImageReader) => void;
@@ -116,6 +121,7 @@ export function ImageTileEdit({
   defaultShortcode,
   useAuthentication,
   packUsage,
+  perImageUsage,
   image,
   onCancel,
   onSave,
@@ -133,7 +139,7 @@ export function ImageTileEdit({
     const bodyInput = target?.bodyInput as HTMLTextAreaElement | undefined;
     if (!shortcodeInput || !bodyInput) return;
 
-    const shortcode = replaceSpaceWithDash(shortcodeInput.value.trim());
+    const shortcode = toShortcode(shortcodeInput.value.trim());
     const body = bodyInput.value.trim() || undefined;
     const usage = unsavedUsage;
 
@@ -190,9 +196,11 @@ export function ImageTileEdit({
           />
         </Box>
         <Box gap="200">
-          <Box shrink="No" direction="Column">
-            <UsageSwitcher usage={unsavedUsage} onChange={setUnsavedUsages} canEdit />
-          </Box>
+          {perImageUsage && (
+            <Box shrink="No" direction="Column">
+              <UsageSwitcher usage={unsavedUsage} onChange={setUnsavedUsages} canEdit />
+            </Box>
+          )}
           <Box grow="Yes" />
           <Button type="submit" variant="Success" size="300" radii="300">
             <Text size="B300">Save</Text>

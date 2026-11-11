@@ -1,16 +1,24 @@
 import { MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
 import { ImagePack } from './ImagePack';
-import { EmoteRoomsContent, ImageUsage } from './types';
-import { StateEvent } from '../../../types/matrix/room';
+import { EmoteRoomsContent, ImageUsage, PackStateKeyToObject, RoomIdToStateKey } from './types';
 import { getAccountData, getStateEvent, getStateEvents } from '../../utils/room';
 import { AccountDataEvent } from '../../../types/matrix/accountData';
 import { PackMetaReader } from './PackMetaReader';
 import { PackAddress } from './PackAddress';
+import { ROOM_PACK_FORMATS } from './PackFormat';
+
+// state keys are room-controlled, so `__proto__` must not resolve to the prototype
+const hasStateKey = (stateKeys: PackStateKeyToObject, stateKey: string): boolean =>
+  Object.prototype.hasOwnProperty.call(stateKeys, stateKey);
 
 export function packAddressEqual(a1?: PackAddress, a2?: PackAddress): boolean {
   if (!a1 && !a2) return true;
   if (!a1 || !a2) return false;
-  return a1.roomId === a2.roomId && a1.stateKey === a2.stateKey;
+  return (
+    a1.roomId === a2.roomId &&
+    a1.stateKey === a2.stateKey &&
+    a1.format.stateEvent === a2.format.stateEvent
+  );
 }
 
 export function imageUsageEqual(u1: ImageUsage[], u2: ImageUsage[]) {
@@ -35,8 +43,8 @@ export function makeImagePacks(packEvents: MatrixEvent[]): ImagePack[] {
   }, []);
 }
 
-export function getRoomImagePack(room: Room, stateKey: string): ImagePack | undefined {
-  const packEvent = getStateEvent(room, StateEvent.PoniesRoomEmotes, stateKey);
+export function getRoomImagePack(room: Room, address: PackAddress): ImagePack | undefined {
+  const packEvent = getStateEvent(room, address.format.stateEvent, address.stateKey);
   if (!packEvent) return undefined;
   const packId = packEvent.getId();
   if (!packId) return undefined;
@@ -44,35 +52,56 @@ export function getRoomImagePack(room: Room, stateKey: string): ImagePack | unde
 }
 
 export function getRoomImagePacks(room: Room): ImagePack[] {
-  const packEvents = getStateEvents(room, StateEvent.PoniesRoomEmotes);
-  return makeImagePacks(packEvents);
+  return makeImagePacks(
+    ROOM_PACK_FORMATS.flatMap((format) => getStateEvents(room, format.stateEvent))
+  );
 }
 
 export function getGlobalImagePacks(mx: MatrixClient): ImagePack[] {
-  const emoteRoomsContent = getAccountData(mx, AccountDataEvent.PoniesEmoteRooms)?.getContent() as
-    EmoteRoomsContent | undefined;
-  if (typeof emoteRoomsContent !== 'object') return [];
+  return ROOM_PACK_FORMATS.flatMap((format) => {
+    const { rooms } =
+      getAccountData(mx, format.globalListEvent)?.getContent<EmoteRoomsContent>() ?? {};
+    if (typeof rooms !== 'object' || rooms === null) return [];
 
-  const { rooms: roomIdToPackInfo } = emoteRoomsContent;
-  if (typeof roomIdToPackInfo !== 'object') return [];
-
-  const roomIds = Object.keys(roomIdToPackInfo);
-
-  const packs = roomIds.flatMap((roomId) => {
-    if (typeof roomIdToPackInfo[roomId] !== 'object') return [];
-    const room = mx.getRoom(roomId);
-    if (!room) return [];
-    const packStateKeyToUnknown = roomIdToPackInfo[roomId];
-    const packEvents = getStateEvents(room, StateEvent.PoniesRoomEmotes);
-    const globalPackEvents = packEvents.filter((mE) => {
-      const stateKey = mE.getStateKey();
-      if (typeof stateKey === 'string') return !!packStateKeyToUnknown[stateKey];
-      return false;
+    return Object.entries(rooms).flatMap(([roomId, stateKeys]) => {
+      if (typeof stateKeys !== 'object' || stateKeys === null) return [];
+      const room = mx.getRoom(roomId);
+      if (!room) return [];
+      const globalPackEvents = getStateEvents(room, format.stateEvent).filter((mE) => {
+        const stateKey = mE.getStateKey();
+        return typeof stateKey === 'string' && hasStateKey(stateKeys, stateKey);
+      });
+      return makeImagePacks(globalPackEvents);
     });
-    return makeImagePacks(globalPackEvents);
+  });
+}
+
+/**
+ * Global pack list `content` with `added` packs listed and `removed` ones dropped, along with
+ * rooms this leaves empty. Existing per-pack objects are kept; the spec reserves them.
+ */
+export function updateGlobalPackList(
+  content: EmoteRoomsContent,
+  added: PackAddress[],
+  removed: PackAddress[]
+): EmoteRoomsContent {
+  const updated = structuredClone(content);
+  const rooms: RoomIdToStateKey =
+    typeof updated.rooms === 'object' && updated.rooms !== null ? updated.rooms : {};
+
+  added.forEach(({ roomId, stateKey }) => {
+    const stateKeys = rooms[roomId] ?? {};
+    if (!hasStateKey(stateKeys, stateKey)) stateKeys[stateKey] = {};
+    rooms[roomId] = stateKeys;
+  });
+  removed.forEach(({ roomId, stateKey }) => {
+    const stateKeys = rooms[roomId];
+    if (!stateKeys || !hasStateKey(stateKeys, stateKey)) return;
+    delete stateKeys[stateKey];
+    if (Object.keys(stateKeys).length === 0) delete rooms[roomId];
   });
 
-  return packs;
+  return { ...updated, rooms };
 }
 
 export function getUserImagePack(mx: MatrixClient): ImagePack | undefined {

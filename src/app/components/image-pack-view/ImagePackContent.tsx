@@ -8,6 +8,7 @@ import {
   PackImageReader,
   packMetaEqual,
   PackMetaReader,
+  toShortcode,
 } from '../../plugins/custom-emoji';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -22,7 +23,7 @@ import { CompactUploadCardRenderer } from '../upload-card';
 import { UploadSuccess } from '../../state/upload';
 import { getImageInfo, TUploadContent } from '../../utils/matrix';
 import { getImageFileUrl, loadImageElement, renameFile } from '../../utils/dom';
-import { replaceSpaceWithDash, suffixRename } from '../../utils/common';
+import { suffixRename } from '../../utils/common';
 import { animationInfo, detectImageAnimation } from '../../utils/animatedImage';
 import { getFileNameWithoutExt } from '../../utils/mimeTypes';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
@@ -67,18 +68,25 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
     const pickFiles = useFilePicker(
       useCallback(
         (pickedFiles: File[]) => {
+          // an upload's shortcode is its file name without the extension
+          const taken = new Set(files.map((file) => getFileNameWithoutExt(file.name)));
+          const isTaken = (shortcode: string) =>
+            hasImageWithShortcode(shortcode) || taken.has(shortcode);
+
           const uniqueFiles = pickedFiles.map((file) => {
-            const fileName = replaceSpaceWithDash(file.name);
-            if (hasImageWithShortcode(fileName)) {
-              const uniqueName = suffixRename(fileName, hasImageWithShortcode);
-              return renameFile(file, uniqueName);
-            }
+            const baseName = getFileNameWithoutExt(file.name);
+            const shortcode = toShortcode(baseName);
+            const uniqueShortcode = isTaken(shortcode)
+              ? suffixRename(shortcode, isTaken)
+              : shortcode;
+            taken.add(uniqueShortcode);
+            const fileName = uniqueShortcode + file.name.slice(baseName.length);
             return fileName !== file.name ? renameFile(file, fileName) : file;
           });
 
           setFiles((f) => [...f, ...uniqueFiles]);
         },
-        [hasImageWithShortcode]
+        [files, hasImageWithShortcode]
       ),
       true
     );
@@ -245,6 +253,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
             defaultShortcode={image.shortcode}
             image={savedImages.get(image.shortcode) ?? image}
             packUsage={currentMeta.usage}
+            perImageUsage={imagePack.perImageUsage}
             useAuthentication={useAuthentication}
             onCancel={handleImageEditCancel}
             onSave={handleImageEditSave}

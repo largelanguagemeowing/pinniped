@@ -12,6 +12,7 @@ import type {
 // so its typed account data / state event APIs accept them.
 declare module 'matrix-js-sdk/lib/@types/event' {
   interface StateEvents {
+    'm.room.image_pack': Record<string, unknown>;
     'im.ponies.room_emotes': Record<string, unknown>;
     'club.stablecat.pinniped.room_sounds': Record<string, unknown>;
     'in.cinny.room.power_level_tags': PowerLevelTags;
@@ -35,6 +36,7 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'io.element.recent_emoji': Record<string, unknown>;
     'club.stablecat.pinniped.emoji_favorites': Record<string, unknown>;
     'club.stablecat.pinniped.recent_custom_emoji': Record<string, unknown>;
+    'm.image_pack.rooms': Record<string, unknown>;
     'im.ponies.user_emotes': Record<string, unknown>;
     'im.ponies.emote_rooms': Record<string, unknown>;
     // pre-rename types read by the legacy account data migration

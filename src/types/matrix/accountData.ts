@@ -25,7 +25,10 @@ export const AccountDataEvent = {
   PinnipedEmojiFavorites: 'club.stablecat.pinniped.emoji_favorites',
   PinnipedRecentCustomEmoji: 'club.stablecat.pinniped.recent_custom_emoji',
 
+  ImagePackRooms: 'm.image_pack.rooms',
+  /** The personal pack; MSC2545 dropped it, so it has no spec equivalent. */
   PoniesUserEmotes: 'im.ponies.user_emotes',
+  /** MSC2545's unstable `ImagePackRooms`. */
   PoniesEmoteRooms: 'im.ponies.emote_rooms',
 
   SecretStorageDefaultKey: 'm.secret_storage.default_key',

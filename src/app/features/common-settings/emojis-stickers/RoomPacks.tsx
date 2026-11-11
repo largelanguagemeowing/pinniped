@@ -24,6 +24,7 @@ import {
   PackAddress,
   packAddressEqual,
   PackContent,
+  SPEC_ROOM_PACK_FORMAT,
 } from '../../../plugins/custom-emoji';
 import { useRoom } from '../../../hooks/useRoom';
 import { useRoomImagePacks } from '../../../hooks/useImagePacks';
@@ -34,7 +35,6 @@ import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { mxcUrlToHttp } from '../../../utils/matrix';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { usePowerLevels } from '../../../hooks/usePowerLevels';
-import { StateEvent } from '../../../../types/matrix/room';
 import { suffixRename } from '../../../utils/common';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { useAlive } from '../../../hooks/useAlive';
@@ -56,8 +56,9 @@ function CreatePackTile({ packs, roomId }: CreatePackTileProps) {
           pack: {
             display_name: name,
           },
+          images: {},
         };
-        await mx.sendStateEvent(roomId, StateEvent.PoniesRoomEmotes, content, stateKey);
+        await mx.sendStateEvent(roomId, SPEC_ROOM_PACK_FORMAT.stateEvent, content, stateKey);
       },
       [mx, roomId]
     )
@@ -77,7 +78,10 @@ function CreatePackTile({ packs, roomId }: CreatePackTileProps) {
 
     let packKey = name.replace(/\s/g, '-');
 
-    const hasPack = (k: string): boolean => !!packs.find((pack) => pack.address?.stateKey === k);
+    const hasPack = (k: string): boolean =>
+      !!packs.find(
+        (pack) => pack.address?.format === SPEC_ROOM_PACK_FORMAT && pack.address.stateKey === k
+      );
     if (hasPack(packKey)) {
       packKey = suffixRename(packKey, hasPack);
     }
@@ -148,7 +152,9 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
   const creators = useRoomCreators(room);
 
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canEdit = permissions.stateEvent(StateEvent.PoniesRoomEmotes, mx.getSafeUserId());
+  const canEdit = (address: PackAddress): boolean =>
+    permissions.stateEvent(address.format.stateEvent, mx.getSafeUserId());
+  const canCreate = permissions.stateEvent(SPEC_ROOM_PACK_FORMAT.stateEvent, mx.getSafeUserId());
 
   const unfilteredPacks = useRoomImagePacks(room);
   const packs = useMemo(() => unfilteredPacks.filter((pack) => !pack.deleted), [unfilteredPacks]);
@@ -161,7 +167,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
       for (let i = 0; i < removedPacks.length; i += 1) {
         const addr = removedPacks[i];
 
-        await mx.sendStateEvent(room.roomId, StateEvent.PoniesRoomEmotes, {}, addr.stateKey);
+        await mx.sendStateEvent(room.roomId, addr.format.stateEvent, {}, addr.stateKey);
       }
     }, [mx, room, removedPacks])
   );
@@ -209,7 +215,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
           description={<span className={LineClamp2}>{pack.meta.attribution}</span>}
           before={
             <Box alignItems="Center" gap="300">
-              {canEdit &&
+              {canEdit(address) &&
                 (removed ? (
                   <IconButton
                     size="300"
@@ -265,7 +271,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
     <>
       <Box direction="Column" gap="100">
         <Text size="L400">Sets</Text>
-        {canEdit && <CreatePackTile roomId={room.roomId} packs={packs} />}
+        {canCreate && <CreatePackTile roomId={room.roomId} packs={packs} />}
         {packs.map(renderPack)}
         {packs.length === 0 && (
           <SequenceCard

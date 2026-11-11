@@ -18,8 +18,8 @@ export type IMemberContent = {
 };
 
 // Spec event types take their value from the SDK enum so they keep its nominal member type,
-// which is what `sendStateEvent`/`sendEvent` accept. App-defined types are plain literals,
-// registered with the SDK in `types/matrix-js-sdk.d.ts`.
+// which is what `sendStateEvent`/`sendEvent` accept. Types the SDK lacks (app-defined, or spec
+// types newer than the SDK) are plain literals, registered with it in `types/matrix-js-sdk.d.ts`.
 export const StateEvent = {
   RoomCanonicalAlias: EventType.RoomCanonicalAlias,
   RoomCreate: EventType.RoomCreate,
@@ -42,6 +42,8 @@ export const StateEvent = {
   SpaceChild: EventType.SpaceChild,
   SpaceParent: EventType.SpaceParent,
 
+  RoomImagePack: 'm.room.image_pack',
+  /** MSC2545's unstable `RoomImagePack`. */
   PoniesRoomEmotes: 'im.ponies.room_emotes',
   PinnipedRoomSounds: 'club.stablecat.pinniped.room_sounds',
   PowerLevelTags: 'in.cinny.room.power_level_tags',

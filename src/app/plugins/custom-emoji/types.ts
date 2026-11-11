@@ -1,9 +1,9 @@
 import { IImageInfo } from '../../../types/matrix/common';
 
-// https://github.com/Sorunome/matrix-doc/blob/soru/emotes/proposals/2545-emotes.md
+// https://spec.matrix.org/v1.19/client-server-api/#image-packs (MSC2545)
 
 /**
- * im.ponies.emote_rooms content
+ * m.image_pack.rooms (and im.ponies.emote_rooms) content
  */
 export type PackStateKeyToObject = Record<string, object>;
 export type RoomIdToStateKey = Record<string, PackStateKeyToObject>;
@@ -22,6 +22,7 @@ export enum ImageUsage {
 export type PackImage = {
   url: string;
   body?: string;
+  /** Only in formats with `perImageUsage`. */
   usage?: ImageUsage[];
   info?: IImageInfo;
 };

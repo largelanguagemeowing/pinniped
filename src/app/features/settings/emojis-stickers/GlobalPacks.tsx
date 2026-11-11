@@ -37,10 +37,11 @@ import {
   ImageUsage,
   PackAddress,
   packAddressEqual,
+  ROOM_PACK_FORMATS,
+  updateGlobalPackList,
 } from '../../../plugins/custom-emoji';
 import { LineClamp2 } from '../../../styles/Text.css';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
-import { AccountDataEvent } from '../../../../types/matrix/accountData';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { stopPropagation } from '../../../utils/keyboard';
 import { getRoomName } from '../../../utils/room';
@@ -303,25 +304,21 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
 
   const [applyState, applyChanges] = useAsyncCallback(
     useCallback(async () => {
-      const content =
-        mx.getAccountData(AccountDataEvent.PoniesEmoteRooms)?.getContent<EmoteRoomsContent>() ?? {};
-      const updatedContent: EmoteRoomsContent = JSON.parse(JSON.stringify(content));
+      // each format keeps its own list of the packs enabled everywhere
+      await Promise.all(
+        ROOM_PACK_FORMATS.map(async (format) => {
+          const added = selectedPacks.filter((addr) => addr.format === format);
+          const removed = removedPacks.filter((addr) => addr.format === format);
+          if (added.length === 0 && removed.length === 0) return;
 
-      selectedPacks.forEach((addr) => {
-        const roomsToState = updatedContent.rooms ?? {};
-        const stateKeyToObj = roomsToState[addr.roomId] ?? {};
-        stateKeyToObj[addr.stateKey] = {};
-        roomsToState[addr.roomId] = stateKeyToObj;
-        updatedContent.rooms = roomsToState;
-      });
-
-      removedPacks.forEach((addr) => {
-        if (updatedContent.rooms?.[addr.roomId]?.[addr.stateKey]) {
-          delete updatedContent.rooms?.[addr.roomId][addr.stateKey];
-        }
-      });
-
-      await mx.setAccountData(AccountDataEvent.PoniesEmoteRooms, updatedContent);
+          const content =
+            mx.getAccountData(format.globalListEvent)?.getContent<EmoteRoomsContent>() ?? {};
+          await mx.setAccountData(
+            format.globalListEvent,
+            updateGlobalPackList(content, added, removed)
+          );
+        })
+      );
     }, [mx, selectedPacks, removedPacks])
   );
 

@@ -38,11 +38,7 @@ export function ImagePackView({ address, requestClose }: ImagePackViewProps) {
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
-            {room && address ? (
-              <RoomImagePack room={room} stateKey={address.stateKey} />
-            ) : (
-              <UserImagePack />
-            )}
+            {room && address ? <RoomImagePack room={room} address={address} /> : <UserImagePack />}
           </PageContent>
         </Scroll>
       </Box>
