@@ -21,6 +21,7 @@ import {
 } from 'matrix-js-sdk';
 import { CryptoBackend } from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 import { ReactionEventContent } from 'matrix-js-sdk/lib/types';
+import { ReceiptContent } from 'matrix-js-sdk/lib/@types/read_receipts';
 import { getLocalReadTs } from '../state/readMarkers';
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { isGifVideoContent } from '../../types/matrix/common';
@@ -305,6 +306,12 @@ export const getRoomUnreadInfo = (mx: MatrixClient, room: Room, scrollTo = false
     scrollTo,
   };
 };
+
+/** Whether an `m.receipt` event carries a receipt of this user, of any receipt type. */
+export const receiptIncludesUser = (mEvent: MatrixEvent, userId: string): boolean =>
+  Object.values(mEvent.getContent<ReceiptContent>()).some((receiptTypes) =>
+    Object.values(receiptTypes).some((users) => users[userId] !== undefined)
+  );
 
 export const getUnreadInfo = (room: Room): UnreadInfo => {
   const total = room.getUnreadNotificationCount(NotificationCountType.Total);

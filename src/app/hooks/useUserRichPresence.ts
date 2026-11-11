@@ -14,11 +14,15 @@ const hasRichPresenceField = (profile: Record<string, unknown>): boolean =>
   Object.prototype.hasOwnProperty.call(profile, MSC4320_RPC) ||
   Object.prototype.hasOwnProperty.call(profile, M_RPC);
 
-// Re-fetch the profile at least this often so the displayed presence stays
-// fresh even when push (UserProfileUpdate) events aren't arriving.
 // Longest song-end timer worth scheduling; anything beyond is treated as bogus.
 const MAX_SONG_END_DELAY = 6 * 60 * 60 * 1000;
+// Re-fetches after a track's end time. The publisher coalesces writes (5 s) and
+// players report the next track late, so one fetch at the exact end usually
+// still sees the old song. Past the last retry the heartbeat takes over.
+const SONG_END_RETRIES = [1500, 5000, 12_000, 30_000, 60_000];
 
+// Re-fetch the profile at least this often so the displayed presence stays
+// fresh even when push (UserProfileUpdate) events aren't arriving.
 const REFRESH_INTERVAL = 3 * 60 * 1000;
 
 // Opening a big member list mounts hundreds of rows at once; cap the number of
@@ -198,23 +202,29 @@ export const useUserRichPresence = (userId: string): RichPresence | undefined =>
   }, [richPresence, setRichPresence]);
 
   // Re-fetch when the current media track reaches its end time, so we pick up
-  // the next song promptly instead of waiting for the next heartbeat.
+  // the next song promptly instead of waiting for the next heartbeat. Each
+  // fetch yields a new object, which re-runs this effect for the next retry.
   useEffect(() => {
     if (!userId || !richPresence || richPresence.type !== 'media' || !richPresence.progress)
       return undefined;
     const endTs = richPresence.progress.timeComplete;
     if (endTs === undefined || !Number.isFinite(endTs) || endTs < 1_000_000_000) return undefined;
     const endMs = endTs > 1_000_000_000_000 ? endTs : endTs * 1000;
-    const delay = endMs - Date.now();
+    const now = Date.now();
+    const retryAt = SONG_END_RETRIES.map((offset) => endMs + offset).find((ts) => ts > now);
+    if (retryAt === undefined) return undefined;
+    const delay = retryAt - now;
     // setTimeout fires immediately for delays past 2^31-1, which a bogus
     // timestamp would turn into a refetch loop; the heartbeat covers those.
-    if (delay <= 0 || delay > MAX_SONG_END_DELAY) return undefined;
+    if (delay > MAX_SONG_END_DELAY) return undefined;
     let cancelled = false;
     const timer = setTimeout(() => {
       if (cancelled) return;
       mx.getExtendedProfile(userId)
         .then((profile: Record<string, unknown>) => {
-          if (!cancelled) setRichPresence(getProfileRichPresence(profile));
+          const next = getProfileRichPresence(profile);
+          console.debug('[pinniped:rpc] song-end refetch', userId, next);
+          if (!cancelled) setRichPresence(next);
         })
         .catch(() => undefined);
     }, delay);

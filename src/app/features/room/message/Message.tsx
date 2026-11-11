@@ -72,6 +72,7 @@ import { EmojiBoard } from '../../../components/emoji-board';
 import { ReactionViewer } from '../reaction-viewer';
 import { MessageEditor } from './MessageEditor';
 import { MessageCopyImageItem } from './MessageCopyImageItem';
+import { MessageImageMetadataItem } from '../../image-metadata';
 import { UserAvatar } from '../../../components/user-avatar';
 import { copyToClipboard } from '../../../utils/dom';
 import { stopPropagation } from '../../../utils/keyboard';
@@ -1255,6 +1256,7 @@ export const Message = as<'div', MessageProps>(
                               onClose={closeMenu}
                             />
                           )}
+                          <MessageImageMetadataItem mEvent={mEvent} onClose={closeMenu} />
                           <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                           <MessageExportItem
                             room={room}

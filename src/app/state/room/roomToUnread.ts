@@ -9,7 +9,6 @@ import {
   RoomEvent,
   SyncState,
 } from 'matrix-js-sdk';
-import { ReceiptContent, ReceiptType } from 'matrix-js-sdk/lib/@types/read_receipts';
 import { useCallback, useEffect } from 'react';
 import {
   Membership,
@@ -25,6 +24,7 @@ import {
   getUnreadInfo,
   getUnreadInfos,
   isNotificationEvent,
+  receiptIncludesUser,
 } from '../../utils/room';
 import { roomToParentsAtom } from './roomToParents';
 import { useStateEventCallback } from '../../hooks/useStateEventCallback';
@@ -256,14 +256,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
       const myUserId = mx.getUserId();
       if (!myUserId) return;
       if (room.isSpaceRoom()) return;
-      const content = mEvent.getContent<ReceiptContent>();
-
-      const isMyReceipt = Object.keys(content).find((eventId) =>
-        (Object.keys(content[eventId]) as ReceiptType[]).find(
-          (receiptType) => content[eventId][receiptType][myUserId]
-        )
-      );
-      if (isMyReceipt) {
+      if (receiptIncludesUser(mEvent, myUserId)) {
         setUnreadAtom({ type: 'DELETE', roomId: room.roomId });
       }
     };

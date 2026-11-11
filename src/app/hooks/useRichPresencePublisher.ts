@@ -24,6 +24,19 @@ import { isMxcUrl } from '../utils/mxc';
 const MIN_WRITE_INTERVAL = 5000;
 const REFRESH_INTERVAL = 60 * 1000;
 
+const log = (...args: unknown[]) => console.debug('[pinniped:rpc]', ...args);
+
+const describe = (p: ActivityPayload | null): string => {
+  if (!p) return 'null';
+  if (!isMediaPayload(p)) return `activity "${p.name}"`;
+  const end = p.progress
+    ? ` ends ${new Date(p.progress.time_complete).toISOString()} (in ${Math.round(
+        (p.progress.time_complete - Date.now()) / 1000
+      )}s, length ${p.progress.length}s)`
+    : ' no progress';
+  return `media "${p.track}" by "${p.artist}"${end}`;
+};
+
 /**
  * Publishes the local Discord-RPC activity (captured by the desktop
  * impersonator) as the user's MSC4320 rich presence. Desktop-only and
@@ -81,6 +94,7 @@ export const useRichPresencePublisher = () => {
       // Capture the write so an activity update during the request isn't lost.
       const writing = pending;
       inFlight = true;
+      log('write', describe(writing));
       try {
         if (writing) {
           await mx.setExtendedProfileProperty(MSC4320_RPC, {
@@ -94,8 +108,9 @@ export const useRichPresencePublisher = () => {
         if (stopped && writing) await mx.deleteExtendedProfileProperty(MSC4320_RPC);
         lastWritten = writing;
         lastWriteAt = Date.now();
-      } catch {
-        // Server may not support MSC4133 extended profiles; stay silent.
+      } catch (err) {
+        // Server may not support MSC4133 extended profiles.
+        log('write failed', err);
       }
       inFlight = false;
     };
@@ -119,11 +134,13 @@ export const useRichPresencePublisher = () => {
         .then((prev: { 'og:image'?: string }) => {
           const img = prev?.['og:image'];
           const mxc = isMxcUrl(img) ? img : null;
+          log('cover resolved', url, mxc ?? '(no mxc)');
           coverCache.set(url, mxc);
           resolving.delete(url);
           applyCover(url, mxc);
         })
-        .catch(() => {
+        .catch((err) => {
+          log('cover failed', url, err);
           // Preview disabled / blocked / unreachable: skip the cover silently.
           coverCache.set(url, null);
           resolving.delete(url);
@@ -132,6 +149,7 @@ export const useRichPresencePublisher = () => {
 
     const handleActivity = (activity: DiscordRichPresenceActivity | null) => {
       if (stopped) return;
+      log('activity received', activity);
       if (!activity) {
         pending = null;
         currentCoverUrl = undefined;
@@ -139,6 +157,7 @@ export const useRichPresencePublisher = () => {
         const { payload, coverUrl } = mapDiscordActivity(activity);
         pending = payload;
         currentCoverUrl = coverUrl;
+        log('mapped', describe(payload), coverUrl ? `cover ${coverUrl}` : 'no cover');
         // Synchronous apply when the cover was resolved on a previous track.
         if (coverUrl) resolveCover(coverUrl);
       }
@@ -154,6 +173,7 @@ export const useRichPresencePublisher = () => {
     const init = async () => {
       const result = await start();
       if (stopped) return;
+      log('bridge start', result);
       if (result?.ok) {
         setStatus({ state: 'running', path: result.path, index: result.index });
         unsubscribe = subscribe(handleActivity);

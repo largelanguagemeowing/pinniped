@@ -88,7 +88,6 @@ import {
   getReactionContent,
   isMembershipChanged,
   reactionOrEditEvent,
-  getRoomUnreadInfo,
 } from '../../utils/room';
 import { useSetting } from '../../state/hooks/settings';
 import { MessageLayout, settingsAtom } from '../../state/settings';
@@ -119,8 +118,7 @@ import { RenderMessageContent } from '../../components/RenderMessageContent';
 import { Image } from '../../components/media';
 import { ImageViewer } from '../../components/image-viewer';
 import { roomToParentsAtom } from '../../state/room/roomToParents';
-import { useRoomUnread } from '../../state/hooks/unread';
-import { roomToUnreadAtom } from '../../state/room/roomToUnread';
+import { useTimelineUnreadInfo } from '../../hooks/useTimelineUnreadInfo';
 import { useMentionClickHandler } from '../../hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '../../hooks/useSpoilerClickHandler';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
@@ -489,7 +487,6 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const [editId, setEditId] = useState<string>();
 
   const roomToParents = useAtomValue(roomToParentsAtom);
-  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
   const { navigateRoom } = useRoomNavigate();
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
@@ -498,7 +495,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
 
   const imagePackRooms: Room[] = useImagePackRooms(room.roomId, roomToParents);
 
-  const [unreadInfo, setUnreadInfo] = useState(() => getRoomUnreadInfo(mx, room, true));
+  const [unreadInfo, trackUnread] = useTimelineUnreadInfo(mx, room);
   const readUptoEventIdRef = useRef<string>(undefined);
   if (unreadInfo) {
     readUptoEventIdRef.current = unreadInfo.readUptoEventId;
@@ -656,9 +653,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             requestAnimationFrame(() => markAsRead(mx, mEvt.getRoomId()!, hideActivity));
           }
 
-          if (!isUserActive() && !unreadInfo) {
-            setUnreadInfo(getRoomUnreadInfo(mx, room));
-          }
+          if (!isUserActive()) trackUnread();
 
           const rendersNothing =
             reactionOrEditEvent(mEvt) || mEvt.getType() === EventType.RoomRedaction;
@@ -688,11 +683,9 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             ? { ...ct, range: { ...ct.range, end: ct.range.end + 1 } }
             : { ...ct };
         });
-        if (!unreadInfo) {
-          setUnreadInfo(getRoomUnreadInfo(mx, room));
-        }
+        trackUnread();
       },
-      [mx, room, unreadInfo, hideActivity]
+      [mx, room, unreadInfo, trackUnread, hideActivity]
     )
   );
 
@@ -923,13 +916,6 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         scrollToBottom(scrollEl, scrollToBottomRef.current.smooth ? 'smooth' : 'instant');
     }
   }, [scrollToBottomCount]);
-
-  // Remove unreadInfo on mark as read
-  useEffect(() => {
-    if (!unread) {
-      setUnreadInfo(undefined);
-    }
-  }, [unread]);
 
   // scroll out of view msg editor in view.
   useEffect(() => {

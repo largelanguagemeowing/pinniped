@@ -2,25 +2,16 @@
 // comments) from JPEG and PNG files without re-encoding the pixels. The JPEG
 // orientation is kept as a minimal EXIF block so photos do not end up rotated.
 
-const readOrientation = (view: DataView, start: number, end: number): number | undefined => {
-  // start points at "Exif\0\0"
-  const tiff = start + 6;
-  if (tiff + 8 > end) return undefined;
-  const little = view.getUint16(tiff) === 0x4949;
-  if (!little && view.getUint16(tiff) !== 0x4d4d) return undefined;
-  const ifd = tiff + view.getUint32(tiff + 4, little);
-  if (ifd + 2 > end) return undefined;
-  const count = view.getUint16(ifd, little);
-  for (let i = 0; i < count; i += 1) {
-    const entry = ifd + 2 + i * 12;
-    if (entry + 12 > end) return undefined;
-    if (view.getUint16(entry, little) === 0x0112) {
-      const value = view.getUint16(entry + 8, little);
-      return value >= 1 && value <= 8 ? value : undefined;
-    }
-  }
-  return undefined;
-};
+import {
+  JPEG_APP1,
+  JPEG_APP13,
+  JPEG_COM,
+  imageContainer,
+  jpegExif,
+  jpegSegments,
+  pngChunks,
+} from './imageContainer';
+import { readTiff, tiffOrientation } from './tiff';
 
 const orientationSegment = (orientation: number): Uint8Array => {
   const out = new Uint8Array(36);
@@ -37,56 +28,36 @@ const orientationSegment = (orientation: number): Uint8Array => {
   return out;
 };
 
+const JPEG_METADATA_MARKERS = new Set([JPEG_APP1, JPEG_APP13, JPEG_COM]);
+
 const stripJpeg = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const segments = jpegSegments(bytes);
+  if (!segments) return undefined;
+  const orientation = segments
+    .map((segment) => {
+      const exif = jpegExif(segment);
+      const tiff = exif && readTiff(exif);
+      return tiff && tiffOrientation(tiff);
+    })
+    .find((value) => value !== undefined);
   const parts: Uint8Array[] = [bytes.subarray(0, 2)];
-  let orientation: number | undefined;
-  let pos = 2;
-  while (pos + 4 <= bytes.length) {
-    if (bytes[pos] !== 0xff) return undefined;
-    const marker = bytes[pos + 1];
-    if (marker === 0xff) {
-      pos += 1;
-    } else if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) {
-      parts.push(bytes.subarray(pos, pos + 2));
-      pos += 2;
-    } else {
-      const length = view.getUint16(pos + 2);
-      const end = pos + 2 + length;
-      if (length < 2 || end > bytes.length) return undefined;
-      if (marker === 0xda) {
-        parts.push(bytes.subarray(pos));
-        break;
-      }
-      const isExif =
-        marker === 0xe1 &&
-        length >= 8 &&
-        String.fromCharCode(...bytes.subarray(pos + 4, pos + 8)) === 'Exif';
-      if (isExif) orientation ??= readOrientation(view, pos + 4, end);
-      // APP1 (EXIF/XMP), APP13 (IPTC/Photoshop) and COM carry metadata.
-      if (marker !== 0xe1 && marker !== 0xed && marker !== 0xfe) {
-        parts.push(bytes.subarray(pos, end));
-      }
-      pos = end;
-    }
-  }
-  if (orientation && orientation !== 1) parts.splice(1, 0, orientationSegment(orientation));
+  if (orientation && orientation !== 1) parts.push(orientationSegment(orientation));
+  // APP1 (EXIF/XMP), APP13 (IPTC/Photoshop) and COM carry metadata.
+  segments
+    .filter((segment) => !JPEG_METADATA_MARKERS.has(segment.marker))
+    .forEach((segment) => parts.push(bytes.subarray(segment.start, segment.end)));
   return concat(parts);
 };
 
 const PNG_DROP = new Set(['eXIf', 'tEXt', 'iTXt', 'zTXt', 'tIME']);
 
 const stripPng = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const chunks = pngChunks(bytes);
+  if (!chunks) return undefined;
   const parts: Uint8Array[] = [bytes.subarray(0, 8)];
-  let pos = 8;
-  while (pos + 12 <= bytes.length) {
-    const end = pos + 12 + view.getUint32(pos);
-    if (end > bytes.length) return undefined;
-    const type = String.fromCharCode(...bytes.subarray(pos + 4, pos + 8));
-    if (!PNG_DROP.has(type)) parts.push(bytes.subarray(pos, end));
-    pos = end;
-  }
+  chunks
+    .filter((chunk) => !PNG_DROP.has(chunk.type))
+    .forEach((chunk) => parts.push(bytes.subarray(chunk.start, chunk.end)));
   return concat(parts);
 };
 
@@ -101,11 +72,14 @@ const concat = (parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
 };
 
 export const stripMetadataBytes = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
-  if (bytes[0] === 0xff && bytes[1] === 0xd8) return stripJpeg(bytes);
-  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
-    return stripPng(bytes);
+  switch (imageContainer(bytes)) {
+    case 'jpeg':
+      return stripJpeg(bytes);
+    case 'png':
+      return stripPng(bytes);
+    default:
+      return undefined;
   }
-  return undefined;
 };
 
 /** Returns the file without metadata, or the original when it is not a JPEG/PNG or cannot be parsed. */
