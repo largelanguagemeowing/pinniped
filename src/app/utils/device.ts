@@ -50,6 +50,11 @@ declare global {
       ) => Promise<{ ok: boolean; error?: string | null }>;
       /** Calls `cb` with the id of each bound shortcut when it is pressed. Returns the unsubscribe. */
       onHotkey?: (cb: (id: string) => void) => () => void;
+      /**
+       * What to do when the window is about to close or reload during a call: leave it, so the
+       * membership ends at once instead of timing out. Returns the unregister.
+       */
+      onLeaveCallRequest?: (handler: () => Promise<unknown>) => () => void;
       supportsRichPresenceBridge?: true;
       startRichPresenceBridge?: () => Promise<RichPresenceBridgeStartResult>;
       stopRichPresenceBridge?: () => Promise<void>;

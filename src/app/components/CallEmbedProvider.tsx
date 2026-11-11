@@ -410,14 +410,8 @@ function CallUtils({ embed }: { embed: CallEmbed }) {
     [embed, openProfile]
   );
 
-  // Lets the desktop dev shell leave the call cleanly before it reloads the window.
-  useEffect(() => {
-    const w = window as unknown as { __leaveCall?: () => Promise<unknown> };
-    w.__leaveCall = () => embed.hangup();
-    return () => {
-      delete w.__leaveCall;
-    };
-  }, [embed]);
+  // The desktop app leaves the call before it closes or reloads the window.
+  useEffect(() => window.pinnipedDesktop?.onLeaveCallRequest?.(() => embed.hangup()), [embed]);
 
   return null;
 }

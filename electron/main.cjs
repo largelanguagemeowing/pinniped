@@ -43,23 +43,35 @@ const APP_ICON = path
   .join(__dirname, 'build', 'icon.png')
   .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 
-// Leaves the call the renderer is in, if any, and gives the widget a moment to publish
-// the leave. Never waits longer than a few seconds, so a hung renderer cannot block closing.
+// Asks the renderer to leave the call it is in, if any (see onLeaveCallRequest in preload.cjs),
+// and gives the widget a moment to publish the leave. The renderer answers `call:left` with the
+// request id and whether it was in a call. Never waits longer than a few seconds, so a hung
+// renderer cannot block closing.
+const LEAVE_CALL_TIMEOUT_MS = 3000;
 let leavingCall = false;
 let callLeft = false;
+let leaveCallRequests = 0;
 async function leaveCall() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  try {
-    const left = await Promise.race([
-      mainWindow.webContents.executeJavaScript(
-        'window.__leaveCall ? window.__leaveCall().then(() => true) : false'
-      ),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
-    ]);
-    if (left) await new Promise((resolve) => setTimeout(resolve, 500));
-  } catch {
-    // not in a call, or the page is not ready
-  }
+  const contents = mainWindow.webContents;
+  leaveCallRequests += 1;
+  const requestId = leaveCallRequests;
+  const wasInCall = await new Promise((resolve) => {
+    let timer;
+    const onLeft = (event, id, inCall) => {
+      if (event.sender !== contents || id !== requestId) return;
+      clearTimeout(timer);
+      ipcMain.removeListener('call:left', onLeft);
+      resolve(inCall === true);
+    };
+    timer = setTimeout(() => {
+      ipcMain.removeListener('call:left', onLeft);
+      resolve(false);
+    }, LEAVE_CALL_TIMEOUT_MS);
+    ipcMain.on('call:left', onLeft);
+    contents.send('call:leave', requestId);
+  });
+  if (wasInCall) await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
 // Dev only (`just dev-electron`): load the vite dev server (HMR) instead of the
