@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { NotificationCountType, ReceiptType } from 'matrix-js-sdk';
 import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { useMatrixClient } from './useMatrixClient';
@@ -19,13 +20,13 @@ export function DebugHandle() {
       return {
         upTo: room.getEventReadUpTo(userId),
         upToServerOnly: room.getEventReadUpTo(userId, true),
-        public: room.getReadReceiptForUserId(userId, false, 'm.read' as never),
-        publicServer: room.getReadReceiptForUserId(userId, true, 'm.read' as never),
-        private: room.getReadReceiptForUserId(userId, false, 'm.read.private' as never),
-        privateServer: room.getReadReceiptForUserId(userId, true, 'm.read.private' as never),
+        public: room.getReadReceiptForUserId(userId, false, ReceiptType.Read),
+        publicServer: room.getReadReceiptForUserId(userId, true, ReceiptType.Read),
+        private: room.getReadReceiptForUserId(userId, false, ReceiptType.ReadPrivate),
+        privateServer: room.getReadReceiptForUserId(userId, true, ReceiptType.ReadPrivate),
         counts: [
-          room.getUnreadNotificationCount('total' as never),
-          room.getUnreadNotificationCount('highlight' as never),
+          room.getUnreadNotificationCount(NotificationCountType.Total),
+          room.getUnreadNotificationCount(NotificationCountType.Highlight),
         ],
         last: room
           .getLiveTimeline()
