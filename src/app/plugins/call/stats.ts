@@ -34,6 +34,92 @@ export type CallStatsSample = {
   connections: CallStatsConnection[];
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const optional = <T>(value: unknown, is: (v: unknown) => v is T): T | undefined =>
+  is(value) ? value : undefined;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+const isStatValue = (value: unknown): value is StatValue =>
+  isFiniteNumber(value) || typeof value === 'string' || typeof value === 'boolean';
+
+/** The entries of a stats record that hold a value we can show; anything else is left out. */
+const parseStatRecord = (value: unknown): Record<string, StatValue> | undefined => {
+  if (!isRecord(value)) return undefined;
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, StatValue] => isStatValue(entry[1]))
+  );
+};
+
+const parseStream = (value: unknown): CallStatsStream | undefined => {
+  if (!isRecord(value)) return undefined;
+  const stats = parseStatRecord(value.stats);
+  if (!isString(value.kind) || !isFiniteNumber(value.ssrc) || !stats) return undefined;
+  return {
+    kind: value.kind,
+    ssrc: value.ssrc,
+    codec: optional(value.codec, isString),
+    sdpFmtpLine: optional(value.sdpFmtpLine, isString),
+    stats,
+    remote: parseStatRecord(value.remote),
+    source: parseStatRecord(value.source),
+    participant: optional(value.participant, isString),
+    track: optional(value.track, isString),
+  };
+};
+
+const parseStreams = (value: unknown): CallStatsStream[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const streams = value.map(parseStream);
+  return streams.every((s): s is CallStatsStream => s !== undefined) ? streams : undefined;
+};
+
+const parseConnection = (value: unknown): CallStatsConnection | undefined => {
+  if (!isRecord(value) || !isString(value.host) || !isRecord(value.transport)) return undefined;
+  const { transport } = value;
+  const outbound = parseStreams(value.outbound);
+  const inbound = parseStreams(value.inbound);
+  if (
+    !(value.rtt === null || isFiniteNumber(value.rtt)) ||
+    !isFiniteNumber(transport.bytesSent) ||
+    !isFiniteNumber(transport.bytesReceived) ||
+    !outbound ||
+    !inbound
+  ) {
+    return undefined;
+  }
+  return {
+    host: value.host,
+    rtt: value.rtt,
+    transport: {
+      availableOutgoingBitrate: optional(transport.availableOutgoingBitrate, isFiniteNumber),
+      bytesSent: transport.bytesSent,
+      bytesReceived: transport.bytesReceived,
+      protocol: optional(transport.protocol, isString),
+    },
+    outbound,
+    inbound,
+  };
+};
+
+/**
+ * Reads the call widget's `club.stablecat.pinniped.call_stats` payload. A sample with any
+ * malformed part is dropped whole, so the graphs never mix a partial sample into the series.
+ */
+export const parseCallStatsSample = (data: unknown): CallStatsSample | undefined => {
+  if (!isRecord(data) || !isFiniteNumber(data.time) || !Array.isArray(data.connections)) {
+    return undefined;
+  }
+  const connections = data.connections.map(parseConnection);
+  if (!connections.every((c): c is CallStatsConnection => c !== undefined)) return undefined;
+  return { time: data.time, connections };
+};
+
 export type StatPoint = { time: number; value: number };
 
 /** How much history the graphs keep and show. */

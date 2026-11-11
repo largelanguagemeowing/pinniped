@@ -16,19 +16,25 @@ const CALL_SOUND_KINDS: Record<string, EventSoundKind> = {
   waitingIntro: 'callStart',
 };
 
+/** The kind for a sound name from the widget; names it does not use (`toString`...) have none. */
+const callSoundKind = (sound: string): EventSoundKind | undefined =>
+  Object.prototype.hasOwnProperty.call(CALL_SOUND_KINDS, sound)
+    ? CALL_SOUND_KINDS[sound]
+    : undefined;
+
 /** Looping sounds that are playing, by the id the widget gave them. */
 const loops = new Map<number, HTMLAudioElement>();
 /** Loops stopped before they began (while their intro plays). */
 const stopped = new Set<number>();
 
 const loopUrl = (sound: string, settings: Settings): string | undefined => {
-  const kind = CALL_SOUND_KINDS[sound];
+  const kind = callSoundKind(sound);
   if (!kind || !settings.isNotificationSounds || !isSoundEnabled(settings, kind)) return undefined;
   return getSoundUrl(settings.notificationSoundBundle, kind);
 };
 
 const startLoop = async (id: number, sound: string, intro?: string): Promise<void> => {
-  const intro$ = intro !== undefined ? CALL_SOUND_KINDS[intro] : undefined;
+  const intro$ = intro !== undefined ? callSoundKind(intro) : undefined;
   if (intro$) await playEventSound(intro$);
   if (stopped.delete(id)) return;
 
@@ -56,7 +62,7 @@ const stopLoop = (id: number): void => {
 export const handleCallSound = (command: CallSoundCommand): void => {
   switch (command.op) {
     case 'play': {
-      const kind = CALL_SOUND_KINDS[command.sound];
+      const kind = callSoundKind(command.sound);
       if (kind) void playEventSound(kind);
       return;
     }

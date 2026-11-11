@@ -113,6 +113,19 @@ export type CallSoundCommand =
   | { op: 'loop'; sound: string; intro?: string; id: number }
   | { op: 'stop'; id: number };
 
+/** Reads the call widget's `club.stablecat.pinniped.call_sound` payload; anything malformed is ignored. */
+export const parseCallSoundCommand = (data: unknown): CallSoundCommand | undefined => {
+  if (typeof data !== 'object' || data === null) return undefined;
+  const { op, sound, intro, id } = data as Record<string, unknown>;
+  const validId = typeof id === 'number' && Number.isInteger(id);
+  if (op === 'play' && typeof sound === 'string') return { op, sound };
+  if (op === 'loop' && typeof sound === 'string' && validId) {
+    return typeof intro === 'string' ? { op, sound, intro, id } : { op, sound, id };
+  }
+  if (op === 'stop' && validId) return { op, id };
+  return undefined;
+};
+
 /** `url` is a blob: URL of the audio, which the same-origin call widget can read. */
 export type SoundboardCommand = { op: 'play'; url: string; mode?: 'cut' | 'add' } | { op: 'stop' };
 

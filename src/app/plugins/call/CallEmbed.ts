@@ -27,7 +27,7 @@ import {
   ElementWidgetActions,
   getCallUserVolumes,
   screenShareAudioSource,
-  CallSoundCommand,
+  parseCallSoundCommand,
 } from './types';
 import { handleCallSound } from '../../sound/callSounds';
 import { getSettings } from '../../state/settings';
@@ -36,7 +36,7 @@ import { CallControlState } from './CallControlState';
 import { protectFrameFromParentDrag } from './protectFrameFromParentDrag';
 import { CallActivity, emptyCallActivity, parseCallActivity } from './activity';
 import { CallError, parseCallError } from './error';
-import { CallStatsSample, trimStats } from './stats';
+import { CallStatsSample, parseCallStatsSample, trimStats } from './stats';
 import { withDefaultTuning } from './voiceTuning';
 
 export class CallEmbed {
@@ -247,8 +247,9 @@ export class CallEmbed {
       this.listenAction<IWidgetApiRequest>(ElementWidgetActions.CallSound, (evt) => {
         evt.preventDefault();
         this.call.transport.reply(evt.detail, {});
+        const command = parseCallSoundCommand(evt.detail.data);
         // Deafened, the call is silent, so its sounds are too.
-        if (this.control.sound) handleCallSound(evt.detail.data as unknown as CallSoundCommand);
+        if (command && this.control.sound) handleCallSound(command);
       })
     );
 
@@ -256,10 +257,9 @@ export class CallEmbed {
       this.listenAction<IWidgetApiRequest>(ElementWidgetActions.CallStats, (evt) => {
         evt.preventDefault();
         this.call.transport.reply(evt.detail, {});
-        this.statsHistory = trimStats([
-          ...this.statsHistory,
-          evt.detail.data as unknown as CallStatsSample,
-        ]);
+        const sample = parseCallStatsSample(evt.detail.data);
+        if (!sample) return;
+        this.statsHistory = trimStats([...this.statsHistory, sample]);
         this.statsListeners.forEach((listener) => listener());
       })
     );
