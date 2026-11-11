@@ -1,11 +1,7 @@
 import 'matrix-js-sdk/lib/@types/event';
 import 'matrix-js-sdk/lib/@types/state_events';
-import { M_POLL_END, M_POLL_RESPONSE, M_POLL_START } from 'matrix-js-sdk';
-import type {
-  PollEndEventContent,
-  PollResponseEventContent,
-  PollStartEventContent,
-} from 'matrix-js-sdk';
+import { M_POLL_RESPONSE } from 'matrix-js-sdk';
+import type { PollResponseEventContent } from 'matrix-js-sdk';
 import type {
   PowerLevelTags,
   SpaceAutoJoinContent,
@@ -46,11 +42,10 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'im.kibby.left_rooms': Record<string, unknown>;
   }
 
-  // Polls are sent under the stable type (`M_POLL_START.name` is the unstable one).
+  // Polls are sent under MSC3381's unstable types. The SDK registers the start and end
+  // events itself; the response is missing.
   interface TimelineEvents {
-    [M_POLL_START.altName]: PollStartEventContent;
-    [M_POLL_RESPONSE.altName]: PollResponseEventContent;
-    [M_POLL_END.altName]: PollEndEventContent;
+    [M_POLL_RESPONSE.name]: PollResponseEventContent;
   }
 }
 

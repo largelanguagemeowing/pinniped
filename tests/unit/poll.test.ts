@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MatrixEvent } from 'matrix-js-sdk';
 import {
+  makePollEndContent,
   makePollResponseContent,
   makePollStartContent,
   parsePollStart,
@@ -20,6 +21,36 @@ const response = (sender: string, ts: number, answers: unknown) =>
   });
 
 describe('polls', () => {
+  // Other clients parse the unstable MSC3381 form; a stable event type or key with unstable
+  // text inside is a mix that strict parsers reject.
+  it('sends every poll event in the unstable MSC3381 form', () => {
+    const start = makePollStartContent('Pizza?', ['yes', 'no'], 1);
+    const [yes, no] = parsePollStart(start)!.answers.map((a) => a.id);
+    expect(start).toEqual({
+      'org.matrix.msc3381.poll.start': {
+        question: { 'org.matrix.msc1767.text': 'Pizza?' },
+        kind: 'org.matrix.msc3381.poll.disclosed',
+        max_selections: 1,
+        answers: [
+          { id: yes, 'org.matrix.msc1767.text': 'yes' },
+          { id: no, 'org.matrix.msc1767.text': 'no' },
+        ],
+      },
+      'org.matrix.msc1767.text': 'Pizza?\n1. yes\n2. no',
+    });
+
+    expect(makePollResponseContent('$poll', [yes])).toEqual({
+      'org.matrix.msc3381.poll.response': { answers: [yes] },
+      'm.relates_to': { rel_type: 'm.reference', event_id: '$poll' },
+    });
+
+    expect(makePollEndContent('$poll', 'The poll has ended.')).toEqual({
+      'org.matrix.msc3381.poll.end': {},
+      'org.matrix.msc1767.text': 'The poll has ended.',
+      'm.relates_to': { rel_type: 'm.reference', event_id: '$poll' },
+    });
+  });
+
   it('round-trips the poll start content we send', () => {
     const poll = parsePollStart(makePollStartContent('Pizza?', ['yes', 'no'], 2, 1234));
     expect(poll?.question).toBe('Pizza?');

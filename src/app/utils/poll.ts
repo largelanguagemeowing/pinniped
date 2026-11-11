@@ -11,8 +11,10 @@ import {
   RelationType,
 } from 'matrix-js-sdk';
 
-// Polls follow MSC3381. Events are sent with the unstable identifiers because
-// that is what Element and most other clients still emit; parsing accepts both.
+// Polls follow MSC3381. Events are sent under its unstable identifiers
+// (`org.matrix.msc3381.poll.*`, text as `org.matrix.msc1767.text`), the form other
+// clients send and parse. In the SDK's `UnstableValue`, `name` is the unstable
+// identifier and `altName` the stable one. Parsing accepts both forms.
 const TEXT_UNSTABLE = 'org.matrix.msc1767.text';
 const TEXT_STABLE = 'm.text';
 
@@ -117,9 +119,9 @@ export const makePollStartContent = (
 ): PollStartContent => {
   const fallback = `${question}\n${answers.map((a, i) => `${i + 1}. ${a}`).join('\n')}`;
   const content: PollStartContent = {
-    [M_POLL_START.altName]: {
+    [M_POLL_START.name]: {
       question: { [TEXT_UNSTABLE]: question },
-      kind: M_POLL_KIND_DISCLOSED.altName,
+      kind: M_POLL_KIND_DISCLOSED.name,
       max_selections: maxSelections,
       answers: answers.map((text) => ({ id: randomAnswerId(), [TEXT_UNSTABLE]: text })),
     },
@@ -133,12 +135,12 @@ export const makePollResponseContent = (
   pollEventId: string,
   answerIds: string[]
 ): PollResponseContent => ({
-  [M_POLL_RESPONSE.altName]: { answers: answerIds },
+  [M_POLL_RESPONSE.name]: { answers: answerIds },
   'm.relates_to': { rel_type: RelationType.Reference, event_id: pollEventId },
 });
 
 export const makePollEndContent = (pollEventId: string, text: string): PollEndContent => ({
-  [M_POLL_END.altName]: {},
+  [M_POLL_END.name]: {},
   [TEXT_UNSTABLE]: text,
   'm.relates_to': { rel_type: RelationType.Reference, event_id: pollEventId },
 });
