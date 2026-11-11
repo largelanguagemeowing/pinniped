@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClientEvent, MatrixClient, MatrixEvent } from 'matrix-js-sdk';
-import { getRecentEmojiEntries } from '../plugins/recent-emoji';
+import { getRecentEmojiEntries, isRecentEmojiEvent } from '../plugins/recent-emoji';
 import { getRecentCustomEmojiEntries } from '../plugins/recent-custom-emoji';
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { IEmoji } from '../plugins/emoji';
@@ -21,7 +21,7 @@ export const useRecentPickerEmoji = (
   useEffect(() => {
     const handleAccountData = (event: MatrixEvent) => {
       const type = event.getType();
-      if (type === AccountDataEvent.ElementRecentEmoji) setUnicode(getRecentEmojiEntries(mx));
+      if (isRecentEmojiEvent(type)) setUnicode(getRecentEmojiEntries(mx));
       if (type === AccountDataEvent.PinnipedRecentCustomEmoji)
         setCustom(getRecentCustomEmojiEntries(mx));
     };

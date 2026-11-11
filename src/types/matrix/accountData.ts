@@ -1,8 +1,8 @@
 import { AccountDataEvents, EventType } from 'matrix-js-sdk';
 
 // Spec event types take their value from the SDK enum so they keep its nominal member type,
-// which is what the SDK's account data API accepts. App-defined types are plain literals,
-// registered with the SDK in `types/matrix-js-sdk.d.ts`.
+// which is what the SDK's account data API accepts. Types the SDK lacks (app-defined, or spec
+// types newer than the SDK) are plain literals, registered with it in `types/matrix-js-sdk.d.ts`.
 export const AccountDataEvent = {
   PushRules: EventType.PushRules,
   Direct: EventType.Direct,
@@ -19,6 +19,8 @@ export const AccountDataEvent = {
   PinnipedSpaceNotifications: 'club.stablecat.pinniped.space_notifications',
   PinnipedInheritedNotifications: 'club.stablecat.pinniped.inherited_notifications',
 
+  RecentEmoji: 'm.recent_emoji',
+  /** MSC4356's unstable `RecentEmoji`; read until the stable event exists. */
   ElementRecentEmoji: 'io.element.recent_emoji',
   PinnipedEmojiFavorites: 'club.stablecat.pinniped.emoji_favorites',
   PinnipedRecentCustomEmoji: 'club.stablecat.pinniped.recent_custom_emoji',

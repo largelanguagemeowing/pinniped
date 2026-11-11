@@ -8,8 +8,8 @@ import type {
   SpaceNotificationDefaultContent,
 } from './matrix/room';
 
-// Registers the custom event types Pinniped reads and writes, so the SDK's
-// typed account data / state event APIs accept them.
+// Registers the event types Pinniped reads and writes that the SDK does not define,
+// so its typed account data / state event APIs accept them.
 declare module 'matrix-js-sdk/lib/@types/event' {
   interface StateEvents {
     'im.ponies.room_emotes': Record<string, unknown>;
@@ -31,6 +31,7 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'club.stablecat.pinniped.sound_favorites': Record<string, unknown>;
     'club.stablecat.pinniped.space_notifications': { spaces?: Record<string, string> };
     'club.stablecat.pinniped.inherited_notifications': { rooms?: Record<string, string> };
+    'm.recent_emoji': Record<string, unknown>;
     'io.element.recent_emoji': Record<string, unknown>;
     'club.stablecat.pinniped.emoji_favorites': Record<string, unknown>;
     'club.stablecat.pinniped.recent_custom_emoji': Record<string, unknown>;
