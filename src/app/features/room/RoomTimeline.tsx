@@ -149,6 +149,7 @@ import {
   getTimelinesEventsCount,
   timelineToEventsCount,
 } from '../../utils/timeline';
+import { useUrlPreviewSetting } from '../../hooks/useUrlPreview';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -454,9 +455,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
-  const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
+  const showUrlPreview = useUrlPreviewSetting()(room);
   const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showDeveloperTools] = useSetting(settingsAtom, 'developerTools');
 

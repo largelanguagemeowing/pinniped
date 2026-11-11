@@ -97,6 +97,7 @@ import {
 } from '../../../hooks/useMemberPowerTag';
 import { useRoomCreatorsTag } from '../../../hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
+import { useUrlPreviewSetting } from '../../../hooks/useUrlPreview';
 
 type RoomNotificationsGroup = {
   roomId: string;
@@ -565,8 +566,7 @@ export function Notifications() {
   const mx = useMatrixClient();
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const urlPreviewFor = useUrlPreviewSetting();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
@@ -728,9 +728,7 @@ export function Notifications() {
                           room={groupRoom}
                           notifications={group.notifications}
                           mediaAutoLoad={mediaAutoLoad}
-                          urlPreview={
-                            groupRoom.hasEncryptionStateEvent() ? encUrlPreview : urlPreview
-                          }
+                          urlPreview={urlPreviewFor(groupRoom)}
                           hideActivity={hideActivity}
                           onOpen={navigateRoom}
                           legacyUsernameColor={

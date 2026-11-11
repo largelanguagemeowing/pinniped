@@ -53,6 +53,7 @@ import {
   roomSearchOrderAtom,
   RoomSearchOrder,
 } from '../../state/roomSearch';
+import { useUrlPreviewSetting } from '../../hooks/useUrlPreview';
 
 const FILTER_LABELS: Record<string, string> = {
   from: 'From',
@@ -152,8 +153,7 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTopAnchorRef = useRef<HTMLDivElement>(null);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const urlPreviewFor = useUrlPreviewSetting();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
@@ -366,7 +366,7 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
                       highlights={highlights}
                       items={group.items}
                       mediaAutoLoad={mediaAutoLoad}
-                      urlPreview={groupRoom.hasEncryptionStateEvent() ? encUrlPreview : urlPreview}
+                      urlPreview={urlPreviewFor(groupRoom)}
                       onOpen={onOpen}
                       legacyUsernameColor={legacyUsernameColor || mDirects.has(groupRoom.roomId)}
                       hour24Clock={hour24Clock}

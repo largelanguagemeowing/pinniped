@@ -29,6 +29,7 @@ import {
   useEncryptedRooms,
 } from './SearchNotice';
 import { VirtualTile } from '../../components/virtualizer';
+import { useUrlPreviewSetting } from '../../hooks/useUrlPreview';
 
 const useSearchPathSearchParams = (searchParams: URLSearchParams): _SearchPathSearchParams =>
   useMemo(
@@ -60,8 +61,7 @@ export function MessageSearch({
   const mDirects = useAtomValue(mDirectAtom);
   const allRooms = useRooms(mx, allRoomsAtom, mDirects);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const urlPreviewFor = useUrlPreviewSetting();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
 
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
@@ -339,7 +339,7 @@ export function MessageSearch({
                     highlights={highlights}
                     items={group.items}
                     mediaAutoLoad={mediaAutoLoad}
-                    urlPreview={groupRoom.hasEncryptionStateEvent() ? encUrlPreview : urlPreview}
+                    urlPreview={urlPreviewFor(groupRoom)}
                     onOpen={navigateRoom}
                     legacyUsernameColor={legacyUsernameColor || mDirects.has(groupRoom.roomId)}
                     hour24Clock={hour24Clock}
