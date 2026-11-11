@@ -1,17 +1,24 @@
 import { CryptoApi } from 'matrix-js-sdk/lib/crypto-api';
 
-type IdentityBundle = {
-  cross_signing: { master_key: string; self_signing_key: string; user_signing_key: string };
-  backup?: unknown;
-};
+/** The SDK's secrets bundle, as `exportSecretsBundle` makes it and `importSecretsBundle` takes it. */
+type IdentityBundle = Parameters<NonNullable<CryptoApi['importSecretsBundle']>>[0];
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isIdentityBundle = (value: unknown): value is IdentityBundle => {
-  const keys = (value as IdentityBundle | null)?.cross_signing;
+  if (!isRecord(value) || !isRecord(value.cross_signing)) return false;
+  const { cross_signing: keys, backup } = value;
   return (
-    !!keys &&
     typeof keys.master_key === 'string' &&
     typeof keys.self_signing_key === 'string' &&
-    typeof keys.user_signing_key === 'string'
+    typeof keys.user_signing_key === 'string' &&
+    // The message backup key is there when the exporting device had it.
+    (backup === undefined ||
+      (isRecord(backup) &&
+        typeof backup.algorithm === 'string' &&
+        typeof backup.key === 'string' &&
+        typeof backup.backup_version === 'string'))
   );
 };
 
@@ -49,7 +56,7 @@ export const importIdentityKeyFile = async (
   if (!isIdentityBundle(bundle)) {
     throw new Error('This file does not contain identity keys. Is it a message key file?');
   }
-  await crypto.importSecretsBundle(bundle as never);
+  await crypto.importSecretsBundle(bundle);
   // The bundle only installs the identity; it does not sign this device.
   // (bootstrapCrossSigning would skip signing when the identity already exists,
   // and may need secret storage.)

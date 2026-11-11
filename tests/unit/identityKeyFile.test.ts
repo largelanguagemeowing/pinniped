@@ -42,6 +42,20 @@ describe('identity key file', () => {
     expect(raw.exportSecretsBundle).not.toHaveBeenCalled();
   });
 
+  it('imports the message backup key along with the identity', async () => {
+    const withBackup = {
+      ...bundle,
+      backup: {
+        algorithm: 'm.megolm_backup.v1.curve25519-aes-sha2',
+        key: 'k',
+        backup_version: '3',
+      },
+    };
+    const dest = makeCrypto();
+    await importIdentityKeyFile(dest.crypto, 'DEV', JSON.stringify(withBackup));
+    expect(dest.imported).toEqual([withBackup]);
+  });
+
   it('explains when the library cannot export or import', async () => {
     await expect(
       exportIdentityKeyFile(makeCrypto({ exportSecretsBundle: undefined }).crypto)
@@ -55,6 +69,10 @@ describe('identity key file', () => {
     ['not JSON', 'hello'],
     ['a message key export', JSON.stringify([{ session_id: 'x' }])],
     ['a bundle missing a key', JSON.stringify({ cross_signing: { master_key: 'm' } })],
+    [
+      'a bundle with a malformed backup key',
+      JSON.stringify({ ...bundle, backup: { algorithm: 'm.megolm_backup.v1', key: 5 } }),
+    ],
   ])('rejects %s and imports nothing', async (_name, text) => {
     const dest = makeCrypto();
     await expect(importIdentityKeyFile(dest.crypto, 'DEV', text)).rejects.toThrow(
