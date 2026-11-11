@@ -23,6 +23,7 @@ import { UploadSuccess } from '../../state/upload';
 import { getImageInfo, TUploadContent } from '../../utils/matrix';
 import { getImageFileUrl, loadImageElement, renameFile } from '../../utils/dom';
 import { replaceSpaceWithDash, suffixRename } from '../../utils/common';
+import { animationInfo, detectImageAnimation } from '../../utils/animatedImage';
 import { getFileNameWithoutExt } from '../../utils/mimeTypes';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { downloadImagePackZip } from '../../utils/zip';
@@ -119,10 +120,13 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
 
     const handleUploadComplete = useCallback(
       async (data: UploadSuccess) => {
-        const imgEl = await loadImageElement(getImageFileUrl(data.file));
+        const [imgEl, animation] = await Promise.all([
+          loadImageElement(getImageFileUrl(data.file)),
+          detectImageAnimation(data.file),
+        ]);
         const packImage: PackImage = {
           url: data.mxc,
-          info: getImageInfo(imgEl, data.file),
+          info: { ...getImageInfo(imgEl, data.file), ...animationInfo(animation) },
         };
         const image = PackImageReader.fromPackImage(
           getFileNameWithoutExt(data.file.name),

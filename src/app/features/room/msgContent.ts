@@ -19,6 +19,7 @@ import { IReplyDraft, TUploadItem } from '../../state/room/roomInputDrafts';
 import { ATTACHMENTS_CONTENT_KEY } from '../../utils/attachments';
 import { encodeBlurHash } from '../../utils/blurHash';
 import { scaleYDimension } from '../../utils/common';
+import { animationInfo, detectImageAnimation } from '../../utils/animatedImage';
 
 const generateThumbnailContent = async (
   mx: MatrixClient,
@@ -51,7 +52,10 @@ export const getImageMsgContent = async (
   mxc: string
 ): Promise<IContent> => {
   const { file, originalFile, encInfo, metadata } = item;
-  const [imgError, imgEl] = await to(loadImageElement(getImageFileUrl(originalFile)));
+  const [[imgError, imgEl], animation] = await Promise.all([
+    to(loadImageElement(getImageFileUrl(originalFile))),
+    detectImageAnimation(originalFile),
+  ]);
   if (imgError) console.warn(imgError);
 
   const content: IContent = {
@@ -65,6 +69,7 @@ export const getImageMsgContent = async (
 
     content.info = {
       ...getImageInfo(imgEl, file),
+      ...animationInfo(animation),
       [MATRIX_BLUR_HASH_PROPERTY_NAME]: blurHash,
     };
   }

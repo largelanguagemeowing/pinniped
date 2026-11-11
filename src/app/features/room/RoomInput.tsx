@@ -118,6 +118,7 @@ import {
   sendRoomSticker,
 } from './msgContent';
 import { getMemberDisplayName, getMentionContent, trimReplyFromBody } from '../../utils/room';
+import { animationInfo, detectImageAnimation } from '../../utils/animatedImage';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '../../hooks/useCommands';
 import { mobileOrTablet } from '../../utils/user-agent';
@@ -553,10 +554,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
         if (!stickerUrl) throw new Error('Sticker has no media URL');
 
-        const info = await getImageInfo(
-          await loadImageElement(stickerUrl),
-          await getImageUrlBlob(stickerUrl)
-        );
+        const blob = await getImageUrlBlob(stickerUrl);
+        const [imgEl, animation] = await Promise.all([
+          loadImageElement(stickerUrl),
+          detectImageAnimation(blob),
+        ]);
+        const info = { ...getImageInfo(imgEl, blob), ...animationInfo(animation) };
 
         const content: IContent = {
           body: label,

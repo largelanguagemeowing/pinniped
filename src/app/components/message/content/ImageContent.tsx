@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import React, { ReactNode, SyntheticEvent, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -30,6 +30,8 @@ import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '../../../util
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { AttachmentLoadError } from './AttachmentLoadError';
 import { validBlurHash } from '../../../utils/blurHash';
+import { useHoverPlay } from '../../../hooks/useHoverPlay';
+import { StillImage } from '../../media';
 
 type RenderViewerProps = {
   src: string;
@@ -40,7 +42,7 @@ type RenderImageProps = {
   alt: string;
   title: string;
   src: string;
-  onLoad: () => void;
+  onLoad: (event: SyntheticEvent<HTMLImageElement>) => void;
   onError: () => void;
   onClick: () => void;
   tabIndex: number;
@@ -78,8 +80,10 @@ export const ImageContent = as<'div', ImageContentProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const blurHash = validBlurHash(info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
+    const sizeLabel = typeof info?.size === 'number' ? bytesToSize(info.size) : undefined;
 
     const [load, setLoad] = useState(false);
+    const [loadedImage, setLoadedImage] = useState<HTMLImageElement>();
     const [error, setError] = useState(false);
     const [viewer, setViewer] = useState(false);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
@@ -112,8 +116,18 @@ export const ImageContent = as<'div', ImageContentProps>(
       }, [mx, url, useAuthentication, mimeType, encInfo])
     );
 
-    const handleLoad = () => {
+    // `is_animated` is the sender's claim; it only decides the badge and pausing, so it is not verified
+    const animated = info?.is_animated === true;
+    const { lowAnimationMode, hovered, hoverProps } = useHoverPlay();
+    const stillSource = animated && lowAnimationMode && !hovered ? loadedImage : undefined;
+    const paused = stillSource !== undefined;
+
+    const animatedBadge = animated && (!load || paused);
+    const sizeBadge = !load && sizeLabel !== undefined;
+
+    const handleLoad = (event: SyntheticEvent<HTMLImageElement>) => {
       setLoad(true);
+      setLoadedImage(event.currentTarget);
     };
     const handleError = () => {
       setLoad(false);
@@ -138,7 +152,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     }, [autoPlayProp, loadSrc]);
 
     return (
-      <Box className={classNames(css.RelativeBase, className)} {...props} ref={ref}>
+      <Box className={classNames(css.RelativeBase, className)} {...hoverProps} {...props} ref={ref}>
         {srcState.status === AsyncStatus.Success && (
           <Overlay open={viewer} backdrop={<OverlayBackdrop />}>
             <OverlayCenter>
@@ -182,8 +196,20 @@ export const ImageContent = as<'div', ImageContentProps>(
             </Button>
           </Box>
         )}
+        {stillSource && (
+          <Box
+            className={classNames(css.AbsoluteContainer, blurred && css.Blur)}
+            style={{ pointerEvents: 'none' }}
+          >
+            <StillImage source={stillSource} />
+          </Box>
+        )}
         {srcState.status === AsyncStatus.Success && (
-          <Box className={classNames(css.AbsoluteContainer, blurred && css.Blur)}>
+          // hidden by opacity while paused, so it stays clickable and focusable
+          <Box
+            className={classNames(css.AbsoluteContainer, blurred && css.Blur)}
+            style={paused ? { opacity: 0 } : undefined}
+          >
             {renderImage({
               alt: body,
               title: body,
@@ -244,11 +270,18 @@ export const ImageContent = as<'div', ImageContentProps>(
             />
           </Box>
         )}
-        {!load && typeof info?.size === 'number' && (
+        {(animatedBadge || sizeBadge) && (
           <Box className={css.AbsoluteFooter} justifyContent="End" alignContent="Center" gap="200">
-            <Badge variant="Secondary" fill="Soft">
-              <Text size="L400">{bytesToSize(info.size)}</Text>
-            </Badge>
+            {animatedBadge && (
+              <Badge variant="Secondary" fill="Soft">
+                <Text size="L400">GIF</Text>
+              </Badge>
+            )}
+            {sizeBadge && (
+              <Badge variant="Secondary" fill="Soft">
+                <Text size="L400">{sizeLabel}</Text>
+              </Badge>
+            )}
           </Box>
         )}
       </Box>

@@ -39,6 +39,8 @@ export type IImageInfo = {
   h?: number;
   mimetype?: string;
   size?: number;
+  /** Absent when the sender could not tell. */
+  is_animated?: boolean;
   [MATRIX_BLUR_HASH_PROPERTY_NAME]?: string;
 };
 
