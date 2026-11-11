@@ -65,7 +65,7 @@ import {
 import { EmojiBoard, EmojiBoardTab } from '../../components/emoji-board';
 import { getGifToSend, isGifVideo } from '../../utils/klipy';
 import { FavoriteGif } from '../../state/gifFavorites';
-import { MATRIX_GIF_PROPERTY_NAME } from '../../../types/matrix/common';
+import { markGifVideo } from '../../../types/matrix/common';
 import { UseStateProvider } from '../../components/UseStateProvider';
 import {
   TUploadContent,
@@ -646,9 +646,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         const content = videoGif
           ? await getVideoMsgContent(mx, item, mxc)
           : await getImageMsgContent(mx, item, mxc);
-        if (videoGif) content[MATRIX_GIF_PROPERTY_NAME] = true;
-
-        return gifSender(content);
+        return gifSender(videoGif ? markGifVideo(content) : content);
       });
 
     return (
