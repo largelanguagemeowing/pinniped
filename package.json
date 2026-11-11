@@ -1,7 +1,7 @@
 {
   "name": "pinniped",
   "version": "4.12.6",
-  "description": "Yet another matrix client",
+  "description": "A Matrix client",
   "desktopName": "pinniped.desktop",
   "main": "index.js",
   "type": "module",
@@ -34,7 +34,7 @@
     "*": "prettier --ignore-unknown --write"
   },
   "keywords": [],
-  "author": "Ajay Bura",
+  "author": "Pinniped contributors",
   "license": "AGPL-3.0-only",
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "4.0.0",

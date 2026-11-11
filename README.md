@@ -1,13 +1,13 @@
 # Pinniped
 
-Pinniped is a fork of [Cinny](https://github.com/cinnyapp/cinny), a Matrix client focused on a simple, elegant interface. This fork adds Discord-style improvements.
+Pinniped is an independent Matrix client. It started as a fork of [Cinny](https://github.com/cinnyapp/cinny) and has since gone its own way.
 
-## Discord parity
+## What Pinniped adds
 
 - Mention counts on the app icon: dock badge on macOS, launcher count on Linux, taskbar overlay on Windows
 - Unread pills and mention badges in the sidebar, including for spaces
 - Animated profile banners and clamped bios with show more/less
-- Rich presence: publishes your Discord activity as your Matrix status (desktop app only)
+- Rich presence: the activity games and media players report over the local RPC socket is published as your Matrix rich presence (MSC4320; desktop app only, off by default)
 - Call status with a duration timer and member list
 - Keyboard shortcuts to move between rooms, and alt+left/right to step through visited rooms
 - Collapsible emoji groups, with Twemoji as the default font
@@ -31,4 +31,4 @@ To deploy under a subdirectory, set `base` in [`build.config.ts`](build.config.t
 
 ## License
 
-AGPL-3.0-only, the same as upstream Cinny.
+AGPL-3.0-only, the same as Cinny, which Pinniped is derived from.

@@ -1,7 +1,7 @@
 import { style } from '@vanilla-extract/css';
 import { DefaultReset, color, config, toRem } from 'folds';
 
-// Modeled after Discord's "components" cards for fediverse posts: author block
+// Card for fediverse posts: author block
 // with the avatar on the right, caption, media mosaic and a footer with the
 // site and an "open original" button.
 export const Post = style([

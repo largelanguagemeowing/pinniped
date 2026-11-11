@@ -49,7 +49,7 @@ import { BetaNoticeBadge } from '../../../components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '../../../hooks/useMemberPowerTag';
 import { creatorsSupported } from '../../../utils/matrix';
 
-// Discord's role colour presets, shown as swatches under the picker.
+// Role colour presets, shown as swatches under the picker: ten colours, then a darker shade of each.
 const ROLE_COLOR_PRESETS = [
   '#1abc9c',
   '#2ecc71',

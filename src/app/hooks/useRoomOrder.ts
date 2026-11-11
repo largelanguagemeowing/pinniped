@@ -1,10 +1,6 @@
 import { useCallback } from 'react';
 import { MatrixClient } from 'matrix-js-sdk';
-import {
-  AccountDataEvent,
-  KibbyRoomOrderContent,
-  RoomSortMode,
-} from '../../types/matrix/accountData';
+import { AccountDataEvent, RoomOrderContent, RoomSortMode } from '../../types/matrix/accountData';
 import { getAccountData } from '../utils/room';
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountData } from './useAccountData';
@@ -12,8 +8,8 @@ import { useAccountData } from './useAccountData';
 /**
  * Reads the current per-user room order content from account data.
  */
-export const getRoomOrderContent = (mx: MatrixClient): KibbyRoomOrderContent =>
-  getAccountData(mx, AccountDataEvent.PinnipedRoomOrder)?.getContent<KibbyRoomOrderContent>() ?? {};
+export const getRoomOrderContent = (mx: MatrixClient): RoomOrderContent =>
+  getAccountData(mx, AccountDataEvent.PinnipedRoomOrder)?.getContent<RoomOrderContent>() ?? {};
 
 /**
  * Merges a partial update into the existing room order content and returns the
@@ -21,8 +17,8 @@ export const getRoomOrderContent = (mx: MatrixClient): KibbyRoomOrderContent =>
  */
 export const makeRoomOrderContent = (
   mx: MatrixClient,
-  partial: Partial<KibbyRoomOrderContent>
-): KibbyRoomOrderContent => {
+  partial: Partial<RoomOrderContent>
+): RoomOrderContent => {
   const current = getRoomOrderContent(mx);
   return {
     sortModes: { ...current.sortModes, ...partial.sortModes },
@@ -37,7 +33,7 @@ let writeQueue: Promise<unknown> = Promise.resolve();
 
 const updateRoomOrder = (
   mx: MatrixClient,
-  partial: () => Partial<KibbyRoomOrderContent>
+  partial: () => Partial<RoomOrderContent>
 ): Promise<unknown> => {
   writeQueue = writeQueue
     .catch(() => undefined)
@@ -64,13 +60,13 @@ export const setRoomOrder = (mx: MatrixClient, parentSpaceId: string, orderedRoo
  * Reactively returns the per-user room order content, updating when the
  * `club.stablecat.pinniped.room_order` account data event changes.
  */
-export const useRoomOrderContent = (): KibbyRoomOrderContent => {
+export const useRoomOrderContent = (): RoomOrderContent => {
   const mx = useMatrixClient();
   const event = useAccountData(AccountDataEvent.PinnipedRoomOrder);
-  return event?.getContent<KibbyRoomOrderContent>() ?? getRoomOrderContent(mx);
+  return event?.getContent<RoomOrderContent>() ?? getRoomOrderContent(mx);
 };
 
-export const getRoomSortMode = (content: KibbyRoomOrderContent, spaceId: string): RoomSortMode =>
+export const getRoomSortMode = (content: RoomOrderContent, spaceId: string): RoomSortMode =>
   content.sortModes?.[spaceId] === 'custom' ? 'custom' : 'default';
 
 /**

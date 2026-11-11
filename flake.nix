@@ -1,7 +1,7 @@
-# Fork-only file: `nix build .#pinniped` / `nix run .#cinny` builds and runs the
-# Cinny Electron app from source. The package itself lives in package.nix.
+# `nix build .#pinniped` / `nix run .#pinniped` builds and runs the Pinniped Electron app
+# from source. The package itself lives in package.nix.
 {
-  description = "Pinniped - Yet another Matrix client (Cinny fork, Electron app built from source)";
+  description = "Pinniped, a Matrix client (Electron app built from source)";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

@@ -6,7 +6,7 @@ import { useRoomNavigate } from './useRoomNavigate';
 import { useRouteSelectedRoom } from './router/useSelectedRoom';
 
 /**
- * Discord-style alt+left/alt+right navigation through the rooms the user has
+ * alt+left/alt+right navigation through the rooms the user has
  * viewed, independent of the browser's URL history:
  * - alt+left moves back to the previously viewed room
  * - alt+right moves forward again

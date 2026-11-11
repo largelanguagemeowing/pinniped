@@ -475,7 +475,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         if (
           (isKeyHotkey('mod+enter', evt) ||
             (isKeyHotkey('enter', evt) &&
-              // Like Discord: Enter inside an unclosed ``` block adds a new line.
+              // Enter inside an unclosed ``` block adds a new line.
               !isInOpenCodeBlock(editor))) &&
           !isComposing(evt)
         ) {

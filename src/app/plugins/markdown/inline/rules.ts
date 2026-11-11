@@ -19,7 +19,7 @@ export const BoldRule: InlineMDRule = {
   token: { mark: 'bold', open: BOLD_MD_1.length, close: BOLD_MD_1.length },
 };
 
-// Like Discord: `*` italic must not be padded with whitespace on the inside,
+// `*` italic must not be padded with whitespace on the inside,
 // so `2 * 3 * 4` stays literal.
 const ITALIC_MD_1 = '*';
 const ITALIC_PREFIX_1 = `${ESC_NEG_LB}\\*`;
@@ -36,7 +36,7 @@ export const ItalicRule1: InlineMDRule = {
   token: { mark: 'italic', open: ITALIC_MD_1.length, close: ITALIC_MD_1.length },
 };
 
-// Like Discord: `_` italic must sit on word boundaries,
+// `_` italic must sit on word boundaries,
 // so `snake_case_names` stay literal.
 const ITALIC_MD_2 = '_';
 const ITALIC_PREFIX_2 = `${ESC_NEG_LB}(?<![\\p{L}\\p{N}_])_`;
@@ -84,7 +84,7 @@ export const StrikeRule: InlineMDRule = {
   token: { mark: 'strikeThrough', open: STRIKE_MD_1.length, close: STRIKE_MD_1.length },
 };
 
-// Like Discord: ``double backticks`` allow a literal ` inside inline code.
+// ``double backticks`` allow a literal ` inside inline code.
 const CODE_REG_1 = new RegExp(
   `${URL_NEG_LB}${ESC_NEG_LB}(?<!\`)(\`{1,2})(?!\`)(.+?)(?<!\`)\\2(?!\`)`
 );
@@ -129,7 +129,7 @@ export const LinkRule: InlineMDRule = {
   token: { mark: 'link', open: 1, close: (match) => match[2].length + 3 },
 };
 
-// Like Discord: <https://example.com> is a plain link with the brackets hidden.
+// <https://example.com> is a plain link with the brackets hidden.
 // Matches both raw text and sanitized text (where brackets are &lt; &gt;).
 const ANGLE_LINK_REG_1 = /(<|&lt;)(https?:\/\/[^\s<>]+?)(>|&gt;)/;
 export const AngleLinkRule: InlineMDRule = {

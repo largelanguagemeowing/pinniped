@@ -18,7 +18,7 @@ const richPresenceLabel = (rp: RichPresence): string =>
 /**
  * Secondary-line status slot. Rich presence fills the slot when no custom
  * status is set; when a custom status is set it wins and the rich-presence
- * icon prefixes it to signal the active activity (Discord-style).
+ * icon prefixes it to signal the active activity.
  */
 export function PresenceStatus({ status, richPresence, className }: PresenceStatusProps) {
   let icon: IconSrc | undefined;

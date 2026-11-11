@@ -1,4 +1,4 @@
-# Fork-only file: builds the Pinniped (Cinny fork) Electron app from source,
+# Builds the Pinniped Electron app from source,
 # nixpkgs-style. Same pattern as nixpkgs' pocket-casts / jitsi-meet-electron:
 # buildNpmPackage for the web bundle + a wrapper around nixpkgs' electron.
 {
@@ -94,8 +94,8 @@ buildNpmPackage {
 
   meta = {
     description = "Yet another Matrix client";
-    homepage = "https://cinny.in";
-    downloadPage = "https://github.com/cinnyapp/cinny";
+    homepage = "https://github.com/largelanguagemeowing/pinniped";
+    downloadPage = "https://github.com/largelanguagemeowing/pinniped/releases";
     license = lib.licenses.agpl3Only;
     mainProgram = "pinniped";
     inherit (electron.meta) platforms;

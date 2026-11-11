@@ -117,7 +117,7 @@ export function createBaseUserMedia(
     }),
     type: "user",
     // Speaking if the server says so or the audio itself is loud: the server's
-    // updates are coarse and late, the audio is immediate (Discord-style).
+    // updates are coarse and late, the audio is immediate.
     speaking$: scope.behavior(
       combineLatest([
         participant$.pipe(

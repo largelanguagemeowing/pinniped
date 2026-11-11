@@ -1,7 +1,7 @@
 import { style } from '@vanilla-extract/css';
 import { DefaultReset, config } from 'folds';
 
-// Full-screen, Discord-style image viewer. No modal card: the viewer itself
+// Full-screen image viewer. No modal card: the viewer itself
 // is the dark surface, the controls live in a header bar at the top and the
 // image is centred in the remaining space below it. Clicking the dark area
 // around the image closes the viewer (handled in ImageViewer.tsx).

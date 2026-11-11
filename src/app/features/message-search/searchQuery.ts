@@ -1,7 +1,7 @@
 import { IEventWithRoomId } from 'matrix-js-sdk';
 
 /**
- * Discord-style search query: free text plus `operator:value` filters.
+ * Search query: free text plus `operator:value` filters.
  *
  * The server only understands free text, a room list and a sender list
  * (its `contains_url` means "content.url is set", i.e. media, not a link in the
@@ -101,7 +101,7 @@ const addDays = (ts: number, days: number): number => {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days).getTime();
 };
 
-/** `YYYY-MM-DD`, `today`, `yesterday`, or a Discord-ish `DD/MM/YYYY`-free ISO date. */
+/** `YYYY-MM-DD` (ISO, never `DD/MM/YYYY`), `today` or `yesterday`. */
 export const parseSearchDate = (value: string, now: number): number | undefined => {
   const v = value.trim().toLowerCase();
   if (v === 'today') return startOfDay(new Date(now));
@@ -164,7 +164,7 @@ export const parseSearchQuery = (input: string, now: number = Date.now()): Parse
           query.invalid.push(token);
           break;
         }
-        // `after:D` excludes day D, as on Discord
+        // `after:D` starts after day D, so day D itself is excluded
         const lower = operator === 'after' ? addDays(day, 1) : day;
         const upper = operator === 'during' ? addDays(day, 1) : day;
         if (operator !== 'before') {

@@ -111,7 +111,7 @@ describe('block markdown', () => {
     );
   });
 
-  it('supports code blocks the ways discord does', () => {
+  it('fences code blocks, with the language on the fence line or the code on it', () => {
     expect(md('```js\nconst a = 1;\n```')).toBe(
       '<pre data-md="```"><code class="language-js">const a = 1;\n</code></pre>'
     );

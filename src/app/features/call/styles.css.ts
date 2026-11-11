@@ -67,7 +67,7 @@ export const PrescreenGradient = style({
   background: `radial-gradient(120% 90% at 50% 110%, ${color.Primary.Main} 0%, ${color.Primary.Container} 45%, ${color.Background.Container} 100%)`,
 });
 
-/** The Join action: a white pill, as Discord's join button. */
+/** The Join action: a white pill, the one light element on the dark prescreen. */
 export const JoinVoiceButton = style({
   background: '#ffffff',
   color: '#1e1f22',

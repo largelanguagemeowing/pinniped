@@ -15,7 +15,7 @@ import { applySuggestion, getSearchSuggestions } from './searchSuggest';
 import * as css from './RoomSearchBar.css';
 
 /**
- * Message search box with Discord-style operators. Typing `from:`, `in:`,
+ * Message search box with search operators. Typing `from:`, `in:`,
  * `has:` and friends opens a completion list; Enter or Tab accepts the
  * highlighted entry, and Enter with nothing highlighted runs the search.
  */

@@ -77,7 +77,7 @@ export type SecretAccountData = {
 /**
  * How rooms within a space are ordered in the per-user sidebar nav.
  * - `default`: canonical order from the `m.space.child` state events
- * - `custom`: user-defined manual order, persisted in `KibbyRoomOrderContent.orders`
+ * - `custom`: user-defined manual order, persisted in `RoomOrderContent.orders`
  */
 export type RoomSortMode = 'default' | 'custom';
 
@@ -89,7 +89,7 @@ type StoredRoomSortMode = RoomSortMode | 'alpha' | 'activity';
  * `orders` maps a parent space roomId to the ordered list of child roomIds,
  * used only while that parent's section is in `custom` sort mode.
  */
-export type KibbyRoomOrderContent = {
+export type RoomOrderContent = {
   sortModes?: Record<string, StoredRoomSortMode>;
   orders?: Record<string, string[]>;
 };

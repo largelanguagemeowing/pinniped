@@ -1,6 +1,6 @@
 import { BlockMDRule } from './type';
 
-// Like Discord: only # to ### are headings.
+// Only # to ### are headings; more #s are literal text.
 const HEADING_REG_1 = /^(#{1,3}) +(.+)\n?/m;
 export const HeadingRule: BlockMDRule = {
   match: (text) => text.match(HEADING_REG_1),
@@ -11,7 +11,6 @@ export const HeadingRule: BlockMDRule = {
   },
 };
 
-// Like Discord:
 // opening fence of 3 or more backticks, captured in group 1.
 // optional info string on the fence line in group 2, only when the line has no spaces.
 // code content in group 3, which may start on the fence line and end right before the closing fence.
@@ -43,7 +42,7 @@ const quoteLinesToHtml = (lines: string[], parseInline?: (txt: string) => string
     })
     .join('');
 
-// Like Discord: a quote line needs a space after `>`, so `>_>` stays literal.
+// A quote line needs a space after `>`, so `>_>` stays literal.
 const BLOCKQUOTE_REG_1 = /(?:^>(?: .*)?(?:\n|$))+/m;
 export const BlockQuoteRule: BlockMDRule = {
   match: (text) => text.match(BLOCKQUOTE_REG_1),
@@ -61,7 +60,7 @@ export const BlockQuoteRule: BlockMDRule = {
   },
 };
 
-// Like Discord: `>>> ` quotes everything until the end of the message.
+// `>>> ` quotes everything until the end of the message.
 const MULTILINE_BLOCKQUOTE_REG_1 = /^>>>(?: |\n|$)([\s\S]*)/m;
 export const MultilineBlockQuoteRule: BlockMDRule = {
   match: (text) => text.match(MULTILINE_BLOCKQUOTE_REG_1),
@@ -75,7 +74,7 @@ export const MultilineBlockQuoteRule: BlockMDRule = {
   },
 };
 
-// Like Discord: `-# ` makes the line small subtext.
+// `-# ` makes the line small subtext.
 const SUBTEXT_MD_1 = '-#';
 const SUBTEXT_REG_1 = /^-# +(.+)(\n?)/m;
 export const SubtextRule: BlockMDRule = {
@@ -87,7 +86,7 @@ export const SubtextRule: BlockMDRule = {
   },
 };
 
-// Like Discord: `-` and `*` are bullet lists, `1.` is a numbered list.
+// `-` and `*` are bullet lists, `1.` is a numbered list.
 const LIST_ITEM_REG = /^( *)([-*]|\d{1,9}\.) +(.+)$/;
 type ListType = 'ol' | 'ul';
 

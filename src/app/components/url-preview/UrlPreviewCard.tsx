@@ -37,7 +37,7 @@ const getNumber = (prev: IPreviewUrlResponse, key: string): number | undefined =
 };
 
 // The homeserver folds the author into og:site_name as "Provider · Author"
-// so it can be shown on its own line, like Discord does.
+// so it can be shown on its own line.
 const splitSiteName = (siteName?: string): [string | undefined, string | undefined] => {
   if (!siteName) return [undefined, undefined];
   const [provider, ...rest] = siteName.split(' · ');

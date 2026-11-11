@@ -121,7 +121,7 @@ export const toggleKeyboardShortcut = (
     : INLINE_KEYS.find((hotkey) => {
         if (isKeyHotkey(hotkey, event)) {
           event.preventDefault();
-          // Like Discord: formatting hotkeys write markdown when it is enabled.
+          // Formatting hotkeys write markdown when it is enabled.
           if (markdown) toggleMarkdownWrap(editor, MARKDOWN_SEQUENCE[INLINE_HOTKEYS[hotkey]]);
           else toggleMark(editor, INLINE_HOTKEYS[hotkey]);
           return true;

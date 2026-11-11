@@ -969,7 +969,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     markAsRead(mx, room.roomId, hideActivity);
   };
 
-  // Discord-style Escape: mark the room as read and jump to the latest message.
+  // Escape marks the room as read and jumps to the latest message.
   // Ignored while an editable element (message input / edit) or a portal overlay
   // (modal, dialog, etc.) is focused so those components can handle Escape themselves.
   useKeyDown(

@@ -134,7 +134,7 @@ const FENCE_G_REG = /`{3,}/g;
 
 /**
  * Slate `decorate` for the editor root that highlights markdown syntax in place,
- * the way Discord's composer does.
+ * so the formatting shows while it is typed.
  */
 export type MarkdownDecoratedRange = Range & MarkdownDecoratedText;
 
@@ -193,7 +193,7 @@ export const isInOpenCodeBlock = (editor: Editor): boolean => {
 };
 
 /**
- * Continues a markdown list on a new line, like Discord does on Shift+Enter.
+ * Continues a markdown list on a new line (Shift+Enter).
  * An empty list item gets its marker removed instead.
  *
  * @returns true when handled.
@@ -266,7 +266,7 @@ export const toggleMarkdownWrap = (editor: Editor, sequence: string) => {
 const URL_REG = /^https?:\/\/\S+$/;
 
 /**
- * Turns a URL pasted over selected text into a `[text](url)` link, like Discord.
+ * Turns a URL pasted over selected text into a `[text](url)` link.
  *
  * @returns true when handled.
  */

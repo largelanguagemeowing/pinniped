@@ -1,8 +1,7 @@
 import type { ForkPalette } from '../derive';
 
-// Pure-black OLED palette modelled on Discord's "Midnight" (AMOLED) theme:
-// true #000000 base so OLED pixels switch off, near-black elevated surfaces,
-// Discord's blurple primary and its status colors (Discord brand palette).
+// Pure-black OLED palette: true #000000 base so OLED pixels switch off,
+// near-black elevated surfaces, a blue-violet primary and bright status colors.
 export const oledPalettes: Record<'oled-midnight', ForkPalette> = {
   'oled-midnight': {
     bg0: '#000000', // Midnight base

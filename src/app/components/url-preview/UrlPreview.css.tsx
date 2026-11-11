@@ -1,7 +1,7 @@
 import { style } from '@vanilla-extract/css';
 import { DefaultReset, color, config, toRem } from 'folds';
 
-// Modeled after Discord's link embeds: accent bar on the left, provider,
+// Link embed card: accent bar on the left, provider,
 // author, title and description stacked, with either a small thumbnail on the
 // right or a large image underneath.
 export const UrlPreview = style([

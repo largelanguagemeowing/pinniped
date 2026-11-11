@@ -87,7 +87,7 @@ export const PageHeader = recipe({
         paddingLeft: config.space.S200,
       },
     },
-    /** Heights of the room bars: a text room's (as Discord's) and a voice room's. */
+    /** Heights of the room bars: a text room's and a voice room's. */
     bar: {
       room: {
         height: '42px',

@@ -75,7 +75,7 @@ describe('parseSearchQuery', () => {
     expect(q.invalid.map((t) => t.raw)).toEqual(['has:banana', 'before:soon', 'pinned:maybe']);
   });
 
-  it('builds date bounds with Discord semantics', () => {
+  it('builds date bounds: after: excludes the day, during: is the whole day', () => {
     expect(parseSearchQuery('x before:2026-10-01', NOW).before).toBe(day(2026, 10, 1));
     // after: excludes the named day
     expect(parseSearchQuery('x after:2026-10-01', NOW).after).toBe(day(2026, 10, 2));
