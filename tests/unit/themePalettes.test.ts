@@ -134,6 +134,20 @@ describe('fork theme palettes', () => {
     );
   });
 
+  it('lifts a dim foreground into a readable neutral ramp', () => {
+    const { Background, Secondary } = deriveColorData({
+      ...paletteOf('nord'),
+      bg0: '#0F1014',
+      bg1: '#111216',
+      bg2: '#131317',
+      fg: '#868690',
+    });
+    expect(Secondary.Main).toBe(Background.OnContainer);
+    (['Main', 'MainHover', 'MainActive'] as const).forEach((state) => {
+      expect(contrastRatio(Secondary.OnMain, Secondary[state]), state).toBeGreaterThanOrEqual(4.5);
+    });
+  });
+
   it.each(forkThemeRegistry)(
     '$id preserves source colors and distinct interaction states',
     ({ palette }) => {

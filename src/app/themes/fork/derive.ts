@@ -105,13 +105,15 @@ const secondaryData = (fg: string, bg: string) => ({
 export const deriveColorData = (palette: ForkPalette) => {
   const { bg0, bg1 } = palette;
   const bg2 = palette.bg2 ?? lighten(bg1, 0.05);
+  const background = surfaceData(bg0, palette.fg);
 
   return {
-    Background: surfaceData(bg0, palette.fg),
+    Background: background,
     Surface: surfaceData(bg1, palette.fg),
     SurfaceVariant: surfaceData(bg2, palette.fg),
     Primary: accentData(palette.accent, bg0),
-    Secondary: secondaryData(palette.fg, bg0),
+    // neutral ramp starts at the text color readable on the base background
+    Secondary: secondaryData(background.OnContainer, bg0),
     Success: accentData(palette.green, bg0),
     Warning: accentData(palette.orange ?? palette.yellow, bg0),
     Critical: accentData(palette.red, bg0),
