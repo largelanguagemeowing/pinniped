@@ -24,6 +24,9 @@ export type ActivityPayload =
 
 export type MappedActivity = { payload: ActivityPayload; coverUrl?: string };
 
+/** The name published for an activity whose client reported no text at all. */
+export const UNNAMED_ACTIVITY = 'Unknown application';
+
 // Discord timestamps arrive as seconds (10 digits) or ms (13). Normalise to ms.
 const toMs = (ts: number | undefined): number | undefined => {
   if (ts === undefined || !Number.isFinite(ts) || ts <= 0) return undefined;
@@ -68,7 +71,10 @@ export const mapDiscordActivity = (activity: DiscordRichPresenceActivity): Mappe
       coverUrl: httpUrl(activity.assets?.large_image),
     };
   }
-  const name = activity.name || activity.details || 'Discord';
+  // Clients rarely send a name: the RPC server is expected to look it up from the application
+  // id, which only that server's own service can. Use the text the client did send, and never
+  // put a name in the user's public profile that the client did not report.
+  const name = activity.name || activity.details || activity.state || UNNAMED_ACTIVITY;
   const secondary = [activity.details, activity.state].filter(
     (v): v is string => !!v && v !== name
   );
