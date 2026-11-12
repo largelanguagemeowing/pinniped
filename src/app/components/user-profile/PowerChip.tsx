@@ -39,7 +39,12 @@ import { useOpenSpaceSettings } from '../../state/hooks/spaceSettings';
 import { SpaceSettingsPage } from '../../state/spaceSettings';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { BreakWord } from '../../styles/Text.css';
-import { getPowerTagIconSrc, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
+import {
+  getPowerTagIconSrc,
+  useAccessiblePowerTagColors,
+  useGetMemberPowerTag,
+} from '../../hooks/useMemberPowerTag';
+import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '../../hooks/useMemberPowerCompare';
@@ -161,6 +166,7 @@ export function PowerChip({ userId }: { userId: string }) {
 
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
   const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+  const roleColors = useAccessiblePowerTagColors(useRoomCreatorsTag(), powerLevelTags);
 
   const myUserId = mx.getSafeUserId();
   const canChangePowers =
@@ -324,7 +330,9 @@ export function PowerChip({ userId }: { userId: string }) {
               <Icon size="50" src={Icons.ChevronBottom} />
             ) : (
               <>
-                {!changing && <PowerColorBadge color={tag.color} />}
+                {!changing && (
+                  <PowerColorBadge color={tag.color ? roleColors.get(tag.color) : undefined} />
+                )}
                 {changing && <Spinner size="50" variant="Secondary" fill="Soft" />}
               </>
             )

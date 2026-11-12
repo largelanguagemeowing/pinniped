@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import parse, { HTMLReactParserOptions } from 'html-react-parser';
 import Linkify from 'linkify-react';
 import { Opts } from 'linkifyjs';
@@ -6,6 +6,8 @@ import { MessageEmptyContent } from './content';
 import { sanitizeCustomHtml, stripUnsafeTextChars } from '../../utils/sanitize';
 import { unwrapEmbedUrls, unwrapEmbedUrlsHtml } from '../../utils/regex';
 import { highlightText, scaleSystemEmoji } from '../../plugins/react-custom-html-parser';
+import { withReadableTextColors } from '../../plugins/readableHtmlColors';
+import { useReadableColor } from '../../hooks/useReadableColor';
 
 type RenderBodyProps = {
   body: string;
@@ -22,12 +24,18 @@ export function RenderBody({
   htmlReactParserOptions,
   linkifyOpts,
 }: RenderBodyProps) {
+  const readable = useReadableColor();
+  const parserOptions = useMemo(
+    () => withReadableTextColors(htmlReactParserOptions, readable),
+    [htmlReactParserOptions, readable]
+  );
+
   if (body === '') <MessageEmptyContent />;
   if (customBody) {
     if (customBody === '') <MessageEmptyContent />;
     return parse(
       sanitizeCustomHtml(unwrapEmbedUrlsHtml(stripUnsafeTextChars(customBody))),
-      htmlReactParserOptions
+      parserOptions
     );
   }
   const shown = unwrapEmbedUrls(stripUnsafeTextChars(body));

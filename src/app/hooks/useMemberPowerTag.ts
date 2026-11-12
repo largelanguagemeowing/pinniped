@@ -5,8 +5,14 @@ import { getPowerLevelTag, usePowerLevelTags } from './usePowerLevelTags';
 import { IPowerLevels, readPowerLevel } from './usePowerLevels';
 import { MemberPowerTag, MemberPowerTagIcon, PowerLevelTags } from '../../types/matrix/room';
 import { useRoomCreatorsTag } from './useRoomCreatorsTag';
-import { ThemeKind } from './useTheme';
-import { accessibleColor } from '../plugins/color';
+import { color } from 'folds';
+import { ThemeKind, useTheme } from './useTheme';
+import { getRolePalette } from '../themes/fork/roleHues';
+import { useReadableColor } from './useReadableColor';
+import { resolveRoleColors } from '../plugins/roleColor';
+import { toneOf } from '../plugins/roleTone';
+import { settingsAtom } from '../state/settings';
+import { useSetting } from '../state/hooks/settings';
 import { isMxcUrl } from '../utils/mxc';
 
 export type GetMemberPowerTag = (userId: string) => MemberPowerTag;
@@ -46,27 +52,30 @@ export const getPowerTagIconSrc = (
 };
 
 export const useAccessiblePowerTagColors = (
-  themeKind: ThemeKind,
   creatorsTag: MemberPowerTag,
   powerLevelTags: PowerLevelTags
 ): Map<string, string> => {
-  const accessibleColors: Map<string, string> = useMemo(() => {
-    const colors: Map<string, string> = new Map();
-    if (creatorsTag.color) {
-      colors.set(creatorsTag.color, accessibleColor(themeKind, creatorsTag.color));
-    }
+  const [mode] = useSetting(settingsAtom, 'roleColorMode');
+  const { id: themeId, kind } = useTheme();
+  const [spread] = useSetting(settingsAtom, 'spreadRoleColors');
+  const readable = useReadableColor();
 
-    Object.values(powerLevelTags).forEach((tag) => {
-      const { color } = tag;
-      if (!color) return;
-
-      colors.set(color, accessibleColor(themeKind, color));
+  return useMemo(() => {
+    const tagColors: string[] = [];
+    [creatorsTag, ...Object.values(powerLevelTags)].forEach((tag) => {
+      if (tag.color) tagColors.push(tag.color);
     });
-
-    return colors;
-  }, [powerLevelTags, creatorsTag, themeKind]);
-
-  return accessibleColors;
+    const base = {
+      text: color.Background.OnContainer,
+      background: color.Background.Container,
+      strongerWhenBrighter: kind === ThemeKind.Dark,
+    };
+    return resolveRoleColors(mode, tagColors, getRolePalette(themeId), {
+      readable,
+      spread,
+      tone: (tagColor) => toneOf(tagColor, base),
+    });
+  }, [mode, spread, themeId, kind, powerLevelTags, creatorsTag, readable]);
 };
 
 export const useFlattenPowerTagMembers = (

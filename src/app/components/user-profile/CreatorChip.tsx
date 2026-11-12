@@ -4,7 +4,9 @@ import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { PowerColorBadge, PowerIcon } from '../power';
-import { getPowerTagIconSrc } from '../../hooks/useMemberPowerTag';
+import { getPowerTagIconSrc, useAccessiblePowerTagColors } from '../../hooks/useMemberPowerTag';
+import { usePowerLevels } from '../../hooks/usePowerLevels';
+import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { stopPropagation } from '../../utils/keyboard';
@@ -25,6 +27,10 @@ export function CreatorChip() {
 
   const [cords, setCords] = useState<RectCords>();
   const tag = useRoomCreatorsTag();
+  const roleColors = useAccessiblePowerTagColors(
+    tag,
+    usePowerLevelTags(room, usePowerLevels(room))
+  );
   const tagIconSrc = tag.icon && getPowerTagIconSrc(mx, useAuthentication, tag.icon);
 
   const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -85,7 +91,7 @@ export function CreatorChip() {
           cords ? (
             <Icon size="50" src={Icons.ChevronBottom} />
           ) : (
-            <PowerColorBadge color={tag.color} />
+            <PowerColorBadge color={tag.color ? roleColors.get(tag.color) : undefined} />
           )
         }
         after={tagIconSrc ? <PowerIcon size="50" iconSrc={tagIconSrc} /> : undefined}

@@ -13,6 +13,7 @@ Self-contained module providing the 26 fork-only dark themes. Registry totals af
 | `registry.ts` | Ordered `{ id, name, palette }` metadata; IDs are stable once released |
 | `themes.css.ts` | One `createTheme(color, deriveColorData(palette))` per registry entry |
 | `darkVariables.ts` | `on-dark-variables` body class constant |
+| `roleHues.ts` | Official accent colors per theme family for the "Theme colors" role-color mode; themes without an upstream accent set are refused |
 | `index.ts` | Module exports consumed by `useTheme.ts` |
 
 `registry.ts` and everything it imports are pure data (no Vanilla Extract), so tests can evaluate
@@ -109,3 +110,20 @@ catch it.
 Both hook-side test files stub `@vanilla-extract/css` and `localStorage` because the app's
 `.css.ts` modules and settings store are not Node-safe; the palette/registry tests run without
 stubs.
+
+## Role hues
+
+The Role Colors setting's "Theme colors" mode draws each power-level role in one of the theme's
+accent colors (`roleHues.ts`). These are the families' own named accent sets, not the status slots
+(`Success`, `Warning`, `Critical`), so a moderator never reads as an error. A color is only offered
+when it has at least 3:1 contrast against the theme's base background; themes left with fewer
+than three show operator colors instead, and the setting's option is disabled there.
+
+A role whose color is exactly a CSS keyword for red, green, blue, yellow, cyan or magenta
+(`#ff0000`, `#00ff00` and `#008000`, `#0000ff`, `#ffff00`, `#00ffff`, `#ff00ff`; no tolerance) takes the theme's own color of that
+name, where the source names one (`namedHues` in `roleHues.ts`; nothing is inferred from how a color
+looks). Any other role, and a pure color the theme does not name, gets an accent by modulo.
+
+No mapping exists, by design, for Oled Midnight and Catthode (custom palettes), Cool Cowboy (no
+upstream accent set found), and Sequoia Monochrome (monochrome by design), nor for
+the built-in Light, Silver, Dark and Butter themes.

@@ -8,6 +8,11 @@ const STORAGE_KEY = 'settings';
 export type DateFormat =
   'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | 'YYYY-MM-DD' | '';
 export type MessageSpacing = '0' | '100' | '200' | '300' | '400' | '500';
+/**
+ * How power tag colors are shown on names: the color the room sets, theme colors per role, a tone
+ * of the theme's text color, or none.
+ */
+export type RoleColorMode = 'operator' | 'palette' | 'tone' | 'off';
 export enum MessageLayout {
   Modern = 0,
   Compact = 1,
@@ -72,6 +77,11 @@ export interface Settings {
   mediaEmbedHosts: string[];
   showHiddenEvents: boolean;
   legacyUsernameColor: boolean;
+  roleColorMode: RoleColorMode;
+  // Theme colors mode: give roles that are not a pure color one of the theme's accents each.
+  spreadRoleColors: boolean;
+  // Lightens or darkens colors other people set (role names, formatted text) until the theme can show them.
+  readableColors: boolean;
 
   showNotifications: boolean;
   isNotificationSounds: boolean;
@@ -148,6 +158,9 @@ const defaultSettings: Settings = {
   mediaEmbedHosts: [...DEFAULT_MEDIA_EMBED_HOSTS],
   showHiddenEvents: false,
   legacyUsernameColor: false,
+  roleColorMode: 'operator',
+  spreadRoleColors: true,
+  readableColors: true,
 
   showNotifications: true,
   isNotificationSounds: true,

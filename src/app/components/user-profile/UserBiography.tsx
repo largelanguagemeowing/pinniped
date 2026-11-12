@@ -5,6 +5,8 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { parseBlockMD, parseInlineMD } from '../../plugins/markdown';
 import { LINKIFY_OPTS, getReactCustomHtmlParser } from '../../plugins/react-custom-html-parser';
+import { withReadableTextColors } from '../../plugins/readableHtmlColors';
+import { useReadableColor } from '../../hooks/useReadableColor';
 import { sanitizeCustomHtml, sanitizeText } from '../../utils/sanitize';
 
 const COLLAPSED_LINES = 6;
@@ -15,6 +17,7 @@ type UserBiographyProps = {
 export const UserBiography = as<'div', UserBiographyProps>(({ biography, ...props }, ref) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const readable = useReadableColor();
   const textRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
@@ -23,9 +26,12 @@ export const UserBiography = as<'div', UserBiographyProps>(({ biography, ...prop
     () =>
       parse(
         sanitizeCustomHtml(parseBlockMD(sanitizeText(biography), parseInlineMD)),
-        getReactCustomHtmlParser(mx, undefined, { linkifyOpts: LINKIFY_OPTS, useAuthentication })
+        withReadableTextColors(
+          getReactCustomHtmlParser(mx, undefined, { linkifyOpts: LINKIFY_OPTS, useAuthentication }),
+          readable
+        )
       ),
-    [mx, biography, useAuthentication]
+    [mx, biography, useAuthentication, readable]
   );
 
   useLayoutEffect(() => {
