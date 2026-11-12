@@ -14,5 +14,6 @@ export const sequoiaPalettes: Record<'sequoia-monochrome', ForkPalette> = {
     yellow: '#D3D5DE', // editorWarning.foreground
     red: '#999EB2', // editorError.foreground
     fg: '#868690', // editor.foreground
+    grayscale: true,
   },
 };

@@ -109,3 +109,7 @@ export const forkThemeRegistry: ForkThemeMeta[] = [
     palette: sequoiaPalettes['sequoia-monochrome'],
   },
 ];
+
+/** Whether a theme has no hues of its own, so status colors should come from its neutral ramp. */
+export const isGrayscaleTheme = (themeId: string): boolean =>
+  forkThemeRegistry.find(({ id }) => id === themeId)?.palette.grayscale === true;

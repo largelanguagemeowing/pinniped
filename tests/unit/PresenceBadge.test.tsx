@@ -1,12 +1,14 @@
 import React, { act } from 'react';
 import { create, ReactTestRenderer } from 'react-test-renderer';
-import { Badge } from 'folds';
+import { Badge, color } from 'folds';
 import chroma from 'chroma-js';
 import { describe, expect, it, vi } from 'vitest';
 import { PresenceBadge } from '../../src/app/components/presence/Presence';
 import { Presence } from '../../src/app/hooks/useUserPresence';
 
 vi.mock('../../src/app/components/presence/styles.css', () => ({}));
+let themeId = 'dracula';
+vi.mock('../../src/app/hooks/useTheme', () => ({ useTheme: () => ({ id: themeId }) }));
 vi.mock('folds', async (importOriginal) => ({
   ...(await importOriginal<typeof import('folds')>()),
   TooltipProvider: ({ children }: { children: (ref: undefined) => React.ReactNode }) =>
@@ -35,15 +37,36 @@ describe('presence badge colors', () => {
     renderer.unmount();
   });
 
-  it.each([
-    [Presence.Unavailable, 'Warning', 'Solid'],
-    [Presence.Offline, 'Secondary', 'Soft'],
-  ])('preserves themed styling for %s', async (presence, variant, fill) => {
-    const renderer = await render(presence as Presence);
+  it('takes the theme success color on a grayscale theme', async () => {
+    themeId = 'sequoia-monochrome';
+    const renderer = await render(Presence.Online);
+    expect(renderer.root.findByType(Badge).props.style?.backgroundColor).toBe(color.Success.Main);
+    renderer.unmount();
+    themeId = 'dracula';
+  });
+
+  it('draws away as a crescent so it differs by shape, not only color', async () => {
+    const renderer = await render(Presence.Unavailable);
+    const badge = renderer.root.findByType(Badge);
+    expect(badge.props.style?.backgroundColor).toBe('transparent');
+    expect(renderer.root.findAllByType('svg')).toHaveLength(1);
+    renderer.unmount();
+  });
+
+  it('keeps online and offline as plain badges', async () => {
+    for (const presence of [Presence.Online, Presence.Offline]) {
+      const renderer = await render(presence);
+      expect(renderer.root.findAllByType('svg')).toHaveLength(0);
+      renderer.unmount();
+    }
+  });
+
+  it('preserves themed styling for offline', async () => {
+    const renderer = await render(Presence.Offline);
     const badge = renderer.root.findByType(Badge);
     expect(badge.props.style?.backgroundColor).toBeUndefined();
-    expect(badge.props.variant).toBe(variant);
-    expect(badge.props.fill).toBe(fill);
+    expect(badge.props.variant).toBe('Secondary');
+    expect(badge.props.fill).toBe('Soft');
     renderer.unmount();
   });
 });

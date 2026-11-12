@@ -23,6 +23,8 @@ export type ForkPalette = {
   red: string;
   /** Main text color. */
   fg: string;
+  /** Every accent is a step of one neutral ramp, so hue carries no meaning in this theme. */
+  grayscale?: boolean;
 };
 
 const WHITE = '#FFFFFF';

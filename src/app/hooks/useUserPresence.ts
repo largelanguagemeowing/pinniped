@@ -58,8 +58,8 @@ export const usePresenceLabel = (): Record<Presence, string> =>
   useMemo(
     () => ({
       [Presence.Online]: 'Active',
-      [Presence.Unavailable]: 'Busy',
-      [Presence.Offline]: 'Away',
+      [Presence.Unavailable]: 'Away',
+      [Presence.Offline]: 'Offline',
     }),
     []
   );

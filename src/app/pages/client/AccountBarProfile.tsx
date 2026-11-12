@@ -21,6 +21,7 @@ import {
 import { UserAvatar } from '../../components/user-avatar';
 import { Modal500 } from '../../components/Modal500';
 import { PresenceStatus } from '../../components/presence/PresenceStatus';
+import { PresenceDot } from '../../components/presence';
 import { UserHero, UserHeroName } from '../../components/user-profile/UserHero';
 import { UserBiography } from '../../components/user-profile/UserBiography';
 import { UserRichPresence } from '../../components/user-profile/UserRichPresence';
@@ -43,10 +44,10 @@ import {
 } from '../../../types/matrix/profile';
 import * as css from './AccountBar.css';
 
-const PRESENCE_OPTIONS: { presence: Presence; label: string; dot: string }[] = [
-  { presence: Presence.Online, label: 'Online', dot: '#50FA7B' },
-  { presence: Presence.Unavailable, label: 'Away', dot: '#F1C40F' },
-  { presence: Presence.Offline, label: 'Invisible', dot: '#80848E' },
+const PRESENCE_OPTIONS: { presence: Presence; label: string }[] = [
+  { presence: Presence.Online, label: 'Online' },
+  { presence: Presence.Unavailable, label: 'Away' },
+  { presence: Presence.Offline, label: 'Invisible' },
 ];
 
 type AccountMenuProps = {
@@ -100,7 +101,7 @@ function AccountMenu({ requestClose, openSettings }: AccountMenuProps) {
         </Box>
       </Box>
       <Box gap="100" style={{ padding: `${config.space.S200} ${config.space.S200} 0` }}>
-        {PRESENCE_OPTIONS.map(({ presence: option, label, dot }) => {
+        {PRESENCE_OPTIONS.map(({ presence: option, label }) => {
           const selected = presence?.presence === option;
           return (
             <Button
@@ -111,17 +112,7 @@ function AccountMenu({ requestClose, openSettings }: AccountMenuProps) {
               fill={selected ? 'Soft' : 'None'}
               aria-pressed={selected}
               style={{ flexGrow: 1, minWidth: 0 }}
-              before={
-                <span
-                  style={{
-                    width: toRem(8),
-                    height: toRem(8),
-                    borderRadius: '50%',
-                    flexShrink: 0,
-                    background: dot,
-                  }}
-                />
-              }
+              before={<PresenceDot presence={option} size={toRem(8)} />}
               onClick={() => setPresence(option)}
             >
               <Text size="B300" truncate>
