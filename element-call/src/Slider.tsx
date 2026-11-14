@@ -31,6 +31,8 @@ interface Props {
   max: number;
   step: number;
   disabled?: boolean;
+  /** Pinniped: a vertical slider has its minimum at the bottom. */
+  orientation?: "horizontal" | "vertical";
 }
 
 /**
@@ -46,6 +48,7 @@ export const Slider: FC<Props> = ({
   max,
   step,
   disabled,
+  orientation = "horizontal",
 }) => {
   const onValueChange = useCallback(
     ([v]: number[]) => onValueChangeProp(v),
@@ -58,7 +61,10 @@ export const Slider: FC<Props> = ({
 
   return (
     <Root
-      className={classNames(className, styles.slider)}
+      className={classNames(className, styles.slider, {
+        [styles.vertical]: orientation === "vertical",
+      })}
+      orientation={orientation}
       value={[value]}
       onValueChange={onValueChange}
       onValueCommit={onValueCommit}
@@ -71,7 +77,10 @@ export const Slider: FC<Props> = ({
         <Range className={styles.highlight} />
       </Track>
       {/* Note: This is expected not to be visible on mobile.*/}
-      <Tooltip placement="top" label={Math.round(value * 100).toString() + "%"}>
+      <Tooltip
+        placement={orientation === "vertical" ? "left" : "top"}
+        label={Math.round(value * 100).toString() + "%"}
+      >
         <Thumb className={styles.handle} aria-label={label} />
       </Tooltip>
     </Root>

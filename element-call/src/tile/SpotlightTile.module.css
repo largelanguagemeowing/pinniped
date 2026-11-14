@@ -115,33 +115,36 @@ Please see LICENSE in the repository root for full details.
   z-index: 1;
 }
 
-.volumeSlider {
-  width: 100%;
-  min-width: 172px;
-}
-
-/* Disable the hover effect for the screen share volume menu button */
-.volumeMenuItem:hover {
-  background: transparent;
-  cursor: default;
-}
-
-.volumeMenuItem {
-  gap: var(--cpd-space-3x);
-}
-
-.menuMuteButton {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
+/* Stream volume, like Discord's: a speaker button; hovering it raises a vertical slider. */
+.volumeControl {
+  position: relative;
   display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-/* Make icons change color with the theme */
-.menuMuteButton > svg {
-  color: var(--cpd-color-icon-primary);
+/* The popup sits flush above the button (padding, not margin, so the pointer never leaves
+the control on the way up to it). */
+.volumePopup {
+  position: absolute;
+  inset-block-end: 100%;
+  padding-block-end: var(--cpd-space-1x);
+  display: none;
+}
+
+.volumeControl:hover .volumePopup,
+.volumeControl:focus-within .volumePopup {
+  display: block;
+}
+
+.volumeSlider {
+  block-size: 110px;
+  padding: var(--cpd-space-3x) var(--cpd-space-2x);
+  border-radius: var(--cpd-radius-pill-effect);
+  background: var(--cpd-color-bg-canvas-default);
+  border: var(--cpd-border-width-1) solid var(--cpd-color-border-disabled);
+  box-sizing: content-box;
+  box-shadow: var(--small-drop-shadow);
 }
 
 .expand > svg {
@@ -211,6 +214,6 @@ Please see LICENSE in the repository root for full details.
 
 /* Pinniped: the stream tile only has the zoom button (and volume for remote shares);
 fullscreen lives in the host app's call bar, and the expanded layout isn't used. */
-.bottomRightButtons .expand {
+.bottomRightButtons .expand:not(.volumeButton) {
   display: none;
 }

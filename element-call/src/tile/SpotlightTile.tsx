@@ -21,8 +21,6 @@ import {
   CollapseIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  VolumeOffIcon,
-  VolumeOnIcon,
   VolumeOffSolidIcon,
   VolumeOnSolidIcon,
   VideoCallSolidIcon,
@@ -38,7 +36,6 @@ import { useObservableRef } from "observable-hooks";
 import { useTranslation } from "react-i18next";
 import classNames from "classnames";
 import { type TrackReferenceOrPlaceholder } from "@livekit/components-core";
-import { Menu, MenuItem } from "@vector-im/compound-web";
 
 import FullScreenMaximiseIcon from "../icons/FullScreenMaximise.svg?react";
 import FullScreenMinimiseIcon from "../icons/FullScreenMinimise.svg?react";
@@ -395,12 +392,8 @@ const ScreenShareVolumeButton: FC<ScreenShareVolumeButtonProps> = ({ vm }) => {
   const playbackMuted = useBehavior(vm.playbackMuted$);
   const playbackVolume = useBehavior(vm.playbackVolume$);
 
-  const VolumeIcon = playbackMuted ? VolumeOffIcon : VolumeOnIcon;
-  const VolumeSolidIcon = playbackMuted
-    ? VolumeOffSolidIcon
-    : VolumeOnSolidIcon;
+  const VolumeIcon = playbackMuted ? VolumeOffSolidIcon : VolumeOnSolidIcon;
 
-  const [volumeMenuOpen, setVolumeMenuOpen] = useState(false);
   const onMuteButtonClick = useCallback(() => vm.togglePlaybackMuted(), [vm]);
   const onVolumeChange = useCallback(
     (v: number) => vm.adjustPlaybackVolume(v),
@@ -408,45 +401,32 @@ const ScreenShareVolumeButton: FC<ScreenShareVolumeButtonProps> = ({ vm }) => {
   );
   const onVolumeCommit = useCallback(() => vm.commitPlaybackVolume(), [vm]);
 
+  // Like Discord's stream volume: a speaker button (click to mute) that raises a vertical
+  // slider above it while hovered or focused.
   return (
     audioEnabled && (
-      <Menu
-        open={volumeMenuOpen}
-        onOpenChange={setVolumeMenuOpen}
-        title={t("video_tile.screen_share_volume")}
-        side="top"
-        align="end"
-        trigger={
-          <button
-            className={styles.expand}
-            aria-label={t("video_tile.screen_share_volume")}
-          >
-            <VolumeSolidIcon aria-hidden width={20} height={20} />
-          </button>
-        }
-      >
-        <MenuItem
-          as="div"
-          className={styles.volumeMenuItem}
-          onSelect={null}
-          label={null}
-          hideChevron={true}
-        >
-          <button className={styles.menuMuteButton} onClick={onMuteButtonClick}>
-            <VolumeIcon aria-hidden width={24} height={24} />
-          </button>
+      <div className={styles.volumeControl}>
+        <div className={styles.volumePopup}>
           <Slider
             className={styles.volumeSlider}
-            label={t("video_tile.volume")}
-            value={playbackVolume}
+            orientation="vertical"
+            label={t("video_tile.screen_share_volume")}
+            value={playbackMuted ? 0 : playbackVolume}
             min={0}
             max={1}
             step={0.01}
             onValueChange={onVolumeChange}
             onValueCommit={onVolumeCommit}
           />
-        </MenuItem>
-      </Menu>
+        </div>
+        <button
+          className={classNames(styles.expand, styles.volumeButton)}
+          aria-label={playbackMuted ? "Unmute" : t("video_tile.mute_for_me")}
+          onClick={onMuteButtonClick}
+        >
+          <VolumeIcon aria-hidden width={20} height={20} />
+        </button>
+      </div>
     )
   );
 };

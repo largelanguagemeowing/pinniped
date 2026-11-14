@@ -163,16 +163,22 @@ export function LivekitRoomAudioRenderer({
           )
             ? 0
             : soundboardVolumeLevel;
-          // Soundboard sounds have their own volume, so the participant's level skips them.
+          // Soundboard sounds have their own volume, and shared-screen audio is set by the
+          // stream's own volume control, so the participant's level skips both.
+          const isScreenShare =
+            trackRef.source === Track.Source.ScreenShareAudio;
           const level = isSoundboard
             ? soundboardLevel
-            : levelOf(trackRef.participant.identity);
+            : isScreenShare
+              ? 1
+              : levelOf(trackRef.participant.identity);
           const useContext = Boolean(shouldUseAudioContext && audioContext);
           return (
             <AudioTrackWithAudioNodes
               key={getTrackReferenceId(trackRef)}
               trackRef={trackRef}
-              muted={muted}
+              // Deafening leaves shared-screen audio playing.
+              muted={isScreenShare ? false : muted}
               // Silent at level 0, but the track stays subscribed (so it still shows as speaking).
               silent={level === 0}
               // Only one place applies the level, or it is applied twice. Through the audio

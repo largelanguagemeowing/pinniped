@@ -55,3 +55,22 @@ Please see LICENSE in the repository root for full details.
   cursor: initial;
   background: var(--cpd-color-bg-action-primary-disabled);
 }
+
+/* Pinniped: vertical orientation, for the stream volume popup. */
+.vertical {
+  flex-direction: column;
+  justify-content: center;
+  inline-size: var(--cpd-space-4x);
+}
+
+.vertical .track {
+  position: relative;
+  flex-grow: 1;
+  block-size: auto;
+  inline-size: var(--cpd-space-2x);
+}
+
+.vertical .highlight {
+  block-size: auto;
+  inline-size: 100%;
+}
