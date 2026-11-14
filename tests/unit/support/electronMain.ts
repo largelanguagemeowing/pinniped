@@ -127,6 +127,7 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
           APP_ORIGIN: 'app://cinny',
         };
       if (name === './menu.cjs') return { buildAppMenu: vi.fn() };
+      if (name === './updater.cjs') return { startUpdater: vi.fn(() => null) };
       if (name === './helper.cjs')
         return { helper: { on: vi.fn(), request: vi.fn(), stop: vi.fn() } };
       if (name === './screenshare-audio.cjs') return { events: { on: vi.fn() } };
