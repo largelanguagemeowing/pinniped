@@ -45,6 +45,7 @@ import {
   soundboardCommand$,
 } from "./livekit/soundboard";
 import { screenShareStart$ } from "./livekit/screenShareStart";
+import { shareAudioPcm$ } from "./livekit/shareAudio";
 import { applyHostCallControl, reportUserActivity } from "./hostControl";
 import { callSoundCommand$ } from "./livekit/callSounds";
 import {
@@ -84,6 +85,10 @@ export enum ElementWidgetActions {
   CallSound = "club.stablecat.pinniped.call_sound",
   // toWidget (fork): play or stop a soundboard sound, see SoundboardCommand
   Soundboard = "club.stablecat.pinniped.soundboard",
+  // toWidget (fork): a chunk of screen share audio the client captured itself, for the `pcm`
+  // source of the screenShareAudio setting; data `{ pcm }`, interleaved stereo signed 16-bit
+  // little-endian PCM at 48 kHz (see livekit/shareAudio.ts)
+  ShareAudio = "club.stablecat.pinniped.share_audio",
   // fromWidget (fork): a CallStatsSample once a second while in a call
   CallStats = "club.stablecat.pinniped.call_stats",
   // fromWidget (fork): who is speaking, muted or sharing their screen, whenever that
@@ -319,6 +324,20 @@ export const initializeWidget = (
           soundboardCommand$.next(
             ev.detail.data as unknown as SoundboardCommand,
           );
+          api.transport.reply(ev.detail, {});
+        },
+      );
+
+      api.on(
+        `action:${ElementWidgetActions.ShareAudio}`,
+        (ev: CustomEvent<IWidgetApiRequest>) => {
+          ev.preventDefault();
+          const pcm = ev.detail.data.pcm as
+            ArrayBuffer | Uint8Array | undefined;
+          if (pcm)
+            shareAudioPcm$.next(
+              pcm instanceof Uint8Array ? pcm : new Uint8Array(pcm),
+            );
           api.transport.reply(ev.detail, {});
         },
       );

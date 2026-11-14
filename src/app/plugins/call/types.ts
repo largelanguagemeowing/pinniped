@@ -34,6 +34,8 @@ export enum ElementWidgetActions {
   CallSound = 'club.stablecat.pinniped.call_sound',
   /** Fork: play or stop a soundboard sound in the call, see {@link SoundboardCommand}. */
   Soundboard = 'club.stablecat.pinniped.soundboard',
+  /** Fork: a chunk of screen share audio for the `pcm` source, see {@link screenShareAudioSource}. */
+  ShareAudio = 'club.stablecat.pinniped.share_audio',
   /** Fork, from the widget: a CallStatsSample once a second. */
   CallStats = 'club.stablecat.pinniped.call_stats',
   /** Fork, from the widget: who is speaking, muted or sharing, whenever that changes. */
@@ -68,14 +70,15 @@ export type ScreenShareQuality = { resolution: ScreenShareResolution; fps: Scree
 export const SCREEN_SHARE_AUDIO_DEVICE = 'Pinniped Screen Share Audio';
 
 /**
- * What the call widget shares as a screen share's audio: `off`, `display` (what the browser or
- * Windows offers with the capture) or `device:<label>` (a microphone to publish instead).
+ * What the call widget shares as a screen share's audio: `off`, `display` (what the browser
+ * offers with the capture), `device:<label>` (a microphone to publish instead) or `pcm` (audio
+ * the client streams to the widget with the `share_audio` action, see useScreenShareAudioBridge).
  */
 export const screenShareAudioSource = (enabled: boolean): string => {
   if (!enabled) return 'off';
-  return window.pinnipedDesktop?.screenShareAudio
-    ? `device:${SCREEN_SHARE_AUDIO_DEVICE}`
-    : 'display';
+  const bridge = window.pinnipedDesktop?.screenShareAudio;
+  if (!bridge) return 'display';
+  return bridge.onPcm ? 'pcm' : `device:${SCREEN_SHARE_AUDIO_DEVICE}`;
 };
 
 /** Call audio preferences; an empty device id is the system default. */

@@ -40,12 +40,31 @@ contextBridge.exposeInMainWorld('pinnipedDesktop', {
     return () => ipcRenderer.removeListener('hotkey:activated', listener);
   },
   // Linux: a virtual microphone with the other applications' audio, for screen shares.
+  // Windows: the same audio, streamed as PCM chunks (`onPcm`).
   screenShareAudio:
-    process.platform === 'linux'
+    process.platform === 'linux' || process.platform === 'win32'
       ? {
           prepare: () => ipcRenderer.invoke('screenshare-audio:prepare'),
-          link: (active, output) => ipcRenderer.invoke('screenshare-audio:link', active, output),
+          link: (active, output, exclude) =>
+            ipcRenderer.invoke('screenshare-audio:link', active, output, exclude),
           release: () => ipcRenderer.invoke('screenshare-audio:release'),
+          onPcm:
+            process.platform === 'win32'
+              ? (cb) => {
+                  const listener = (_event, chunk) => cb(chunk);
+                  ipcRenderer.on('screenshare-audio:pcm', listener);
+                  return () => ipcRenderer.removeListener('screenshare-audio:pcm', listener);
+                }
+              : undefined,
+        }
+      : undefined,
+  // Windows: what the screen share dialog picks from. `list` is slow (thumbnails), so the
+  // dialog asks when it opens; `select` tells the main process what the next share captures.
+  screenSharePicker:
+    process.platform === 'win32'
+      ? {
+          list: () => ipcRenderer.invoke('screenshare-picker:list'),
+          select: (id) => ipcRenderer.send('screenshare-picker:select', id),
         }
       : undefined,
   onLeaveCallRequest: (handler) => {

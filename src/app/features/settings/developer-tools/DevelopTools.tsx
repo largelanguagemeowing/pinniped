@@ -14,6 +14,7 @@ import {
 } from '../../../components/AccountDataEditor';
 import { copyToClipboard } from '../../../utils/dom';
 import { AccountData } from './AccountData';
+import { ScreenShareAudioExclusions } from './ScreenShareAudioExclusions';
 
 type DeveloperToolsProps = {
   requestClose: () => void;
@@ -125,6 +126,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                   </SequenceCard>
                 )}
               </Box>
+              {developerTools && window.pinnipedDesktop?.platform === 'win32' && (
+                <ScreenShareAudioExclusions />
+              )}
               {developerTools && (
                 <AccountData
                   expand={expand}

@@ -3,14 +3,30 @@ name = "pinniped-helper"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0-only"
-description = "Desktop helper for Pinniped: global shortcuts and autostart over the portals, and screen share audio over PipeWire."
+description = "Desktop helper for Pinniped: global shortcuts, autostart and screen share audio on Linux (portals, PipeWire), per-application screen share audio on Windows (WASAPI)."
 publish = false
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.14", features = ["global_shortcuts", "background"] }
 futures-util = "0.3"
 pipewire = "0.10"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 tokio = { version = "1", features = ["rt", "macros", "io-std", "io-util", "net", "time"] }
 zbus = "6"
+
+[target.'cfg(windows)'.dependencies]
+wasapi = "0.27"
+base64 = "0.22"
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Media_Audio",
+  "Win32_System_Com",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_Devices_FunctionDiscovery",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+] }

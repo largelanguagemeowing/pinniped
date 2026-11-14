@@ -129,6 +129,7 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
       if (name === './menu.cjs') return { buildAppMenu: vi.fn() };
       if (name === './helper.cjs')
         return { helper: { on: vi.fn(), request: vi.fn(), stop: vi.fn() } };
+      if (name === './screenshare-audio.cjs') return { events: { on: vi.fn() } };
       if (name === './hotkeys.cjs')
         return { hotkeys: { on: vi.fn(), bind: vi.fn(), unregisterAll: vi.fn() } };
       return {};

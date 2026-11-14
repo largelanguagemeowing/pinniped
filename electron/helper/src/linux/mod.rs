@@ -246,7 +246,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+pub async fn main() {
     if let Err(err) = run().await {
         eprintln!("pinniped-helper: {err}");
         std::process::exit(1);

@@ -29,6 +29,7 @@ import {
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import { stopPropagation } from '../../utils/keyboard';
+import { SourcePicker } from '../screenshare-picker/SourcePicker';
 
 type OptionProps = { label: string; selected: boolean; onSelect: () => void };
 function DropdownOption({ label, selected, onSelect }: OptionProps) {
@@ -123,16 +124,23 @@ type ScreenSharePickerProps = {
 };
 
 /**
- * Before a screen share starts: its resolution, frame rate and audio. The choices are
- * remembered, and Go Live starts the share with them.
+ * Before a screen share starts: what to share (on Windows, where Chromium has no picker of its
+ * own), its resolution, frame rate and audio. The quality choices are remembered, and Go Live
+ * starts the share with them.
  */
 export function ScreenSharePicker({ callEmbed, open, requestClose }: ScreenSharePickerProps) {
   const [quality, setQuality] = useSetting(settingsAtom, 'callScreenShare');
   const [shareAudio, setShareAudio] = useSetting(settingsAtom, 'callScreenShareAudio');
+  const [source, setSource] = useState<string>();
+  const picker = window.pinnipedDesktop?.screenSharePicker;
+  // Beside the picker the options sit in a row at a fixed width; alone they fill the dialog.
+  const optionStyle = picker ? { width: toRem(190) } : undefined;
 
   if (!open) return null;
 
   const goLive = () => {
+    // The main process captures what was chosen here; it needs it before the share asks.
+    picker?.select(source ?? null);
     callEmbed.startScreenshare(
       `${quality.resolution}:${quality.fps}`,
       screenShareAudioSource(shareAudio)
@@ -151,51 +159,91 @@ export function ScreenSharePicker({ callEmbed, open, requestClose }: ScreenShare
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Dialog variant="Surface" style={{ maxWidth: toRem(400), width: '100%' }}>
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text size="H4">Screen Share</Text>
-              </Box>
-              <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
-                <Icon src={Icons.Cross} />
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Dropdown
-                title="Resolution"
-                value={quality.resolution}
-                options={screenShareResolutions.map((r) => ({ value: r.id, label: r.name }))}
-                onChange={(resolution) => setQuality({ ...quality, resolution })}
-              />
-              <Dropdown
-                title="Frame Rate"
-                value={quality.fps}
-                options={screenShareFrameRates.map((fps) => ({ value: fps, label: `${fps} FPS` }))}
-                onChange={(fps) => setQuality({ ...quality, fps })}
-              />
-              <Dropdown
-                title="Audio"
-                value={shareAudio}
-                options={[
-                  { value: false, label: 'None' },
-                  { value: true, label: 'Computer audio' },
-                ]}
-                onChange={setShareAudio}
-              />
-              <Box justifyContent="End" gap="200">
-                <Button variant="Secondary" fill="Soft" radii="400" onClick={requestClose}>
-                  <Text size="B400">Cancel</Text>
-                </Button>
-                <Button variant="Primary" fill="Solid" radii="400" onClick={goLive}>
-                  <Text size="B400">Go Live</Text>
-                </Button>
+          <Dialog
+            variant="Surface"
+            style={
+              picker
+                ? { width: toRem(1120), maxWidth: '100%', height: '90vh', display: 'flex' }
+                : { maxWidth: toRem(400), width: '100%' }
+            }
+          >
+            <Box direction="Column" style={{ flex: '1 1 0', minHeight: 0 }}>
+              <Header
+                style={{
+                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                  borderBottomWidth: config.borderWidth.B300,
+                }}
+                variant="Surface"
+                size="500"
+              >
+                <Box grow="Yes">
+                  <Text size="H4">Screen Share</Text>
+                </Box>
+                <IconButton onClick={requestClose} variant="Surface" aria-label="Close">
+                  <Icon src={Icons.Cross} />
+                </IconButton>
+              </Header>
+              <Box
+                style={{ padding: config.space.S400, minHeight: 0, flex: '1 1 0' }}
+                direction="Column"
+                gap="400"
+              >
+                {picker && (
+                  <SourcePicker list={picker.list} selected={source} onSelect={setSource} />
+                )}
+                {/* With the picker everything below sits in one row, to leave the room to the sources. */}
+                <Box
+                  style={{ flexShrink: 0 }}
+                  direction={picker ? 'Row' : 'Column'}
+                  gap="400"
+                  alignItems={picker ? 'End' : undefined}
+                >
+                  <Box grow={picker ? undefined : 'Yes'} direction="Column" style={optionStyle}>
+                    <Dropdown
+                      title="Resolution"
+                      value={quality.resolution}
+                      options={screenShareResolutions.map((r) => ({ value: r.id, label: r.name }))}
+                      onChange={(resolution) => setQuality({ ...quality, resolution })}
+                    />
+                  </Box>
+                  <Box grow={picker ? undefined : 'Yes'} direction="Column" style={optionStyle}>
+                    <Dropdown
+                      title="Frame Rate"
+                      value={quality.fps}
+                      options={screenShareFrameRates.map((fps) => ({
+                        value: fps,
+                        label: `${fps} FPS`,
+                      }))}
+                      onChange={(fps) => setQuality({ ...quality, fps })}
+                    />
+                  </Box>
+                  <Box grow={picker ? undefined : 'Yes'} direction="Column" style={optionStyle}>
+                    <Dropdown
+                      title="Audio"
+                      value={shareAudio}
+                      options={[
+                        { value: false, label: 'None' },
+                        { value: true, label: 'Computer audio' },
+                      ]}
+                      onChange={setShareAudio}
+                    />
+                  </Box>
+                  {picker && <Box grow="Yes" />}
+                  <Box justifyContent="End" gap="200" style={{ flexShrink: 0 }}>
+                    <Button variant="Secondary" fill="Soft" radii="400" onClick={requestClose}>
+                      <Text size="B400">Cancel</Text>
+                    </Button>
+                    <Button
+                      variant="Primary"
+                      fill="Solid"
+                      radii="400"
+                      onClick={goLive}
+                      disabled={!!picker && !source}
+                    >
+                      <Text size="B400">Go Live</Text>
+                    </Button>
+                  </Box>
+                </Box>
               </Box>
             </Box>
           </Dialog>

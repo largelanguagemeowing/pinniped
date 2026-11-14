@@ -358,13 +358,15 @@ export const useCallConnectionStatus = (embed: CallEmbed): string => {
 };
 
 /**
- * Linux desktop: makes the virtual microphone that carries other applications' audio while the
- * call is up, and feeds it only while you share your screen. The call widget publishes it as the
- * share's audio. Other applications' audio is only fed in while screen share audio is on.
+ * Desktop: captures other applications' audio (not Pinniped's own) for your screen share. On
+ * Linux that is a virtual microphone made while the call is up and fed only while you share; the
+ * call widget publishes it as the share's audio. On Windows the audio arrives as PCM chunks, which
+ * go on to the widget while you share. Nothing is captured unless screen share audio is on.
  */
 export const useScreenShareAudioBridge = (embed: CallEmbed) => {
   const mx = useMatrixClient();
   const [enabled] = useSetting(settingsAtom, 'callScreenShareAudio');
+  const [excluded] = useSetting(settingsAtom, 'callScreenShareAudioExcluded');
   const joined = useCallJoined(embed);
   const { screenSharers } = useCallActivity(embed);
   const sharing = joined && screenSharers.has(mx.getSafeUserId());
@@ -401,11 +403,19 @@ export const useScreenShareAudioBridge = (embed: CallEmbed) => {
     };
   }, [bridge, audioOutput]);
 
+  // Windows: pass the captured audio on to the widget, which publishes it as the share's audio.
+  useEffect(() => {
+    if (!bridge?.onPcm || !enabled || !sharing) return undefined;
+    return bridge.onPcm((chunk) => {
+      embed.sendShareAudio(chunk).catch(() => undefined);
+    });
+  }, [bridge, embed, enabled, sharing]);
+
   useEffect(() => {
     if (!bridge || !enabled) return undefined;
-    bridge.link(sharing, outputLabel);
+    bridge.link(sharing, outputLabel, excluded);
     return () => {
       bridge.link(false);
     };
-  }, [bridge, enabled, sharing, outputLabel]);
+  }, [bridge, enabled, sharing, outputLabel, excluded]);
 };

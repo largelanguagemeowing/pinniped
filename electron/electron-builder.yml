@@ -77,6 +77,11 @@ dmg:
 win:
   target:
     - msi
+  # Desktop helper (per-application screen share audio); built by
+  # `cargo build --release` in electron/helper.
+  extraResources:
+    - from: electron/helper/target/release/pinniped-helper.exe
+      to: pinniped-helper.exe
   icon: electron/build/icon.png
 
 msi:

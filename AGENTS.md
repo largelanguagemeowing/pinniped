@@ -131,6 +131,31 @@ Fork changes on top of upstream + old patches:
   (`soundboardVolume`, sent to the widget with the other call settings): it
   scales the local copy and the remote `soundboard` tracks.
   The picker is `src/app/features/soundboard/`.
+- **Screen share audio** (Pinniped settings → Calls, `screenShareAudio` URL param and
+  `club.stablecat.pinniped.call_settings` / `.screenshare` field): `off`, `display` (what the
+  browser offers with the capture), `device:<label>` (a microphone published as the share's
+  audio; Linux, a PipeWire virtual mic made by the helper's `screenshare.rs`) or `pcm` (Windows).
+  Either desktop path shares only what plays on the output device the call uses
+  (`callAudioOutput`) from other applications, never Pinniped's own process tree (call voices,
+  soundboard, notifications), so nothing echoes back. Windows has no virtual mic without a driver,
+  so `electron/helper/src/windows/` (WASAPI via the `wasapi`/`windows` crates) lists the audio
+  sessions of the chosen render endpoint, drops Pinniped's tree (main passes `process.pid`), starts
+  one process-loopback capture (`AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`, include mode, so
+  Windows 10 2004+) per remaining process tree, rescans every 200 ms, mixes them to 48 kHz stereo
+  and emits 20 ms 16-bit PCM chunks as `audio` events (base64 in the JSON-lines protocol).
+  `helper.cjs` re-emits them, `screenshare-audio.cjs` → main → the `screenShareAudio.onPcm`
+  preload bridge → `useScreenShareAudioBridge` → `CallEmbed.sendShareAudio` → the
+  `club.stablecat.pinniped.share_audio` widget action → `src/livekit/shareAudio.ts` (a
+  `shareAudioPcm$` subject, an AudioWorklet player with a 50 ms lead and a 200 ms cap, a
+  `MediaStreamAudioDestinationNode`) → published by `LocalMember` as the share audio track.
+  Known limits: process loopback is per process, not per device, so a process tree that is
+  playing on another active output device too is left out (and logged) rather than leaking that
+  device or doubling the sound; a process that only reads a virtual cable is unaffected; Windows' own system sounds (session with process ID 0) are not shared: measured on
+  Windows 11, include-mode process loopback of the caller, Audiosrv and audiodg captures none of
+  them, and PID 0 is rejected;
+  a process that starts playing is heard after at most one rescan. The helper is built for Linux
+  and Windows (target-gated dependencies in `Cargo.toml`, `linux/` and `windows/` modules) and
+  shipped through `extraResources` in `electron/electron-builder.yml`; there is none for macOS.
 - Note: `element-call/` has its own pnpm/eslint/vitest setup. Its
   `.eslintrc.cjs` sets `root: true` so the outer repo's eslint does not
   cascade in. Run `pnpm lint:types`/`pnpm test:unit` inside `element-call/`.

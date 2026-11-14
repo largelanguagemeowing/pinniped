@@ -319,6 +319,11 @@ export class CallEmbed {
     return this.call.transport.send(ElementWidgetActions.ScreenShare, { quality, audio });
   }
 
+  /** Screen share audio for the `pcm` source: interleaved stereo 16-bit little-endian PCM, 48 kHz. */
+  public sendShareAudio(pcm: Uint8Array) {
+    return this.call.transport.send(ElementWidgetActions.ShareAudio, { pcm });
+  }
+
   public soundboard(command: SoundboardCommand) {
     return this.call.transport.send(ElementWidgetActions.Soundboard, command);
   }

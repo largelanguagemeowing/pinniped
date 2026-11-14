@@ -18,6 +18,12 @@ const { registerAppScheme, registerAppHandler, APP_ORIGIN } = require('./app-pro
 const { buildAppMenu } = require('./menu.cjs');
 const { createRichPresenceServer } = require('./rich-presence.cjs');
 const screenShareAudio = require('./screenshare-audio.cjs');
+const {
+  listScreenShareSources,
+  selectScreenShareSource,
+  takeScreenShareSource,
+} = require('./screenshare-picker.cjs');
+const { buildLoadErrorPage } = require('./load-error.cjs');
 
 // Startup log: wall-clock lines on stdout plus a timing summary once the page is interactive.
 const startupMarks = [];
@@ -169,12 +175,22 @@ handleFromApp('rich-presence:stop', async () => {
   }
 });
 
-// System audio for screen shares on Linux; see screenshare-audio.cjs.
+// System audio for screen shares on Linux and Windows; see screenshare-audio.cjs.
+handleFromApp('screenshare-picker:list', () => listScreenShareSources());
+onFromApp('screenshare-picker:select', (_event, id) => selectScreenShareSource(id));
 handleFromApp('screenshare-audio:prepare', () => screenShareAudio.prepare());
-handleFromApp('screenshare-audio:link', (_event, active, output) =>
-  screenShareAudio.link(active === true, typeof output === 'string' ? output : '')
+handleFromApp('screenshare-audio:link', (_event, active, output, exclude) =>
+  screenShareAudio.link(
+    active === true,
+    typeof output === 'string' ? output : '',
+    Array.isArray(exclude) ? exclude.filter((name) => typeof name === 'string') : []
+  )
 );
 handleFromApp('screenshare-audio:release', () => screenShareAudio.release());
+screenShareAudio.events.on('pcm', (chunk) => {
+  if (mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send('screenshare-audio:pcm', chunk);
+});
 
 // Launch at login. Windows/macOS use the OS login items. Linux has no such
 // API in Electron: outside a sandbox we write an XDG autostart entry, inside Flatpak (which
@@ -380,18 +396,27 @@ function restrictPermissions() {
 
 // getDisplayMedia() (screen share in calls) needs an explicit handler in
 // Electron; on Wayland desktopCapturer routes through the xdg-desktop-portal
-// picker, on X11 it grabs the primary screen.
+// picker, on X11 it grabs the primary screen, on macOS 15+ the system picker is used.
+// Windows has no picker at all, so the screen share dialog draws one (screenshare-picker.cjs).
 function enableScreenShare() {
   session.defaultSession.setDisplayMediaRequestHandler(
     (request, callback) => {
+      if (process.platform === 'win32') {
+        // Video only. Windows 'loopback' audio would also capture the call's own voices and send
+        // them back into the share; the audio comes from screenshare-audio.cjs, which leaves
+        // Pinniped's own output out.
+        takeScreenShareSource()
+          .then((source) => callback(source ? { video: source } : undefined))
+          .catch(() => callback());
+        return;
+      }
       desktopCapturer
         .getSources({ types: ['screen', 'window'] })
         .then((sources) =>
           callback(
             sources.length
-              ? // Video only. Windows loopback would also capture the call's own voices and send them
-                // back into the share, so no audio is sent there. Linux gets its audio from
-                // screenshare-audio.cjs, which leaves Pinniped's own output out.
+              ? // Video only. Linux gets its audio from screenshare-audio.cjs, which leaves
+                // Pinniped's own output out.
                 { video: sources[0] }
               : undefined
           )
@@ -545,7 +570,22 @@ function createWindow() {
     mark('did-finish-load');
     logStartupTiming();
   });
-  wc.on('did-fail-load', (_e, code, desc, url) => log(`did-fail-load ${code} ${desc} ${url}`));
+  wc.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
+    log(`did-fail-load ${code} ${desc} ${url}`);
+    // -3 is a navigation that was superseded or cancelled, not a failure. Show what went
+    // wrong instead of leaving a grey window.
+    if (!isMainFrame || code === -3 || url.startsWith('data:')) return;
+    const html = buildLoadErrorPage({
+      url,
+      code,
+      description: desc,
+      dev: Boolean(DEV_SERVER_URL),
+      distDir: DIST_DIR,
+      distPresent: fs.existsSync(path.join(DIST_DIR, 'index.html')),
+      version: app.getVersion(),
+    });
+    wc.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch(() => {});
+  });
   wc.on('render-process-gone', (_e, details) =>
     log('render-process-gone', JSON.stringify(details))
   );
@@ -562,7 +602,6 @@ function createWindow() {
 // finishes writing a new index.html. Same origin as production, so the session sticks.
 let reloadTimer = null;
 function watchDistForReload() {
-  const fs = require('fs');
   // Reloading destroys the call iframe, so leave the call properly first instead of
   // letting the widget get killed mid-call.
   const reloadAfterLeavingCall = async () => {
@@ -572,6 +611,9 @@ function watchDistForReload() {
     // the access token to authenticated media requests.
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
   };
+  // Without a build there is nothing to watch (the dev server serves the app); watching a
+  // missing directory would throw an unhandled rejection.
+  if (!fs.existsSync(DIST_DIR)) return;
   fs.watch(DIST_DIR, (_event, filename) => {
     if (filename !== 'index.html') return;
     clearTimeout(reloadTimer);

@@ -39,6 +39,7 @@ import {
   of,
   pairwise,
   startWith,
+  type Subscription,
   switchMap,
   tap,
 } from "rxjs";
@@ -80,6 +81,7 @@ import { type HomeserverConnected } from "./HomeserverConnected.ts";
 import { type LocalTransport } from "./LocalTransport.ts";
 import { areLivekitTransportsEqual } from "../remoteMembers/MatrixLivekitMembers.ts";
 import { screenShareStart$ } from "../../../livekit/screenShareStart";
+import { PcmAudioSource, shareAudioPcm$ } from "../../../livekit/shareAudio";
 import { screenShareStop$ } from "../../../hostControl";
 
 /** Backoff for rejoining the MatrixRTC session after the membership manager gave up. */
@@ -841,15 +843,40 @@ export const createLocalMembership$ = ({
   // A microphone published as the share's audio, when the client asks for one
   // (the capture itself has no system audio there, see the setting).
   let shareAudioTrack: LocalAudioTrack | null = null;
+  // The `pcm` source: audio the client captures itself and sends in chunks.
+  let pcmShareAudio: { source: PcmAudioSource; sub: Subscription } | null =
+    null;
   const stopShareAudio = (): void => {
     const track =
       shareAudioTrack ??
       participant$.value?.getTrackPublication(Track.Source.ScreenShareAudio)
         ?.track;
     shareAudioTrack = null;
+    const pcm = pcmShareAudio;
+    pcmShareAudio = null;
+    pcm?.sub.unsubscribe();
+    pcm?.source.close().catch(logger.error);
     if (track === undefined || track === null) return;
     participant$.value?.unpublishTrack(track, true).catch(logger.error);
     track.stop();
+  };
+  const startPcmShareAudio = async (): Promise<void> => {
+    const source = await PcmAudioSource.create();
+    // The share may have ended while the player was starting.
+    if (!sharingScreen$.value || pcmShareAudio !== null) {
+      source.close().catch(logger.error);
+      return;
+    }
+    pcmShareAudio = {
+      source,
+      sub: shareAudioPcm$.subscribe((chunk) => source.push(chunk)),
+    };
+    await participant$.value?.publishTrack(source.track, {
+      source: Track.Source.ScreenShareAudio,
+      name: "screen_share_audio",
+      dtx: false,
+      red: false,
+    });
   };
   const startShareAudio = async (label: string): Promise<void> => {
     const device = (await navigator.mediaDevices.enumerateDevices()).find(
@@ -885,7 +912,9 @@ export const createLocalMembership$ = ({
   // The client can switch the share's audio on or off while the share runs.
   screenShareAudioSetting.value$.pipe(scope.bind()).subscribe((source) => {
     if (!sharingScreen$.value) return;
-    if (!source.startsWith("device:")) stopShareAudio();
+    if (source === "pcm") {
+      if (pcmShareAudio === null) startPcmShareAudio().catch(logger.error);
+    } else if (!source.startsWith("device:")) stopShareAudio();
     else if (shareAudioTrack === null)
       startShareAudio(source.slice("device:".length)).catch(logger.error);
   });
@@ -950,6 +979,8 @@ export const createLocalMembership$ = ({
           },
         })
         .then(() => {
+          if (targetScreenshareState && audioSource === "pcm")
+            return startPcmShareAudio();
           if (targetScreenshareState && audioSource.startsWith("device:"))
             return startShareAudio(audioSource.slice("device:".length));
           return undefined;

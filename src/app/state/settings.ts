@@ -51,6 +51,8 @@ export interface Settings {
   callScreenShare: ScreenShareQuality;
   // Share the computer's audio with a screen share.
   callScreenShareAudio: boolean;
+  /** Programs (executable file names) whose audio a screen share never carries, on Windows. */
+  callScreenShareAudioExcluded: string[];
   // Call devices, as enumerateDevices ids; '' = system default.
   callAudioInput: string;
   callAudioOutput: string;
@@ -115,6 +117,9 @@ export interface Settings {
   onlySignedDevices: boolean;
 }
 
+/** Programs a screen share never carries the audio of, until the list is changed. */
+export const DEFAULT_SCREEN_SHARE_EXCLUDED = ['Discord.exe', 'Pinniped.exe'];
+
 const defaultSettings: Settings = {
   themeId: undefined,
   useSystemTheme: true,
@@ -137,6 +142,7 @@ const defaultSettings: Settings = {
   callSimulcast: false,
   callScreenShare: { resolution: '720p', fps: 60 },
   callScreenShareAudio: true,
+  callScreenShareAudioExcluded: DEFAULT_SCREEN_SHARE_EXCLUDED,
   callAudioInput: '',
   callAudioOutput: '',
   callHotkeys: {},

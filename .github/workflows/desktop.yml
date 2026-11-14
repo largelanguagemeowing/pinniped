@@ -98,11 +98,11 @@ jobs:
           name: dist
           path: dist
       - uses: dtolnay/rust-toolchain@stable
-        if: matrix.name == 'linux'
-      # The helper (portals, screen share audio) ships inside the Linux builds (electron-builder
-      # extraResources and nfpm).
+        if: matrix.name == 'linux' || matrix.name == 'windows'
+      # The helper ships inside the Linux builds (portals, screen share audio; electron-builder
+      # extraResources and nfpm) and the Windows build (per-application screen share audio).
       - name: Build the desktop helper
-        if: matrix.name == 'linux'
+        if: matrix.name == 'linux' || matrix.name == 'windows'
         run: cargo build --release --manifest-path electron/helper/Cargo.toml
       - name: Package
         run: npx electron-builder --config electron/electron-builder.yml ${{ matrix.flags }} --publish never

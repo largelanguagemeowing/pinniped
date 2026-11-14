@@ -21,6 +21,15 @@ export type DiscordRichPresenceActivity = {
 export type RichPresenceBridgeStartResult =
   { ok: true; path: string; index: number } | { ok: false; error: string };
 
+export type ScreenSharePickerSource = {
+  id: string;
+  name: string;
+  kind: 'screen' | 'window';
+  /** An image data URL. */
+  thumbnail: string;
+  icon: string | null;
+};
+
 export type AutostartState = { enabled: boolean; minimized: boolean };
 
 declare global {
@@ -37,12 +46,29 @@ declare global {
       /** Resolves to the resulting state. */
       setAutostart?: (enabled: boolean, minimized: boolean) => Promise<AutostartState>;
       getSystemIdleTime?: () => Promise<number>;
-      /** Linux only: a virtual microphone carrying other applications' audio, for screen shares. */
+      /**
+       * Other applications' audio, for screen shares: on Linux a virtual microphone, on Windows
+       * PCM chunks from `onPcm` (16-bit stereo 48 kHz), which the page hands to the call widget.
+       */
       screenShareAudio?: {
         prepare: () => Promise<{ ok: true; label: string } | { ok: false; error: string }>;
-        /** `output` is the label of the playback device the app uses, empty for the system default. */
-        link: (active: boolean, output?: string) => Promise<void>;
+        /**
+         * `output` is the label of the playback device the app uses, empty for the system default.
+         * `exclude` lists programs (executable file names) that are never shared; Windows only.
+         */
+        link: (active: boolean, output?: string, exclude?: string[]) => Promise<void>;
         release: () => Promise<void>;
+        /** Windows only: calls `cb` with each chunk while linked. Returns the unsubscribe. */
+        onPcm?: (cb: (chunk: Uint8Array) => void) => () => void;
+      };
+      /**
+       * Windows only, where Chromium has no screen picker: the screens and windows a share can
+       * capture, and what the next share captures. Listing builds thumbnails, which takes a moment.
+       */
+      screenSharePicker?: {
+        list: () => Promise<ScreenSharePickerSource[]>;
+        /** A source id from `list`, or null to forget the choice. */
+        select: (id: string | null) => void;
       };
       /** Linux desktop: global shortcuts through the portal helper. Resolves when the desktop answers. */
       bindHotkeys?: (

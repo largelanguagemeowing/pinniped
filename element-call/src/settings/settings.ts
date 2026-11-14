@@ -150,7 +150,9 @@ export const screenShareQuality = new Setting<string>(
 /**
  * Where a screen share's audio comes from, chosen by the client: "off", "display" (the audio the
  * browser or OS offers with the capture) or "device:<label>" (a microphone published as the
- * share's audio instead, which the desktop app uses on Linux where capture has no system audio).
+ * share's audio instead, which the desktop app uses on Linux where capture has no system audio) or
+ * "pcm" (audio the client captured itself and sends with the club.stablecat.pinniped.share_audio
+ * action, which the desktop app uses on Windows).
  */
 export const screenShareAudio = new Setting<string>(
   "screen-share-audio",

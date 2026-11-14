@@ -1,6 +1,7 @@
-// Client for electron/helper (pinniped-helper), the Rust process that does the Linux desktop
-// work Electron cannot: the global shortcuts and autostart portals, and the PipeWire device for
-// screen share audio. The helper speaks one JSON object per line on stdio.
+// Client for electron/helper (pinniped-helper), the Rust process that does the desktop work
+// Electron cannot: on Linux the global shortcuts and autostart portals and the PipeWire device
+// for screen share audio, on Windows the per-application capture of screen share audio. The
+// helper speaks one JSON object per line on stdio.
 // Commands go in on stdin, and each command gets one `result` event back, in order. Activated
 // shortcuts arrive as `activated` events at any time.
 const { app } = require('electron');
@@ -9,13 +10,15 @@ const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
 
-const BINARY = 'pinniped-helper';
+const BINARY = process.platform === 'win32' ? 'pinniped-helper.exe' : 'pinniped-helper';
 
 // Packaged builds ship the binary next to the app; a dev checkout uses the cargo build output.
 const helperPath = () => {
   const packaged = path.join(process.resourcesPath || '', BINARY);
   if (app.isPackaged) return packaged;
-  return path.join(app.getAppPath(), 'electron', 'helper', 'target', 'release', BINARY);
+  // Relative to this file, not to app.getAppPath(): started as `electron electron/main.cjs` the
+  // app path is the electron/ folder, not the repository root.
+  return path.join(__dirname, 'helper', 'target', 'release', BINARY);
 };
 
 class Helper extends EventEmitter {
@@ -30,7 +33,8 @@ class Helper extends EventEmitter {
   /** Starts the helper once. Resolves to what the portals offer, or undefined if it cannot run. */
   start() {
     if (this.ready) return this.ready;
-    if (process.platform !== 'linux') return Promise.resolve(undefined);
+    if (process.platform !== 'linux' && process.platform !== 'win32')
+      return Promise.resolve(undefined);
     const exe = helperPath();
     if (!fs.existsSync(exe)) return Promise.resolve(undefined);
 
@@ -67,6 +71,8 @@ class Helper extends EventEmitter {
         resolveReady({ appId: event.app_id, shortcuts: event.shortcuts });
       else if (event.event === 'result') this.pending.shift()?.resolve(event);
       else if (event.event === 'activated') this.emit('activated', event.id);
+      // Windows: a chunk of screen share audio, base64 of 16-bit stereo 48 kHz PCM.
+      else if (event.event === 'audio') this.emit('audio', Buffer.from(event.data, 'base64'));
     }
   }
 
