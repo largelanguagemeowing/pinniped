@@ -53,6 +53,8 @@ export interface Settings {
   callScreenShareAudio: boolean;
   /** Programs (executable file names) whose audio a screen share never carries, on Windows. */
   callScreenShareAudioExcluded: string[];
+  /** Windows: the desktop helper runs in a console window with debug logging. */
+  helperConsole: boolean;
   // Call devices, as enumerateDevices ids; '' = system default.
   callAudioInput: string;
   callAudioOutput: string;
@@ -143,6 +145,7 @@ const defaultSettings: Settings = {
   callScreenShare: { resolution: '720p', fps: 60 },
   callScreenShareAudio: true,
   callScreenShareAudioExcluded: DEFAULT_SCREEN_SHARE_EXCLUDED,
+  helperConsole: false,
   callAudioInput: '',
   callAudioOutput: '',
   callHotkeys: {},

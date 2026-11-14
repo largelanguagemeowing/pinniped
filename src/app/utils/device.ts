@@ -58,6 +58,8 @@ declare global {
          */
         link: (active: boolean, output?: string, exclude?: string[]) => Promise<void>;
         release: () => Promise<void>;
+        /** Windows only: shows the helper's console window with debug logging, or hides it again. */
+        setConsole?: (enabled: boolean) => void;
         /** Windows only: calls `cb` with each chunk while linked. Returns the unsubscribe. */
         onPcm?: (cb: (chunk: Uint8Array) => void) => () => void;
       };

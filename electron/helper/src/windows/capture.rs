@@ -24,6 +24,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use super::{debug, debug_once};
 use base64::Engine;
 use wasapi::{
     initialize_mta, AudioClient, DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat,
@@ -43,6 +44,8 @@ const RATE: usize = 48_000;
 const TICK: Duration = Duration::from_millis(20);
 /// How often the output device's sessions are listed again.
 const RESCAN: Duration = Duration::from_millis(200);
+/// The most one chunk may carry, in frames (200 ms), after a stall.
+const MAX_CHUNK_FRAMES: usize = RATE / 5;
 /// How long after a failed capture the same process is tried again.
 const RETRY: Duration = Duration::from_secs(2);
 /// The most one source may hold, in samples (two channels, one second), if the mixer stalls.
@@ -72,6 +75,9 @@ pub struct Capture {
 impl Capture {
     pub fn start(&mut self, output: String, pid: u32, exclude: Vec<String>) -> Result<(), String> {
         let key = (output.clone(), pid, exclude.clone());
+        debug(|| {
+            format!("link: output {output:?}, Pinniped is process {pid}, never sharing {exclude:?}")
+        });
         if self.manager.is_some() && self.key.as_ref() == Some(&key) {
             return Ok(());
         }
@@ -127,8 +133,8 @@ fn manage(
     ready: std::sync::mpsc::Sender<Result<(), String>>,
 ) {
     let _ = initialize_mta();
-    let (manager, target_id) = match open_session_manager(&output) {
-        Ok(m) => m,
+    let target_id = match open_session_manager(&output) {
+        Ok((_, id)) => id,
         Err(err) => {
             let _ = ready.send(Err(err));
             return;
@@ -136,14 +142,61 @@ fn manage(
     };
     let _ = ready.send(Ok(()));
 
+    // Listing the sessions takes tens of milliseconds, so it runs on a thread of its own and
+    // hands over what to capture. Doing it in the mixing loop stalled the audio for longer than
+    // the player buffers, once per rescan, and it came out choppy.
+    let (scan_tx, scan_rx) = std::sync::mpsc::channel::<HashSet<u32>>();
+    let scan_stop = stop.clone();
+    let scanner = thread::Builder::new()
+        .name("screenshare-scan".into())
+        .spawn(move || {
+            let _ = initialize_mta();
+            let Ok((manager, _)) = open_session_manager(&output) else {
+                return;
+            };
+            let mut last: Option<HashSet<u32>> = None;
+            while !scan_stop.load(Ordering::Relaxed) {
+                let others = other_render_managers(&target_id);
+                let wanted = audible_roots(&manager, &others, own_pid, &exclude);
+                if last.as_ref() != Some(&wanted) {
+                    debug(|| {
+                        let (_, names) = process_table();
+                        let mut list: Vec<String> = wanted
+                            .iter()
+                            .map(|pid| format!("{pid} ({})", name_of(&names, *pid)))
+                            .collect();
+                        list.sort();
+                        let list = if list.is_empty() {
+                            "nothing".to_string()
+                        } else {
+                            list.join(", ")
+                        };
+                        format!("scan: sharing {list}")
+                    });
+                    last = Some(wanted.clone());
+                }
+                if scan_tx.send(wanted).is_err() {
+                    break;
+                }
+                thread::sleep(RESCAN);
+            }
+        })
+        .ok();
+
     let mut running: HashMap<u32, Running> = HashMap::new();
     let mut failed: HashMap<u32, Instant> = HashMap::new();
-    let mut last_scan: Option<Instant> = None;
+    // Captures told to stop, joined once they have finished so the mixer never waits on them.
+    let mut stopping: Vec<Running> = Vec::new();
     let b64 = base64::engine::general_purpose::STANDARD;
+    // For the debug log: what went out over the last couple of seconds.
+    let mut stats = MixStats::new();
+    // The mixer's own clock: how many frames have gone out since it started.
+    let clock = Instant::now();
+    let mut emitted: u64 = 0;
 
     while !stop.load(Ordering::Relaxed) {
-        if last_scan.map_or(true, |t| t.elapsed() >= RESCAN) {
-            last_scan = Some(Instant::now());
+        // Apply the newest list of what to capture, if the scanner has sent one.
+        if let Some(wanted) = scan_rx.try_iter().last() {
             // A capture that ended (its process closed) is forgotten, then retried later if the
             // device still lists it.
             running.retain(|pid, r| {
@@ -154,8 +207,6 @@ fn manage(
                     true
                 }
             });
-            let others = other_render_managers(&target_id);
-            let wanted = audible_roots(&manager, &others, own_pid, &exclude);
             let gone: Vec<u32> = running
                 .keys()
                 .filter(|p| !wanted.contains(p))
@@ -164,7 +215,7 @@ fn manage(
             for pid in gone {
                 if let Some(r) = running.remove(&pid) {
                     r.source.stop.store(true, Ordering::Relaxed);
-                    let _ = r.thread.join();
+                    stopping.push(r);
                 }
             }
             failed.retain(|_, at| at.elapsed() < RETRY);
@@ -173,6 +224,7 @@ fn manage(
                     continue;
                 }
                 eprintln!("sharing the audio of process {pid}");
+                debug(|| format!("capture of process {pid} starts"));
                 let source = Arc::new(Source {
                     samples: Mutex::new(Vec::new()),
                     stop: AtomicBool::new(false),
@@ -185,6 +237,8 @@ fn manage(
                         .spawn(move || {
                             if let Err(err) = capture_loop(pid, &s) {
                                 eprintln!("capture of process {pid} ended: {err}");
+                            } else {
+                                debug(|| format!("capture of process {pid} stopped"));
                             }
                             s.finished.store(true, Ordering::Relaxed);
                         });
@@ -199,24 +253,46 @@ fn manage(
             }
         }
 
+        let mut i = 0;
+        while i < stopping.len() {
+            if stopping[i].thread.is_finished() {
+                let _ = stopping.swap_remove(i).thread.join();
+            } else {
+                i += 1;
+            }
+        }
+
         thread::sleep(TICK);
 
-        // Mix what every source has gathered. Sources keep their own pace, so the chunk is as
-        // long as the longest one and shorter ones are padded with silence.
-        let mut mix: Vec<f32> = Vec::new();
+        // Send exactly the time that has passed. The chunk used to be as long as the longest
+        // source had gathered, so when sources delivered unevenly more audio went out than real
+        // time, the player had to drop the surplus, and it crackled. Each source gives up at most
+        // that much, in order, so its own audio stays continuous.
+        let due = (clock.elapsed().as_secs_f64() * RATE as f64) as u64;
+        let mut frames = due.saturating_sub(emitted) as usize;
+        if frames > MAX_CHUNK_FRAMES {
+            // A stall (the machine was busy): skip ahead instead of sending a burst.
+            frames = MAX_CHUNK_FRAMES;
+            emitted = due;
+        } else {
+            emitted = due;
+        }
+        let mut mix: Vec<f32> = vec![0.0; frames * 2];
         for r in running.values() {
-            let taken = std::mem::take(&mut *r.source.samples.lock().unwrap());
-            if taken.len() > mix.len() {
-                mix.resize(taken.len(), 0.0);
-            }
-            for (m, s) in mix.iter_mut().zip(taken.iter()) {
+            let mut samples = r.source.samples.lock().unwrap();
+            let take = samples.len().min(mix.len());
+            for (m, s) in mix.iter_mut().zip(samples.drain(..take)) {
                 *m += s;
             }
         }
         // Nothing to send while everything is silent: the far end plays silence on a gap.
         if mix.iter().all(|s| *s == 0.0) {
+            stats.silent();
+            stats.report(running.len());
             continue;
         }
+        stats.sent(mix.len() / 2);
+        stats.report(running.len());
         let mut bytes = Vec::with_capacity(mix.len() * 2);
         for s in mix {
             let v = (s.clamp(-1.0, 1.0) * 32767.0).round() as i16;
@@ -225,11 +301,18 @@ fn manage(
         super::emit_audio(&b64.encode(&bytes));
     }
 
+    drop(scan_rx);
     for r in running.values() {
         r.source.stop.store(true, Ordering::Relaxed);
     }
     for (_, r) in running {
         let _ = r.thread.join();
+    }
+    for r in stopping {
+        let _ = r.thread.join();
+    }
+    if let Some(scanner) = scanner {
+        let _ = scanner.join();
     }
 }
 
@@ -368,15 +451,31 @@ fn audible_roots(
     let mut candidates = HashSet::new();
     for pid in session_pids(manager, false) {
         if pid == own_pid {
+            debug_once(|| format!("skipped {} ({pid}): this is Pinniped", name_of(&names, pid)));
             continue;
         }
         // Pinniped's own tree (the audio service is a child), and Pinniped's ancestors.
         if ancestors(&parents, pid).contains(&own_pid) || ancestors_of_own.contains(&pid) {
+            debug_once(|| {
+                format!(
+                    "skipped {} ({pid}): part of Pinniped's own process tree, or what started it",
+                    name_of(&names, pid)
+                )
+            });
             continue;
         }
         // A program on the exclusion list, or anything it started, is never shared.
-        if excluded.contains(&pid) || ancestors(&parents, pid).iter().any(|a| excluded.contains(a))
+        if excluded.contains(&pid)
+            || ancestors(&parents, pid)
+                .iter()
+                .any(|a| excluded.contains(a))
         {
+            debug_once(|| {
+                format!(
+                    "skipped {} ({pid}): on the exclusion list",
+                    name_of(&names, pid)
+                )
+            });
             continue;
         }
         candidates.insert(pid);
@@ -415,10 +514,20 @@ fn audible_roots(
                 .any(|e| e == root || ancestors(&parents, *e).contains(root));
             if split {
                 warn_split(*root);
+                debug_once(|| {
+                    format!(
+                        "skipped {} ({root}): also plays on another output device",
+                        name_of(&names, *root)
+                    )
+                });
             }
             !split
         })
         .collect()
+}
+
+fn name_of(names: &HashMap<u32, String>, pid: u32) -> &str {
+    names.get(&pid).map_or("?", |n| n.as_str())
 }
 
 /// Logs once per process that it plays on two devices and is left out of the share.
@@ -491,6 +600,61 @@ fn ancestors(parents: &HashMap<u32, u32>, pid: u32) -> HashSet<u32> {
     out
 }
 
+/// What the mixer sent, logged every couple of seconds when debugging: whether the audio goes
+/// out steadily (chunks, gaps between them) is what choppiness comes down to.
+struct MixStats {
+    since: Instant,
+    last_sent: Option<Instant>,
+    chunks: u32,
+    silent: u32,
+    frames: usize,
+    longest_gap: Duration,
+}
+
+impl MixStats {
+    fn new() -> Self {
+        Self {
+            since: Instant::now(),
+            last_sent: None,
+            chunks: 0,
+            silent: 0,
+            frames: 0,
+            longest_gap: Duration::ZERO,
+        }
+    }
+
+    fn silent(&mut self) {
+        self.silent += 1;
+    }
+
+    fn sent(&mut self, frames: usize) {
+        let now = Instant::now();
+        if let Some(last) = self.last_sent {
+            self.longest_gap = self.longest_gap.max(now - last);
+        }
+        self.last_sent = Some(now);
+        self.chunks += 1;
+        self.frames += frames;
+    }
+
+    fn report(&mut self, sources: usize) {
+        if !super::debug_enabled() || self.since.elapsed() < Duration::from_secs(2) {
+            return;
+        }
+        let secs = self.since.elapsed().as_secs_f64();
+        debug(|| {
+            format!(
+                "mix: {sources} source(s), {} chunks ({:.1} s of audio in {secs:.1} s), {} silent ticks, longest gap {} ms",
+                self.chunks,
+                self.frames as f64 / RATE as f64,
+                self.silent,
+                self.longest_gap.as_millis()
+            )
+        });
+        *self = Self::new();
+    }
+}
+
 /// Captures the audio of `pid` and its children as 48 kHz stereo float until stopped.
 fn capture_loop(pid: u32, source: &Source) -> Result<(), String> {
     let _ = initialize_mta();
@@ -541,6 +705,10 @@ fn capture_loop(pid: u32, source: &Source) -> Result<(), String> {
             );
             if samples.len() > MAX_BUFFERED {
                 let excess = samples.len() - MAX_BUFFERED;
+                debug_once(|| {
+                    "a source held more than a second of audio (the mixer stalled); dropped the oldest"
+                        .into()
+                });
                 samples.drain(..excess);
             }
             drop(samples);

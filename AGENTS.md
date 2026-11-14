@@ -141,12 +141,20 @@ Fork changes on top of upstream + old patches:
   so `electron/helper/src/windows/` (WASAPI via the `wasapi`/`windows` crates) lists the audio
   sessions of the chosen render endpoint, drops Pinniped's tree (main passes `process.pid`), starts
   one process-loopback capture (`AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`, include mode, so
-  Windows 10 2004+) per remaining process tree, rescans every 200 ms, mixes them to 48 kHz stereo
-  and emits 20 ms 16-bit PCM chunks as `audio` events (base64 in the JSON-lines protocol).
+  Windows 10 2004+) per remaining process tree, rescans every 200 ms on a thread of its own (the
+  scan takes tens of ms, and in the mixing loop it stalled the audio once per rescan), mixes them
+  to 48 kHz stereo and emits exactly the time that has passed as 20 ms 16-bit PCM chunks, paced by
+  a clock, as `audio` events (base64 in the JSON-lines protocol). Programs on the
+  `callScreenShareAudioExcluded` list (Settings → Developer Tools; `Discord.exe` and
+  `Pinniped.exe` by default) are never shared. The Helper Console switch there (`helperConsole`,
+  or `PINNIPED_HELPER_CONSOLE=1`) starts the helper with `PINNIPED_HELPER_DEBUG=1`: its own console
+  window with a debug log (scan results with process names, why a program was skipped, capture
+  start and stop, a mixer summary every 2 s). `PINNIPED_HELPER_DEBUG=stderr` logs to the stderr it
+  was started with instead.
   `helper.cjs` re-emits them, `screenshare-audio.cjs` → main → the `screenShareAudio.onPcm`
   preload bridge → `useScreenShareAudioBridge` → `CallEmbed.sendShareAudio` → the
   `club.stablecat.pinniped.share_audio` widget action → `src/livekit/shareAudio.ts` (a
-  `shareAudioPcm$` subject, an AudioWorklet player with a 50 ms lead and a 200 ms cap, a
+  `shareAudioPcm$` subject, an AudioWorklet player with an 80 ms lead and a 300 ms cap, a
   `MediaStreamAudioDestinationNode`) → published by `LocalMember` as the share audio track.
   Known limits: process loopback is per process, not per device, so a process tree that is
   playing on another active output device too is left out (and logged) rather than leaking that

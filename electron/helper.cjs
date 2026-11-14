@@ -24,6 +24,9 @@ const helperPath = () => {
 class Helper extends EventEmitter {
   constructor() {
     super();
+    // Settings > Developer Tools > Helper Console: the helper gets a console window of its own
+    // and logs what it does (PINNIPED_HELPER_CONSOLE=1 turns it on from the environment).
+    this.console = process.env.PINNIPED_HELPER_CONSOLE === '1';
     this.child = null;
     this.ready = null;
     this.pending = [];
@@ -39,17 +42,24 @@ class Helper extends EventEmitter {
     if (!fs.existsSync(exe)) return Promise.resolve(undefined);
 
     this.ready = new Promise((resolve) => {
-      // windowsHide: the helper is a console program, which Windows would otherwise open in a
-      // terminal window of its own.
-      const child = spawn(exe, [], { stdio: ['pipe', 'pipe', 'inherit'], windowsHide: true });
+      // The helper is a console program, which Windows opens in a terminal window of its own
+      // unless told not to; only the Helper Console option wants that window.
+      const child = spawn(exe, [], {
+        stdio: ['pipe', 'pipe', 'inherit'],
+        windowsHide: !this.console,
+        env: this.console ? { ...process.env, PINNIPED_HELPER_DEBUG: '1' } : process.env,
+      });
       this.child = child;
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', (chunk) => this.onData(chunk, resolve));
       child.on('error', () => resolve(undefined));
       child.on('exit', () => {
-        this.child = null;
-        this.ready = null;
-        this.pending.splice(0).forEach((p) => p.resolve({ ok: false, error: 'helper exited' }));
+        // A helper replaced by setConsole() must not clear the one that replaced it.
+        if (this.child === child) {
+          this.child = null;
+          this.ready = null;
+          this.pending.splice(0).forEach((p) => p.resolve({ ok: false, error: 'helper exited' }));
+        }
         resolve(undefined);
       });
     });
@@ -76,6 +86,22 @@ class Helper extends EventEmitter {
       // Windows: a chunk of screen share audio, base64 of 16-bit stereo 48 kHz PCM.
       else if (event.event === 'audio') this.emit('audio', Buffer.from(event.data, 'base64'));
     }
+  }
+
+  /**
+   * Turns the console window with debug logging on or off. A running helper is stopped, and the
+   * next request starts it again the new way.
+   */
+  setConsole(enabled) {
+    if (this.console === enabled) return;
+    this.console = enabled;
+    const { child } = this;
+    if (!child) return;
+    // Forget it at once, so the next request starts a new one instead of writing to this one.
+    this.child = null;
+    this.ready = null;
+    this.pending.splice(0).forEach((p) => p.resolve({ ok: false, error: 'helper restarted' }));
+    child.stdin.end();
   }
 
   /** Sends one command and resolves with its result: `{ ok, error }`. */

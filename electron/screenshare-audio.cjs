@@ -48,4 +48,9 @@ async function release() {
   await helper.request({ cmd: 'screenshare_release' });
 }
 
-module.exports = { available, prepare, link, release, events, DEVICE_LABEL };
+// Opens or closes the helper's console window with debug logging (Windows).
+function setConsole(enabled) {
+  if (process.platform === 'win32') helper.setConsole(enabled === true);
+}
+
+module.exports = { available, prepare, link, release, setConsole, events, DEVICE_LABEL };

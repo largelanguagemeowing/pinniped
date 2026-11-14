@@ -1,5 +1,5 @@
 import React, { FormEventHandler, useState } from 'react';
-import { Box, Button, Chip, Icon, Icons, Input, Text, config } from 'folds';
+import { Box, Button, Chip, Icon, Icons, Input, Switch, Text, config } from 'folds';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SettingTile } from '../../../components/setting-tile';
 import { useSetting } from '../../../state/hooks/settings';
@@ -16,6 +16,7 @@ const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 export function ScreenShareAudioExclusions() {
   const [excluded, setExcluded] = useSetting(settingsAtom, 'callScreenShareAudioExcluded');
   const [name, setName] = useState('');
+  const [helperConsole, setHelperConsole] = useSetting(settingsAtom, 'helperConsole');
 
   const add: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
@@ -99,6 +100,11 @@ export function ScreenShareAudioExclusions() {
             </Box>
           </Box>
         </SettingTile>
+        <SettingTile
+          title="Helper Console"
+          description="Opens the desktop helper in a console window with debug logging: what it shares and skips, and how steadily the audio goes out. Restarts the helper."
+          after={<Switch variant="Primary" value={helperConsole} onChange={setHelperConsole} />}
+        />
       </SequenceCard>
     </Box>
   );

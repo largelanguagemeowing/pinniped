@@ -33,8 +33,8 @@ export function decodePcm16(pcm: Uint8Array): [Float32Array, Float32Array] {
 // crackle, plays silence when it runs dry, and drops the oldest audio past a cap, so the delay
 // cannot grow when the two clocks drift.
 const WORKLET = `
-const LEAD = 2400;   // 50 ms
-const CAP = 9600;    // 200 ms
+const LEAD = 3840;   // 80 ms: covers a late chunk on the way from the helper
+const CAP = 14400;   // 300 ms
 class PcmPlayer extends AudioWorkletProcessor {
   constructor() {
     super();

@@ -367,6 +367,7 @@ export const useScreenShareAudioBridge = (embed: CallEmbed) => {
   const mx = useMatrixClient();
   const [enabled] = useSetting(settingsAtom, 'callScreenShareAudio');
   const [excluded] = useSetting(settingsAtom, 'callScreenShareAudioExcluded');
+  const [helperConsole] = useSetting(settingsAtom, 'helperConsole');
   const joined = useCallJoined(embed);
   const { screenSharers } = useCallActivity(embed);
   const sharing = joined && screenSharers.has(mx.getSafeUserId());
@@ -376,11 +377,28 @@ export const useScreenShareAudioBridge = (embed: CallEmbed) => {
   // capture can silently move to the real microphone and send it a second time.
   useEffect(() => {
     if (!bridge) return undefined;
+    // Before the helper's first command, which is what starts it.
+    bridge.setConsole?.(helperConsole);
     bridge.prepare();
     return () => {
       bridge.release();
     };
+    // The console option only applies to a helper that starts afterwards; changing it restarts
+    // the helper (see below), so it is not a reason to prepare again here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bridge]);
+
+  // Changing the option restarts the helper, so the call has to ask for its device again.
+  const firstConsole = useRef(true);
+  useEffect(() => {
+    if (!bridge) return;
+    if (firstConsole.current) {
+      firstConsole.current = false;
+      return;
+    }
+    bridge.setConsole?.(helperConsole);
+    bridge.prepare();
+  }, [bridge, helperConsole]);
 
   // Only audio played to the output device the call uses is shared, see electron/screenshare-audio.cjs.
   const [audioOutput] = useSetting(settingsAtom, 'callAudioOutput');
@@ -417,5 +435,5 @@ export const useScreenShareAudioBridge = (embed: CallEmbed) => {
     return () => {
       bridge.link(false);
     };
-  }, [bridge, enabled, sharing, outputLabel, excluded]);
+  }, [bridge, enabled, sharing, outputLabel, excluded, helperConsole]);
 };

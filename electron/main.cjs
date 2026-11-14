@@ -186,6 +186,9 @@ handleFromApp('screenshare-audio:link', (_event, active, output, exclude) =>
     Array.isArray(exclude) ? exclude.filter((name) => typeof name === 'string') : []
   )
 );
+onFromApp('screenshare-audio:console', (_event, enabled) =>
+  screenShareAudio.setConsole(enabled === true)
+);
 handleFromApp('screenshare-audio:release', () => screenShareAudio.release());
 screenShareAudio.events.on('pcm', (chunk) => {
   if (mainWindow && !mainWindow.isDestroyed())
