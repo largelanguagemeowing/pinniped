@@ -39,7 +39,9 @@ class Helper extends EventEmitter {
     if (!fs.existsSync(exe)) return Promise.resolve(undefined);
 
     this.ready = new Promise((resolve) => {
-      const child = spawn(exe, [], { stdio: ['pipe', 'pipe', 'inherit'] });
+      // windowsHide: the helper is a console program, which Windows would otherwise open in a
+      // terminal window of its own.
+      const child = spawn(exe, [], { stdio: ['pipe', 'pipe', 'inherit'], windowsHide: true });
       this.child = child;
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', (chunk) => this.onData(chunk, resolve));
