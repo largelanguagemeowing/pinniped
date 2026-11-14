@@ -246,6 +246,11 @@ export default defineConfig({
     }),
   ],
   optimizeDeps: {
+    // Scan only the app. By default Vite crawls every html file under the root, which includes
+    // the vendored Element Call widget (element-call/*.html); once its own node_modules exists
+    // (after `npm run build:element-call`) that pulled in a second copy of React and the app
+    // crashed with "Invalid hook call".
+    entries: ['index.html'],
     rolldownOptions: {
       transform: {
         define: {
