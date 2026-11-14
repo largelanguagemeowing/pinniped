@@ -13,11 +13,21 @@ files:
   # Every main-process module; a file left out only fails when the installed app starts.
   - electron/*.cjs
   - electron/build/icon.png
+  # electron-updater, bundled by the beforePack hook (Windows self-update)
+  - electron/updater.bundle.cjs
   - package.json
   - '!node_modules/**/*'
 
 extraMetadata:
   main: electron/main.cjs
+
+beforePack: scripts/fork/electron/before-pack.cjs
+
+# Windows self-update reads latest.yml from the GitHub release of the matching tag.
+publish:
+  provider: github
+  owner: largelanguagemeowing
+  repo: pinniped
 
 # one archive instead of ~thousands of loose files (faster install and start).
 # Electron reads asar transparently in the main process, which is all that
@@ -76,7 +86,7 @@ dmg:
 
 win:
   target:
-    - msi
+    - nsis
   # Desktop helper (per-application screen share audio); built by
   # `cargo build --release` in electron/helper.
   extraResources:
@@ -84,10 +94,14 @@ win:
       to: pinniped-helper.exe
   icon: electron/build/icon.png
 
-msi:
+# One-click, per-user install (no UAC, installs in seconds, like Discord), which is what lets
+# updates apply silently. electron-updater cannot update MSI packages.
+nsis:
   oneClick: true
   perMachine: false
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
 
 appImage:
   artifactName: ${productName}-${version}-${arch}.${ext}

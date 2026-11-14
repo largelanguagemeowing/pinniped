@@ -263,7 +263,19 @@ A successful deploy: the live hash changed from the previous deploy, and live ==
 
 ## Desktop builds
 
-`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak), Windows (msi) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags. The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
+`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak), Windows (NSIS exe) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags. The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
+
+### Windows auto-update
+
+The Windows build is a per-user one-click NSIS installer (not MSI: `electron-updater` cannot
+update MSI). The installed app (`electron/updater.cjs`, Windows and packaged only) checks the
+GitHub release's `latest.yml` on launch and every 4 h, downloads the delta in the background and
+installs on quit, or via "Restart to update" in the tray. To ship an update: bump `version` in
+`package.json`, push, tag `v<version>`; the `release` job uploads the `.exe`, `.blockmap` and
+`latest.yml`. The release must be published, not a draft or prerelease, and the repo public.
+`electron-updater` is bundled into `electron/updater.bundle.cjs` by the `beforePack` hook
+(`scripts/fork/electron/before-pack.cjs`) because the app ships no node_modules. Builds are
+unsigned, so SmartScreen warns on the first install; updates themselves are silent.
 
 ## Nix flake
 

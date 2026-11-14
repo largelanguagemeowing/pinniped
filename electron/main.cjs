@@ -24,6 +24,7 @@ const {
   takeScreenShareSource,
 } = require('./screenshare-picker.cjs');
 const { buildLoadErrorPage } = require('./load-error.cjs');
+const { startUpdater } = require('./updater.cjs');
 
 // Startup log: wall-clock lines on stdout plus a timing summary once the page is interactive.
 const startupMarks = [];
@@ -634,22 +635,38 @@ const showMainWindow = () => {
   mainWindow.focus();
 };
 
+let updater = null;
+let updateVersion = null;
+
+function trayMenu() {
+  return Menu.buildFromTemplate([
+    { label: 'Open Pinniped', click: showMainWindow },
+    ...(updateVersion
+      ? [
+          {
+            label: `Restart to update (${updateVersion})`,
+            click: () => {
+              isQuitting = true;
+              updater?.installNow();
+            },
+          },
+        ]
+      : []),
+    { type: 'separator' },
+    {
+      label: 'Quit Pinniped',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+}
+
 function createTray() {
   tray = new Tray(nativeImage.createFromPath(APP_ICON).resize({ width: 16, height: 16 }));
   tray.setToolTip('Pinniped');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Open Pinniped', click: showMainWindow },
-      { type: 'separator' },
-      {
-        label: 'Quit Pinniped',
-        click: () => {
-          isQuitting = true;
-          app.quit();
-        },
-      },
-    ])
-  );
+  tray.setContextMenu(trayMenu());
   tray.on('click', showMainWindow);
 }
 
@@ -689,6 +706,15 @@ if (!app.requestSingleInstanceLock()) {
       createTray();
       log('Tray created');
     }
+
+    // Installed Windows build only: download updates quietly, install when the app quits.
+    updater = startUpdater({
+      log,
+      onReady: (version) => {
+        updateVersion = version;
+        tray?.setContextMenu(trayMenu());
+      },
+    });
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

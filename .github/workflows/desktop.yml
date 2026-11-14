@@ -1,4 +1,4 @@
-# Fork-only: build the Electron desktop app (AppImage, rpm, flatpak, msi, dmg) on CI.
+# Fork-only: build the Electron desktop app (AppImage, rpm, flatpak, NSIS exe, dmg) on CI.
 # Every push to fork/dev, every tag and every manual run builds the web bundle and
 # all three installer packages. Installers are uploaded as workflow artifacts, and a
 # `v*` tag also attaches them to a GitHub release.
@@ -70,8 +70,12 @@ jobs:
               electron/out/*.flatpak
           - name: windows
             os: windows-latest
-            flags: --win msi
-            files: electron/out/*.msi
+            flags: --win nsis
+            # latest.yml + .blockmap are what the installed app's updater reads (electron-updater)
+            files: |
+              electron/out/*.exe
+              electron/out/*.exe.blockmap
+              electron/out/latest.yml
           - name: macos
             os: macos-latest
             flags: --mac dmg --x64 --arm64
