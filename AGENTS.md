@@ -41,7 +41,7 @@ separately and point `ELEMENT_CALL_FORK_DIST` at the result.
 
 The vendored tree is upstream `v0.20.1` with the former patch series
 (voice-call-layout, sound-overrides) applied plus fork changes made in place.
-There are no patch files anymore; edit `element-call/` directly. Its `matrix-js-sdk` is the pinned npm release (41.6.0), not the upstream git `develop` checkout: a git dependency builds itself in an install script, which the offline Nix build cannot run. To upgrade:
+There are no patch files anymore; edit `element-call/` directly. Its `matrix-js-sdk` is the pinned npm release (45.0.0), not the upstream git `develop` checkout: a git dependency builds itself in an install script, which the offline Nix build cannot run. To upgrade:
 refresh the tree from a new Element Call tag and re-do the fork changes (see
 `git log -- element-call/` for what they are).
 
