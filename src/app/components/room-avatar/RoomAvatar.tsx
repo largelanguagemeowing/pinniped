@@ -3,15 +3,23 @@ import { AvatarFallback, AvatarImage, Icon, Icons, color } from 'folds';
 import React, { ComponentProps, ReactEventHandler, ReactNode, forwardRef, useState } from 'react';
 import * as css from './RoomAvatar.css';
 import { getRoomIconSrc } from '../../utils/room';
-import colorMXID from '../../../util/colorMXID';
+import colorMXID, { gradientMXID } from '../../../util/colorMXID';
 
 type RoomAvatarProps = {
   roomId: string;
+  // Seeds the placeholder color; a DM passes the other person's user ID so it matches theirs.
+  colorId?: string;
   src?: string;
   alt?: string;
   renderFallback: () => ReactNode;
 };
-export function RoomAvatar({ roomId, src, alt, renderFallback }: RoomAvatarProps) {
+export function RoomAvatar({
+  roomId,
+  colorId = roomId,
+  src,
+  alt,
+  renderFallback,
+}: RoomAvatarProps) {
   const [error, setError] = useState(false);
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
@@ -21,7 +29,11 @@ export function RoomAvatar({ roomId, src, alt, renderFallback }: RoomAvatarProps
   if (!src || error) {
     return (
       <AvatarFallback
-        style={{ backgroundColor: colorMXID(roomId ?? ''), color: color.Surface.Container }}
+        style={{
+          backgroundColor: colorMXID(colorId),
+          backgroundImage: gradientMXID(colorId),
+          color: color.Surface.Container,
+        }}
         className={css.RoomAvatar}
       >
         {renderFallback()}

@@ -14,7 +14,7 @@ import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
 import * as css from './styles.css';
 import { UserAvatar } from '../user-avatar';
-import colorMXID from '../../../util/colorMXID';
+import colorMXID, { gradientMXID } from '../../../util/colorMXID';
 import { getMxIdLocalPart, getMxIdServer } from '../../utils/matrix';
 import { BreakWord, LineClamp3 } from '../../styles/Text.css';
 import { UserPresence } from '../../hooks/useUserPresence';
@@ -41,6 +41,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, profileLoaded, presence
         className={css.UserHeroCoverContainer}
         style={{
           backgroundColor: colorMXID(userId),
+          backgroundImage: gradientMXID(userId),
           filter: coverUrl ? undefined : 'brightness(50%)',
         }}
       >
