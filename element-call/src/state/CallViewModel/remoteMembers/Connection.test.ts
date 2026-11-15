@@ -28,7 +28,7 @@ import fetchMock from "fetch-mock";
 import EventEmitter from "events";
 import { type IOpenIDToken } from "matrix-js-sdk";
 import { logger } from "matrix-js-sdk/lib/logger";
-import { type LivekitTransportConfig } from "matrix-js-sdk/lib/matrixrtc";
+import { type LivekitTransport } from "matrix-js-sdk/lib/matrixrtc";
 
 import {
   Connection,
@@ -55,7 +55,7 @@ let fakeLocalParticipant: MockedObject<LocalParticipant>;
 
 const ROOM_ID = "!roomID:example.org";
 
-const livekitFocus: LivekitTransportConfig = {
+const livekitFocus: LivekitTransport = {
   livekit_service_url: "https://matrix-rtc.example.org/livekit/jwt",
   type: "livekit",
 };

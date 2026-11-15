@@ -8,7 +8,7 @@ Please see LICENSE in the repository root for full details.
 import { type LocalParticipant, type RemoteParticipant } from "livekit-client";
 import {
   type CallMembership,
-  type LivekitTransportConfig,
+  type LivekitTransport,
 } from "matrix-js-sdk/lib/matrixrtc";
 import { combineLatest, filter, map } from "rxjs";
 
@@ -58,7 +58,7 @@ export interface RemoteMatrixLivekitMember extends MatrixLivekitMember {
 interface Props {
   scope: ObservableScope;
   membershipsWithTransport$: Behavior<
-    Epoch<{ membership: CallMembership; transport?: LivekitTransportConfig }[]>
+    Epoch<{ membership: CallMembership; transport?: LivekitTransport }[]>
   >;
   connectionManager: IConnectionManager;
 }
@@ -141,7 +141,7 @@ export function createMatrixLivekitMembers$({
 // TODO add back in the callviewmodel pauseWhen(this.pretendToBeDisconnected$)
 
 // TODO add this to the JS-SDK
-export function areLivekitTransportsEqual<T extends LivekitTransportConfig>(
+export function areLivekitTransportsEqual<T extends LivekitTransport>(
   t1: T | null,
   t2: T | null,
 ): boolean {

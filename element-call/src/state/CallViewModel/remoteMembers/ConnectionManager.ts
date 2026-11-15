@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type LivekitTransportConfig } from "matrix-js-sdk/lib/matrixrtc";
+import { type LivekitTransport } from "matrix-js-sdk/lib/matrixrtc";
 import { combineLatest, map, of, switchMap } from "rxjs";
 import { type Logger } from "matrix-js-sdk/lib/logger";
 import { type RemoteParticipant } from "livekit-client";
@@ -42,7 +42,7 @@ export class ConnectionManagerData {
     }
   }
 
-  private getKey(transport: LivekitTransportConfig): string {
+  private getKey(transport: LivekitTransport): string {
     // This is enough as a key because the ConnectionManager is already scoped by room.
     // We also do not need to consider the slotId at this point since each `MatrixRTCSession` is already scoped by `slotDescription: {id, application}`.
     return transport.livekit_service_url;
@@ -53,13 +53,13 @@ export class ConnectionManagerData {
   }
 
   public getConnectionForTransport(
-    transport: LivekitTransportConfig,
+    transport: LivekitTransport,
   ): Connection | null {
     return this.store.get(this.getKey(transport))?.connection ?? null;
   }
 
   public getParticipantsForTransport(
-    transport: LivekitTransportConfig,
+    transport: LivekitTransport,
   ): RemoteParticipant[] {
     const key = this.getKey(transport);
     const existing = this.store.get(key);
@@ -74,7 +74,7 @@ interface Props {
   scope: ObservableScope;
   connectionFactory: ConnectionFactory;
   localTransport$: Behavior<LocalTransportWithSFUConfig | null>;
-  remoteTransports$: Behavior<Epoch<LivekitTransportConfig[]>>;
+  remoteTransports$: Behavior<Epoch<LivekitTransport[]>>;
 
   logger: Logger;
   ownMembershipIdentity: CallMembershipIdentityParts;
@@ -125,7 +125,7 @@ export function createConnectionManager$({
    * externally this is modified via `registerTransports()`.
    */
   const localAndRemoteTransports$: Behavior<
-    Epoch<(LivekitTransportConfig | LocalTransportWithSFUConfig)[]>
+    Epoch<(LivekitTransport | LocalTransportWithSFUConfig)[]>
   > = scope.behavior(
     combineLatest([remoteTransports$, localTransport$]).pipe(
       // Combine local and remote transports into one transport array
@@ -253,7 +253,7 @@ export function createConnectionManager$({
   return { connectionManagerData$ };
 }
 
-function removeDuplicateTransports<T extends LivekitTransportConfig>(
+function removeDuplicateTransports<T extends LivekitTransport>(
   transports: T[],
 ): T[] {
   return transports.reduce((acc, transport) => {

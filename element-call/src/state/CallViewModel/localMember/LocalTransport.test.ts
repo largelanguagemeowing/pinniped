@@ -17,7 +17,7 @@ import {
 } from "vitest";
 import {
   type CallMembership,
-  type LivekitTransportConfig,
+  type LivekitTransport,
 } from "matrix-js-sdk/lib/matrixrtc";
 import { BehaviorSubject, filter, lastValueFrom } from "rxjs";
 import fetchMock from "fetch-mock";
@@ -189,11 +189,11 @@ describe("LocalTransport", () => {
   });
 
   describe("oldest member mode", () => {
-    const aliceTransport: LivekitTransportConfig = {
+    const aliceTransport: LivekitTransport = {
       type: "livekit",
       livekit_service_url: "https://alice.example.org",
     };
-    const bobTransport: LivekitTransportConfig = {
+    const bobTransport: LivekitTransport = {
       type: "livekit",
       livekit_service_url: "https://bob.example.org",
     };
@@ -581,7 +581,7 @@ describe("LocalTransport", () => {
       },
     });
 
-    const advertisedValues: LivekitTransportConfig[] = [];
+    const advertisedValues: LivekitTransport[] = [];
     const activeValues: LocalTransportWithSFUConfig[] = [];
     advertised$
       .pipe(filter((v) => v !== null))

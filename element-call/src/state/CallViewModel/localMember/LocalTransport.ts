@@ -7,8 +7,8 @@ Please see LICENSE in the repository root for full details.
 
 import {
   type CallMembership,
-  isLivekitTransportConfig,
-  type LivekitTransportConfig,
+  isLivekitTransport,
+  type LivekitTransport,
 } from "matrix-js-sdk/lib/matrixrtc";
 import { type MatrixClient } from "matrix-js-sdk";
 import {
@@ -96,7 +96,7 @@ export enum JwtEndpointVersion {
 // 2.
 // We need to make sure we do not sent livekit_alias in sticky events and that we drop all code for sending state events!
 export interface LocalTransportWithSFUConfig {
-  transport: LivekitTransportConfig;
+  transport: LivekitTransport;
   sfuConfig: SFUConfig;
   /**
    * Fetches a fresh SFU config with the same identity parameters as `sfuConfig`.
@@ -107,7 +107,7 @@ export interface LocalTransportWithSFUConfig {
 }
 
 export function isLocalTransportWithSFUConfig(
-  obj: LivekitTransportConfig | LocalTransportWithSFUConfig,
+  obj: LivekitTransport | LocalTransportWithSFUConfig,
 ): obj is LocalTransportWithSFUConfig {
   return "transport" in obj && "sfuConfig" in obj;
 }
@@ -117,7 +117,7 @@ export interface LocalTransport {
    * The transport to be advertised in our MatrixRTC membership. `null` when not
    * yet fetched/validated.
    */
-  advertised$: Behavior<LivekitTransportConfig | null>;
+  advertised$: Behavior<LivekitTransport | null>;
   /**
    * The transport to connect to and publish media on. `null` when not yet known
    * or available.
@@ -169,7 +169,7 @@ export const createLocalTransport$ = ({
           return of({
             type: "livekit",
             livekit_service_url: customUrl,
-          } as LivekitTransportConfig);
+          } as LivekitTransport);
         } else {
           return discoveredTransport$;
         }
@@ -254,8 +254,8 @@ export const createLocalTransport$ = ({
 function observerOldestMembership$(
   scope: ObservableScope,
   memberships$: Behavior<Epoch<CallMembership[]>>,
-): Behavior<LivekitTransportConfig | null> {
-  return scope.behavior<LivekitTransportConfig | null>(
+): Behavior<LivekitTransport | null> {
+  return scope.behavior<LivekitTransport | null>(
     memberships$.pipe(
       map((memberships) => {
         const oldestMember = memberships.value[0];
@@ -270,7 +270,7 @@ function observerOldestMembership$(
           );
           return null;
         }
-        if (!isLivekitTransportConfig(transport)) {
+        if (!isLivekitTransport(transport)) {
           logger.warn(
             `Oldest member: ${oldestMember.userId}|${oldestMember.deviceId}|${oldestMember.memberId} has invalid transport`,
           );
@@ -303,7 +303,7 @@ function observerOldestMembership$(
  *  @throws FailToGetOpenIdToken, NoMatrix2AuthorizationService
  */
 async function doOpenIdAndJWTFromUrl(
-  transport: LivekitTransportConfig,
+  transport: LivekitTransport,
   forceJwtEndpoint: JwtEndpointVersion,
   membership: CallMembershipIdentityParts,
   roomId: string,
@@ -336,7 +336,7 @@ async function doOpenIdAndJWTFromUrl(
 
 function observeLocalTransportForOldestMembership(
   scope: ObservableScope,
-  oldestMemberTransport$: Behavior<LivekitTransportConfig | null>,
+  oldestMemberTransport$: Behavior<LivekitTransport | null>,
   preferredTransport$: Observable<LocalTransportWithSFUConfig>,
   client: Pick<
     MatrixClient,

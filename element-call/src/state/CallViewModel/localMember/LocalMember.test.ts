@@ -10,7 +10,7 @@ import {
   MatrixRTCSessionEvent,
   MembershipManagerEvent,
   Status as RTCMemberStatus,
-  type LivekitTransportConfig,
+  type LivekitTransport,
   type MatrixRTCSession,
 } from "matrix-js-sdk/lib/matrixrtc";
 import { EventEmitter } from "events";
@@ -129,7 +129,7 @@ describe("LocalMembership", () => {
         getOldestMembership: vi.fn().mockReturnValue({
           getPreferredFoci: vi.fn().mockReturnValue([focusFromOlderMembership]),
         }),
-        joinRTCSession: vi.fn(),
+        join: vi.fn(),
       }) as unknown as MatrixRTCSession;
 
       enterRTCSession(
@@ -146,7 +146,7 @@ describe("LocalMembership", () => {
         },
       );
 
-      expect(mockedSession.joinRTCSession).toHaveBeenLastCalledWith(
+      expect(mockedSession.join).toHaveBeenLastCalledWith(
         {
           deviceId: "DEVICE",
           memberId: "@alice:example.org:DEVICE",
@@ -159,7 +159,6 @@ describe("LocalMembership", () => {
             type: "livekit",
           },
         ],
-        undefined,
         expect.objectContaining({
           manageMediaKeys: true,
           useLegacyMemberEvents: false,
@@ -193,7 +192,7 @@ describe("LocalMembership", () => {
         },
         memberships: [],
         getFocusInUse: vi.fn(),
-        joinRTCSession: vi.fn(),
+        join: vi.fn(),
       }) as unknown as MatrixRTCSession;
 
       enterRTCSession(
@@ -243,7 +242,7 @@ describe("LocalMembership", () => {
 
   it("throws error on missing RTC config error", () => {
     withTestScheduler(({ scope, hot, behavior, expectObservable }) => {
-      const localTransport$ = scope.behavior<null | LivekitTransportConfig>(
+      const localTransport$ = scope.behavior<null | LivekitTransport>(
         hot("1ms #", {}, new MatrixRTCTransportMissingError("domain.com")),
         null,
       );
@@ -280,7 +279,7 @@ describe("LocalMembership", () => {
 
   it("Should not publish to active transport if advertised has errors", () => {
     withTestScheduler(({ scope, hot, behavior, expectObservable }) => {
-      const advertised$ = scope.behavior<null | LivekitTransportConfig>(
+      const advertised$ = scope.behavior<null | LivekitTransport>(
         hot("--#", {}, new FailToGetOpenIdToken(new Error("foo"))),
         null,
       );
@@ -346,7 +345,7 @@ describe("LocalMembership", () => {
       ...defaultCreateLocalMemberValues,
       matrixRTCSession: {
         updateCallIntent: vi.fn().mockImplementation(reject),
-        leaveRoomSession: vi.fn(),
+        leave: vi.fn(),
         on: vi.fn(),
         off: vi.fn(),
       },
@@ -503,7 +502,7 @@ describe("LocalMembership", () => {
 
   const aTransport = {
     livekit_service_url: "a",
-  } as LivekitTransportConfig;
+  } as LivekitTransport;
 
   const aTransportWithSFUConfig = {
     transport: aTransport,
@@ -517,7 +516,7 @@ describe("LocalMembership", () => {
 
   const bTransport = {
     livekit_service_url: "b",
-  } as LivekitTransportConfig;
+  } as LivekitTransport;
 
   const bTransportWithSFUConfig = {
     transport: bTransport,

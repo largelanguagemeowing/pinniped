@@ -23,7 +23,6 @@ import {
   MembershipManagerEvent,
   Status as RTCSessionStatus,
   type LivekitTransport,
-  type LivekitTransportConfig,
   type MatrixRTCSession,
 } from "matrix-js-sdk/lib/matrixrtc";
 import {
@@ -152,13 +151,13 @@ interface Props {
   muteStates: MuteStates;
   connectionManager: IConnectionManager;
   createPublisherFactory: (connection: Connection) => Publisher;
-  joinMatrixRTC: (transport: LivekitTransportConfig) => void;
+  joinMatrixRTC: (transport: LivekitTransport) => void;
   homeserverConnected: HomeserverConnected;
   roomId: string;
   localTransport$: Behavior<LocalTransport>;
   matrixRTCSession: Pick<
     MatrixRTCSession,
-    "updateCallIntent" | "leaveRoomSession" | "on" | "off"
+    "updateCallIntent" | "leave" | "on" | "off"
   >;
   logger: Logger;
 }
@@ -755,7 +754,7 @@ export const createLocalMembership$ = ({
         );
         try {
           // TODO Update matrixRTCSession to allow udpating the transport without leaving the session!
-          await matrixRTCSession.leaveRoomSession(1000);
+          await matrixRTCSession.leave(1000);
         } catch (e) {
           logger.error("Error leaving RTC session", e);
         }
@@ -1053,7 +1052,7 @@ interface EnterRTCSessionOptions {
 export function enterRTCSession(
   rtcSession: MatrixRTCSession,
   ownMembershipIdentity: CallMembershipIdentityParts,
-  transport: LivekitTransportConfig,
+  transport: LivekitTransport,
   options: EnterRTCSessionOptions,
 ): void {
   const { encryptMedia, matrixRTCMode } = options;
@@ -1068,13 +1067,10 @@ export function enterRTCSession(
   const useDeviceSessionMemberEvents =
     features?.feature_use_device_session_member_events;
   const { sendNotificationType: notificationType, callIntent } = getUrlParams();
-  const multiSFU =
-    matrixRTCMode === MatrixRTCMode.Compatibility ||
-    matrixRTCMode === MatrixRTCMode.Matrix_2_0;
 
   // For backwards compatibility with Element Call versions that do not do Matrix 2.0,
   // we add the livekit alias to the transport.
-  let backwardCompatibleTransport: LivekitTransport | LivekitTransportConfig;
+  let backwardCompatibleTransport: LivekitTransport | LivekitTransport;
   if (matrixRTCMode === MatrixRTCMode.Matrix_2_0) {
     backwardCompatibleTransport = transport;
   } else {
@@ -1097,32 +1093,26 @@ export function enterRTCSession(
   const maximumNetworkErrorRetryCount =
     Math.ceil(maxWaitTime / retryInterval) + 1;
 
-  // Multi-sfu does not need a preferred foci list. just the focus that is actually used.
+  // js-sdk 45 publishes a single transport list; the old preferred/active split is gone.
   // TODO where/how do we track errors originating from the ongoing rtcSession?
 
-  rtcSession.joinRTCSession(
-    ownMembershipIdentity,
-    multiSFU ? [] : [backwardCompatibleTransport],
-    multiSFU ? backwardCompatibleTransport : undefined,
-    {
-      notificationType,
-      callIntent,
-      manageMediaKeys: encryptMedia,
-      ...(useDeviceSessionMemberEvents !== undefined && {
-        useLegacyMemberEvents: !useDeviceSessionMemberEvents,
-      }),
-      delayedLeaveEventRestartMs:
-        matrixRtcSessionConfig?.delayed_leave_event_restart_ms,
-      delayedLeaveEventDelayMs:
-        matrixRtcSessionConfig?.delayed_leave_event_delay_ms,
-      delayedLeaveEventRestartLocalTimeoutMs:
-        matrixRtcSessionConfig?.delayed_leave_event_restart_local_timeout_ms,
-      networkErrorRetryMs: matrixRtcSessionConfig?.network_error_retry_ms,
-      makeKeyDelay: matrixRtcSessionConfig?.wait_for_key_rotation_ms,
-      membershipEventExpiryMs:
-        matrixRtcSessionConfig?.membership_event_expiry_ms,
-      unstableSendStickyEvents: matrixRTCMode === MatrixRTCMode.Matrix_2_0,
-      maximumNetworkErrorRetryCount: maximumNetworkErrorRetryCount,
-    },
-  );
+  rtcSession.join(ownMembershipIdentity, [backwardCompatibleTransport], {
+    notificationType,
+    callIntent,
+    manageMediaKeys: encryptMedia,
+    ...(useDeviceSessionMemberEvents !== undefined && {
+      useLegacyMemberEvents: !useDeviceSessionMemberEvents,
+    }),
+    delayedLeaveEventRestartMs:
+      matrixRtcSessionConfig?.delayed_leave_event_restart_ms,
+    delayedLeaveEventDelayMs:
+      matrixRtcSessionConfig?.delayed_leave_event_delay_ms,
+    delayedLeaveEventRestartLocalTimeoutMs:
+      matrixRtcSessionConfig?.delayed_leave_event_restart_local_timeout_ms,
+    networkErrorRetryMs: matrixRtcSessionConfig?.network_error_retry_ms,
+    makeKeyDelay: matrixRtcSessionConfig?.wait_for_key_rotation_ms,
+    membershipEventExpiryMs: matrixRtcSessionConfig?.membership_event_expiry_ms,
+    unstableSendStickyEvents: matrixRTCMode === MatrixRTCMode.Matrix_2_0,
+    maximumNetworkErrorRetryCount: maximumNetworkErrorRetryCount,
+  });
 }

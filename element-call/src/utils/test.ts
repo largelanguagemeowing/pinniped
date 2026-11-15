@@ -264,6 +264,7 @@ export function mockRtcMembership(
   const cms = new CallMembership(
     event,
     membershipData,
+    [rtcBackendIdentity ?? `${userId}:${deviceId}`],
     rtcBackendIdentity ?? `${userId}:${deviceId}`,
   );
   vi.mocked(cms).getTransport = vi.fn().mockReturnValue(fociPreferred[0]);
@@ -460,9 +461,6 @@ export class MockRTCSession extends TypedEventEmitter<
     session.reemitEncryptionKeys = vi
       .fn<() => void>()
       .mockReturnValue(undefined);
-    session.getOldestMembership = vi
-      .fn<() => CallMembership | undefined>()
-      .mockReturnValue(this.memberships[0]);
 
     return session;
   }
@@ -528,9 +526,7 @@ export class MockRTCSession extends TypedEventEmitter<
     if (value !== prev) this.emit(MembershipManagerEvent.ProbablyLeft, value);
   }
 
-  public async joinRTCSession(): Promise<void> {
-    return Promise.resolve();
-  }
+  public join(): void {}
 }
 
 export const mockTrack = (
