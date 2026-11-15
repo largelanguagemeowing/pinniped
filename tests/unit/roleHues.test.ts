@@ -4,7 +4,7 @@ import { forkThemeRegistry } from '../../src/app/themes/fork/registry';
 import { getRolePalette, ROLE_HUE_MIN_CONTRAST } from '../../src/app/themes/fork/roleHues';
 
 // Themes with no official accent set, or whose design is monochrome or custom.
-const withoutSet = ['oled-midnight', 'catthode', 'cool-cowboy', 'sequoia-monochrome'];
+const withoutSet = ['catthode', 'cool-cowboy', 'sequoia-monochrome'];
 
 describe('role hues per theme', () => {
   it('refuses themes without an official accent set', () => {

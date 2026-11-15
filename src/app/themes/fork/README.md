@@ -78,9 +78,9 @@ background/accent colors and distinct interaction states are checked separately.
 These token checks cover full-opacity text; they are not a whole-application accessibility
 audit. Check rendered components, reduced-opacity text, links, and focus indicators visually too.
 
-`--tc-link` and the `--mx-uc-*` user colors keep the shared dark values (75-80% lightness), which
-read on every fork background (all base backgrounds are at or below L* 25). Per-theme overrides
-can be added later via a theme-specific CSS block if a future palette needs them.
+`--tc-link` keeps the shared dark value (80% lightness), which reads on every fork background
+(all base backgrounds are at or below L* 25). The `--mx-uc-*` user colors come from the theme's
+accent set (`userColors.ts`, see Role hues); themes without one keep the shared dark values.
 
 Prism code blocks use the shared `prism-dark` palette for all new themes; per-theme syntax
 palettes are explicitly out of scope.
@@ -113,6 +113,10 @@ stubs.
 
 ## Role hues
 
+The same accent sets feed the eight `--mx-uc-*` MXID colors (avatars, and names in the legacy
+username color mode): `themes.css.ts` overrides them per theme on `.<id>.on-dark-variables`,
+sampling the set evenly when it has more than eight accents and repeating it when fewer.
+
 The Role Colors setting's "Theme colors" mode draws each power-level role in one of the theme's
 accent colors (`roleHues.ts`). These are the families' own named accent sets, not the status slots
 (`Success`, `Warning`, `Critical`), so a moderator never reads as an error. A color is only offered
@@ -124,6 +128,6 @@ A role whose color is exactly a CSS keyword for red, green, blue, yellow, cyan o
 name, where the source names one (`namedHues` in `roleHues.ts`; nothing is inferred from how a color
 looks). Any other role, and a pure color the theme does not name, gets an accent by modulo.
 
-No mapping exists, by design, for Oled Midnight and Catthode (custom palettes), Cool Cowboy (no
+No mapping exists, by design, for Catthode (custom palette), Cool Cowboy (no
 upstream accent set found), and Sequoia Monochrome (monochrome by design), nor for
 the built-in Light, Silver, Dark and Butter themes.

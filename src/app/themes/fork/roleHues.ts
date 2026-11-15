@@ -206,6 +206,22 @@ const tokyoNightMoon = [
   '#FCA7EA',
 ];
 
+// https://tailwindcss.com/docs/colors (MIT), v3 400 tier: red, orange, yellow, green, teal,
+// cyan, blue, indigo, violet, fuchsia, pink. The OLED theme's own accent set.
+const oledMidnight = [
+  '#F87171',
+  '#FB923C',
+  '#FACC15',
+  '#4ADE80',
+  '#2DD4BF',
+  '#22D3EE',
+  '#60A5FA',
+  '#818CF8',
+  '#A78BFA',
+  '#E879F9',
+  '#F472B6',
+];
+
 const officialHues: Record<string, readonly string[]> = {
   'ayu-dark': ayuDark,
   'ayu-mirage': ayuMirage,
@@ -224,6 +240,7 @@ const officialHues: Record<string, readonly string[]> = {
   'kanagawa-wave': kanagawaWave,
   'kanso-ink': kanso,
   nord,
+  'oled-midnight': oledMidnight,
   'rose-pine': rosePine,
   'rose-pine-moon': rosePineMoon,
   'tokyo-night-moon': tokyoNightMoon,
@@ -275,6 +292,14 @@ const namedHues: Record<string, Named> = {
   'gruvbox-dark-hard': gruvboxNames,
   'gruvbox-dark-medium': gruvboxNames,
   'gruvbox-dark-soft': gruvboxNames,
+  'oled-midnight': {
+    red: '#F87171',
+    green: '#4ADE80',
+    yellow: '#FACC15',
+    blue: '#60A5FA',
+    cyan: '#22D3EE',
+    magenta: '#E879F9',
+  },
   'kanso-ink': { red: '#C34043', green: '#98BB6C', yellow: '#DCA561', blue: '#7FB4CA' },
   'tokyo-night-moon': {
     red: '#FF757F',

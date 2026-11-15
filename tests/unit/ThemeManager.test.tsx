@@ -58,6 +58,7 @@ vi.mock('@vanilla-extract/css', () => {
       counter += 1;
       return `ve-theme-${counter}`;
     },
+    globalStyle: () => {},
   };
 });
 
