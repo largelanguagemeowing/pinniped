@@ -42,7 +42,7 @@ stdenv.mkDerivation (finalAttrs: {
     # hash is per system. CI refreshes x86_64-linux (scripts/update-pnpm-deps.sh).
     hash =
       {
-        x86_64-linux = "sha256-6MMws0HC7sl2Yd4XwSu8IxXfZrUMcAHxH3yiynTQCbM=";
+        x86_64-linux = "sha256-O2NrfGudgnDBSFe3tx42QlbyU4SvFbCLQxxMChcYixw=";
         aarch64-linux = lib.fakeHash;
       }
       .${stdenv.hostPlatform.system};
