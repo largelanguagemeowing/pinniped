@@ -127,6 +127,19 @@ if (DEV_SERVER_URL) app.setPath('userData', path.join(app.getPath('appData'), 'p
 // Dev only (`just dev-electron`): expose DevTools over CDP on localhost for layout debugging.
 if (process.env.PINNIPED_DEV_RELOAD) app.commandLine.appendSwitch('remote-debugging-port', '9333');
 
+// Optional WebRTC congestion-control field trials (Settings → Developer Tools); read before ready.
+const webrtcTuning = require('./webrtc-tuning.cjs');
+const appliedTrials = webrtcTuning.applyFieldTrials(app);
+if (appliedTrials) log('WebRTC field trials:', appliedTrials);
+handleFromApp('webrtc-tuning:get', () => webrtcTuning.readEnabled(app.getPath('userData')));
+handleFromApp('webrtc-tuning:set', (_event, enabled) => {
+  webrtcTuning.writeEnabled(app.getPath('userData'), enabled === true);
+});
+handleFromApp('webrtc-tuning:restart', () => {
+  app.relaunch();
+  app.quit();
+});
+
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;

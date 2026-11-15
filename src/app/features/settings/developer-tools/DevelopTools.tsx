@@ -15,6 +15,7 @@ import {
 import { copyToClipboard } from '../../../utils/dom';
 import { AccountData } from './AccountData';
 import { ScreenShareAudioExclusions } from './ScreenShareAudioExclusions';
+import { WebRtcTuning } from './WebRtcTuning';
 
 type DeveloperToolsProps = {
   requestClose: () => void;
@@ -129,6 +130,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
               {developerTools && window.pinnipedDesktop?.platform === 'win32' && (
                 <ScreenShareAudioExclusions />
               )}
+              {developerTools && <WebRtcTuning />}
               {developerTools && (
                 <AccountData
                   expand={expand}

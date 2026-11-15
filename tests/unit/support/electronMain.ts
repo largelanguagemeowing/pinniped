@@ -128,6 +128,8 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
         };
       if (name === './menu.cjs') return { buildAppMenu: vi.fn() };
       if (name === './updater.cjs') return { startUpdater: vi.fn(() => null) };
+      if (name === './webrtc-tuning.cjs')
+        return { applyFieldTrials: vi.fn(() => ''), readEnabled: vi.fn(), writeEnabled: vi.fn() };
       if (name === './helper.cjs')
         return { helper: { on: vi.fn(), request: vi.fn(), stop: vi.fn() } };
       if (name === './screenshare-audio.cjs') return { events: { on: vi.fn() } };

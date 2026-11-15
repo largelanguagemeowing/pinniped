@@ -68,6 +68,12 @@ contextBridge.exposeInMainWorld('pinnipedDesktop', {
           select: (id) => ipcRenderer.send('screenshare-picker:select', id),
         }
       : undefined,
+  // Whether the WebRTC bandwidth-estimation field trials are on; applies after `restart`.
+  webrtcTuning: {
+    get: () => ipcRenderer.invoke('webrtc-tuning:get'),
+    set: (enabled) => ipcRenderer.invoke('webrtc-tuning:set', enabled),
+    restart: () => ipcRenderer.invoke('webrtc-tuning:restart'),
+  },
   onLeaveCallRequest: (handler) => {
     leaveCallHandler = handler;
     return () => {

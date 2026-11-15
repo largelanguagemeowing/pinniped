@@ -976,7 +976,9 @@ export const createLocalMembership$ = ({
           screenShareEncoding: {
             maxBitrate: preset.maxBitrate,
             maxFramerate: preset.frameRate,
+            priority: "medium",
           },
+          degradationPreference: "maintain-framerate",
         })
         .then(() => {
           if (targetScreenshareState && audioSource === "pcm")

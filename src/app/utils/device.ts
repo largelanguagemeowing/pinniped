@@ -72,6 +72,12 @@ declare global {
         /** A source id from `list`, or null to forget the choice. */
         select: (id: string | null) => void;
       };
+      /** WebRTC bandwidth-estimation field trials; a change applies after `restart`. */
+      webrtcTuning?: {
+        get: () => Promise<boolean>;
+        set: (enabled: boolean) => Promise<void>;
+        restart: () => Promise<void>;
+      };
       /** Linux desktop: global shortcuts through the portal helper. Resolves when the desktop answers. */
       bindHotkeys?: (
         shortcuts: { id: string; description: string; trigger?: string }[]

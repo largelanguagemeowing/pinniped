@@ -82,7 +82,9 @@ export const screenShareMaxBitrate = screenShareBudget({
 const defaultLiveKitPublishOptions: TrackPublishDefaults = {
   // 96 kbps mono: browser-WebRTC default voice bitrates sound noticeably
   // worse; bandwidth is cheap next to that.
-  audioPreset: AudioPresets.musicHighQuality,
+  // High priority: when the uplink is saturated, voice keeps its share (and its DSCP class
+  // where the OS honours one) ahead of video.
+  audioPreset: { ...AudioPresets.musicHighQuality, priority: "high" },
   // Opus comfort noise (CNG) during silence is audible as persistent hiss.
   dtx: false,
   // disable red because the livekit server strips out red packets for clients
@@ -96,7 +98,10 @@ const defaultLiveKitPublishOptions: TrackPublishDefaults = {
   screenShareEncoding: {
     maxBitrate: screenShareBudget(defaultScreenShareQuality).maxBitrate,
     maxFramerate: defaultScreenShareQuality.fps,
+    priority: "medium",
   },
+  // Under congestion shed resolution, not frame rate (the capture hint is "motion").
+  degradationPreference: "maintain-framerate",
   stopMicTrackOnMute: false,
   // H.264: hardware-encoded on many machines, and every browser decodes it.
   videoCodec: "h264",
