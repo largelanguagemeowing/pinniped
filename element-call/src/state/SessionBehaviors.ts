@@ -54,9 +54,7 @@ export const membershipsAndTransports$ = (
           const transport = membership.getTransport(oldestMembership);
           return {
             membership,
-            transport: isLivekitTransport(transport)
-              ? transport
-              : undefined,
+            transport: isLivekitTransport(transport) ? transport : undefined,
           };
         });
       }),

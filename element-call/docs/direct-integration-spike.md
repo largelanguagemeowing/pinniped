@@ -12,13 +12,13 @@ Cinny root config in this checkout, fails the same on the unmodified tree).
 
 The bump is a MatrixRTC API migration, not a version number:
 
-| 41.6.0 | 45.0.0 |
-| --- | --- |
-| `LivekitTransportConfig`, `isLivekitTransportConfig` | `LivekitTransport`, `isLivekitTransport` (deprecated alias, same shape); new `UnstableLivekitTransport` carries the SFU `url` and/or `livekit_service_url` |
-| `joinRTCSession(identity, preferred, active, config)` | `join(identity, publishedTransports, config)`; the preferred/active split is gone |
-| `leaveRoomSession(timeout)` | `leave(timeout)` |
-| `CallMembership(event, data, rtcBackendIdentity)` | adds `backendIdentities: string[]`; `rtcBackendIdentity` deprecated |
-| `getOldestMembership()` | removed |
+| 41.6.0                                                | 45.0.0                                                                                                                                                     |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LivekitTransportConfig`, `isLivekitTransportConfig`  | `LivekitTransport`, `isLivekitTransport` (deprecated alias, same shape); new `UnstableLivekitTransport` carries the SFU `url` and/or `livekit_service_url` |
+| `joinRTCSession(identity, preferred, active, config)` | `join(identity, publishedTransports, config)`; the preferred/active split is gone                                                                          |
+| `leaveRoomSession(timeout)`                           | `leave(timeout)`                                                                                                                                           |
+| `CallMembership(event, data, rtcBackendIdentity)`     | adds `backendIdentities: string[]`; `rtcBackendIdentity` deprecated                                                                                        |
+| `getOldestMembership()`                               | removed                                                                                                                                                    |
 
 Unverified at runtime: `join` now receives `[backwardCompatibleTransport]` in
 both the multi-SFU and the single-SFU case (the old call passed `[]` and the
