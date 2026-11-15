@@ -15,7 +15,8 @@ build:
     VERSION=$(node -p "require('./package.json').version") nfpm package --packager rpm --config electron/linux/nfpm.yaml --target "electron/out/Pinniped-$(node -p "require('./package.json').version")-x86_64.rpm"
 
 install: build
-    sudo rpm -Uvh --force "$(ls -t electron/out/[Pp]inniped-*.rpm | head -1)"
+    # Locally built and unsigned; newer rpm rejects unsigned packages by default.
+    sudo rpm -Uvh --force --nosignature "$(ls -t electron/out/[Pp]inniped-*.rpm | head -1)"
 
 # Fast iteration on the installed app: rebuild the bundle and repack the asar in place.
 # Run `just install` once first; this refreshes app code and the helper, not the electron
