@@ -135,6 +135,9 @@ export function ScreenSharePicker({ callEmbed, open, requestClose }: ScreenShare
   const picker = window.pinnipedDesktop?.screenSharePicker;
   // Beside the picker the options sit in a row at a fixed width; alone they fill the dialog.
   const optionStyle = picker ? { width: toRem(190) } : undefined;
+  // Only the picker needs a fixed-height dialog whose source list scrolls; otherwise the dialog
+  // is as tall as its content (a zero flex basis would collapse the options).
+  const fill = picker ? { flex: '1 1 0', minHeight: 0 } : undefined;
 
   if (!open) return null;
 
@@ -167,7 +170,7 @@ export function ScreenSharePicker({ callEmbed, open, requestClose }: ScreenShare
                 : { maxWidth: toRem(400), width: '100%' }
             }
           >
-            <Box direction="Column" style={{ flex: '1 1 0', minHeight: 0 }}>
+            <Box direction="Column" style={fill}>
               <Header
                 style={{
                   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -183,11 +186,7 @@ export function ScreenSharePicker({ callEmbed, open, requestClose }: ScreenShare
                   <Icon src={Icons.Cross} />
                 </IconButton>
               </Header>
-              <Box
-                style={{ padding: config.space.S400, minHeight: 0, flex: '1 1 0' }}
-                direction="Column"
-                gap="400"
-              >
+              <Box style={{ padding: config.space.S400, ...fill }} direction="Column" gap="400">
                 {picker && (
                   <SourcePicker list={picker.list} selected={source} onSelect={setSource} />
                 )}
