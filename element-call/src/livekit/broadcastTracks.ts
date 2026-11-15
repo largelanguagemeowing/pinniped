@@ -7,8 +7,9 @@ Please see LICENSE in the repository root for full details.
 
 import {
   type Participant,
-  type Track,
+  type Track as TrackType,
   ParticipantEvent,
+  Track,
   TrackEvent,
 } from "livekit-client";
 import { Observable } from "rxjs";
@@ -17,8 +18,7 @@ import { Observable } from "rxjs";
 export interface BroadcastTrack {
   track: MediaStreamTrack;
   /**
-   * The track is one this client sends (your microphone, soundboard or shared
-   * audio). Whatever is on it is being broadcast, so any sound above digital
+   * The track is one this client sends (your microphone or soundboard). Whatever is on it is being broadcast, so any sound above digital
    * silence counts, whether or not the voice gate is on.
    */
   sentByUs: boolean;
@@ -38,22 +38,24 @@ const TRACK_EVENTS = [
 ] as const;
 
 /**
- * Every audio track a participant is currently sending: the microphone, but also
- * soundboard sounds and shared-screen audio, so the speaking indicator shows
- * whenever anything is broadcast. Re-emits when tracks come and go and when a
+ * Every audio track a participant is currently sending: the microphone and
+ * soundboard sounds, so the speaking indicator shows whenever you or a sound you
+ * play is heard. Shared-screen audio is left out. Re-emits when tracks come and go and when a
  * local track gets or loses a processor (the track to measure changes with it).
  */
 export function observeBroadcastTracks$(
   participant: Participant,
 ): Observable<BroadcastTrack[]> {
   return new Observable<BroadcastTrack[]>((subscriber) => {
-    const watched = new Map<Track, () => void>();
+    const watched = new Map<TrackType, () => void>();
     let last: BroadcastTrack[] | undefined;
 
     const update = (): void => {
       const current: BroadcastTrack[] = [];
-      const live = new Set<Track>();
+      const live = new Set<TrackType>();
       participant.audioTrackPublications.forEach((publication) => {
+        // Shared-screen audio is not the person talking: it must not light the indicator.
+        if (publication.source === Track.Source.ScreenShareAudio) return;
         const { track } = publication;
         if (!track?.mediaStreamTrack) return;
         live.add(track);

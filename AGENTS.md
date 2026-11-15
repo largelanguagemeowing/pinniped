@@ -83,10 +83,10 @@ Fork changes on top of upstream + old patches:
   so add a knob in both).
 - **Speaking detection** also measures the audio itself (`voiceActivity.ts`), so the
   speaking ring and activity are not limited to the server's coarse speaker updates.
-  It watches every audio track a participant sends (`broadcastTracks.ts`: microphone,
-  soundboard, shared-screen audio), so the indicator shows whenever anything is
-  broadcast. Every track this client sends (microphone with or without the voice gate,
-  soundboard, shared-screen audio) is measured where any sound above digital silence
+  It watches the audio tracks a participant sends (`broadcastTracks.ts`: microphone,
+  soundboard), so the indicator shows whenever the person or a sound they play is
+  heard; shared-screen audio is deliberately left out. Every track this client sends
+  (microphone with or without the voice gate, soundboard) is measured where any sound above digital silence
   counts; remote participants use the indicator sensitivity setting (their gate is
   invisible to us).
 - **Call controls**: Pinniped draws the call bar itself and never touches the
