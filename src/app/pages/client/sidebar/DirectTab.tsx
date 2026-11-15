@@ -25,7 +25,7 @@ import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
 import { useSelectedRoom } from '../../../hooks/router/useSelectedRoom';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
-import { getCanonicalAliasOrRoomId } from '../../../utils/matrix';
+import { getCanonicalAliasOrRoomId, guessDmRoomUserId } from '../../../utils/matrix';
 import { getDirectRoomAvatarUrl, getRoomName } from '../../../utils/room';
 import { nameInitials } from '../../../utils/common';
 import { factoryRoomIdByActivity } from '../../../utils/sort';
@@ -97,6 +97,7 @@ function DirectRoomTab({ room, selected, onClick }: DirectRoomTabProps) {
               >
                 <RoomAvatar
                   roomId={room.roomId}
+                  colorId={guessDmRoomUserId(room, mx.getSafeUserId())}
                   src={getDirectRoomAvatarUrl(mx, room, 96, useAuthentication) ?? undefined}
                   alt={getRoomName(room)}
                   renderFallback={() => <Text size="H4">{nameInitials(getRoomName(room), 2)}</Text>}

@@ -364,6 +364,9 @@ export function Search({ requestClose }: SearchProps) {
                               {dm || room.isSpaceRoom() ? (
                                 <RoomAvatar
                                   roomId={room.roomId}
+                                  colorId={
+                                    dm ? guessDmRoomUserId(room, mx.getSafeUserId()) : undefined
+                                  }
                                   src={
                                     dm
                                       ? getDirectRoomAvatarUrl(mx, room, 32, useAuthentication)

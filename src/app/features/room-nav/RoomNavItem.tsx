@@ -530,6 +530,7 @@ export function RoomNavItem({
     avatarContent = (
       <RoomAvatar
         roomId={room.roomId}
+        colorId={direct ? guessDmRoomUserId(room, mx.getSafeUserId()) : undefined}
         src={
           direct
             ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
