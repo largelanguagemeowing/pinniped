@@ -78,6 +78,13 @@ export function getBasicRTCSession(
             clientEmitter.on(eventName, fn);
           },
         ),
+      prependListener: vitest
+        .fn()
+        .mockImplementation(
+          (eventName: string, fn: (...args: unknown[]) => void) => {
+            clientEmitter.prependListener(eventName, fn);
+          },
+        ),
       emit: (eventName: string, ...args: unknown[]) =>
         clientEmitter.emit(eventName, ...args),
       off: vitest

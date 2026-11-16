@@ -11,11 +11,13 @@ import {
   MatrixRTCSessionEvent,
 } from "matrix-js-sdk/lib/matrixrtc";
 import { logger as rootLogger } from "matrix-js-sdk/lib/logger";
+import { watchKeyMessages } from "./keyMessages";
 import { type CallMembershipIdentityParts } from "matrix-js-sdk/lib/matrixrtc/EncryptionManager";
 const logger = rootLogger.getChild("[MatrixKeyProvider]");
 
 export class MatrixKeyProvider extends BaseKeyProvider {
   private rtcSession?: MatrixRTCSession;
+  private stopKeyMessageLog?: () => void;
 
   public constructor() {
     super({ ratchetWindowSize: 10, keyringSize: 256 });
@@ -30,6 +32,8 @@ export class MatrixKeyProvider extends BaseKeyProvider {
     }
 
     this.rtcSession = rtcSession;
+    this.stopKeyMessageLog?.();
+    this.stopKeyMessageLog = watchKeyMessages(rtcSession);
 
     this.rtcSession.on(
       MatrixRTCSessionEvent.EncryptionKeyChanged,

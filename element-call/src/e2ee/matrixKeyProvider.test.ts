@@ -19,6 +19,7 @@ function mockRTCSession(): MatrixRTCSession {
     on: vi.fn(),
     off: vi.fn(),
     reemitEncryptionKeys: vi.fn(),
+    room: { client: { prependListener: vi.fn(), off: vi.fn() } },
   } as unknown as MatrixRTCSession;
 }
 
@@ -56,6 +57,18 @@ describe("matrixKeyProvider", () => {
       MatrixRTCSessionEvent.EncryptionKeyChanged,
       expect.any(Function),
     );
+  });
+
+  test("logs key messages only for the current session", () => {
+    const keyProvider = new MatrixKeyProvider();
+    const session1 = mockRTCSession();
+    const session2 = mockRTCSession();
+
+    keyProvider.setRTCSession(session1);
+    keyProvider.setRTCSession(session2);
+
+    expect(session1.room.client.off).toHaveBeenCalledTimes(1);
+    expect(session2.room.client.prependListener).toHaveBeenCalledTimes(1);
   });
 
   test("emits existing keys", () => {
