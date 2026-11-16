@@ -28,7 +28,7 @@ buildNpmPackage {
       ]);
   };
 
-  npmDepsHash = "sha256-agg5El6xtXO3IrsByWyHOnKtACK5cXdDjOAXCM6KxuU=";
+  npmDepsHash = "sha256-Ree7GSz3Zgri9K48LOhp6G30OOdqsBa4WybLaLGPUGQ=";
 
   # electron's postinstall would try to download a binary in the sandbox.
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
