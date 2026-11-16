@@ -38,6 +38,10 @@ import {
 import { ObservableScope } from "../../ObservableScope.ts";
 import { type OpenIDClientParts } from "../../../livekit/openIDSFU.ts";
 import {
+  REJOIN_ATTRIBUTE,
+  REJOIN_ATTRIBUTE_VALUE,
+} from "../../../livekit/rejoin.ts";
+import {
   ElementCallError,
   FailToGetOpenIdToken,
 } from "../../../utils/errors.ts";
@@ -78,6 +82,7 @@ function setupTest(): void {
     identity: "@me:example.org",
     isMicrophoneEnabled: vi.fn().mockReturnValue(true),
     getTrackPublication: vi.fn().mockReturnValue(undefined),
+    setAttributes: vi.fn().mockResolvedValue(undefined),
     on: localParticipantEventEmiter.on.bind(localParticipantEventEmiter),
     off: localParticipantEventEmiter.off.bind(localParticipantEventEmiter),
     addListener: localParticipantEventEmiter.addListener.bind(
@@ -637,7 +642,7 @@ describe("Rejoining after the SFU drops us", () => {
   }
 
   function setupRemoteConnectionWithRefresh(
-    refreshSFUConfig: () => Promise<typeof refreshedConfig>,
+    refreshSFUConfig?: () => Promise<typeof refreshedConfig>,
   ): Connection {
     fakeLivekitRoom.connect.mockImplementation(async (): Promise<void> => {
       fakeLivekitRoom.state = LivekitConnectionState.Connected;
@@ -678,6 +683,28 @@ describe("Rejoining after the SFU drops us", () => {
 
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(fakeLivekitRoom.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("advertises rejoin support after connecting and again after each rejoin", async () => {
+    vi.useFakeTimers();
+    const refresh = vi.fn().mockResolvedValue(refreshedConfig);
+    const connection = setupLocalConnection(refresh);
+    await connection.start();
+    expect(fakeLocalParticipant.setAttributes).toHaveBeenCalledTimes(1);
+    expect(fakeLocalParticipant.setAttributes).toHaveBeenLastCalledWith({
+      [REJOIN_ATTRIBUTE]: REJOIN_ATTRIBUTE_VALUE,
+    });
+
+    drop(DisconnectReason.SERVER_SHUTDOWN);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fakeLocalParticipant.setAttributes).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not advertise rejoin support on connections that cannot rejoin", async () => {
+    setupTest();
+    const connection = setupRemoteConnectionWithRefresh();
+    await connection.start();
+    expect(fakeLocalParticipant.setAttributes).not.toHaveBeenCalled();
   });
 
   it("backs off and retries when the first attempts fail", async () => {

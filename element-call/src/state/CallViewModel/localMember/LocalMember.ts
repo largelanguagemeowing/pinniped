@@ -772,10 +772,16 @@ export const createLocalMembership$ = ({
   );
 
   // Share whether this client is deafened, so other participants can show it. Client-reported.
-  combineLatest([participant$, localDeafened$])
+  // A new LiveKit session starts without attributes, so it is sent again whenever the
+  // connection (re)connects, not only when the state changes.
+  const livekitConnected$ = localConnectionState$.pipe(
+    map((state) => state === ConnectionState.LivekitConnected),
+    distinctUntilChanged(),
+  );
+  combineLatest([participant$, localDeafened$, livekitConnected$])
     .pipe(scope.bind())
-    .subscribe(([p, deafened]) => {
-      if (!p) return;
+    .subscribe(([p, deafened, connected]) => {
+      if (!p || !connected) return;
       p.setAttributes({ [DEAFENED_ATTRIBUTE]: String(deafened) }).catch((e) =>
         logger.error("Failed to share the deafened state", e),
       );

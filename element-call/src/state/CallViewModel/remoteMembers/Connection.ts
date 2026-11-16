@@ -27,6 +27,10 @@ import {
   type OpenIDClientParts,
   type SFUConfig,
 } from "../../../livekit/openIDSFU.ts";
+import {
+  REJOIN_ATTRIBUTE,
+  REJOIN_ATTRIBUTE_VALUE,
+} from "../../../livekit/rejoin.ts";
 import { type Behavior } from "../../Behavior.ts";
 import { type ObservableScope } from "../../ObservableScope.ts";
 import {
@@ -260,6 +264,7 @@ export class Connection {
         this.logger.info(`livekitRoom.connect ${url}`);
         await this.livekitRoom.connect(url, jwt);
         this.logger.info(`livekitRoom.connect SUCCESS ${url}`);
+        this.advertiseRejoin();
       } catch (e) {
         this.logger.info(`livekitRoom.connect FAILED ${url}`, e);
         // LiveKit uses 503 to indicate that the server has hit its track limits.
@@ -323,6 +328,18 @@ export class Connection {
     );
   }
 
+  /**
+   * Tells the SFU this client rejoins by itself, so a drain may delete the room instead of
+   * waiting for it to empty. Only connections that can rejoin say so, and the attribute is
+   * sent after every (re)connect because a fresh session starts without attributes.
+   */
+  private advertiseRejoin(): void {
+    if (!this.refreshSFUConfig) return;
+    this.livekitRoom.localParticipant
+      .setAttributes({ [REJOIN_ATTRIBUTE]: REJOIN_ATTRIBUTE_VALUE })
+      .catch((e) => this.logger.warn("Failed to advertise rejoin support", e));
+  }
+
   private async rejoin(): Promise<void> {
     this.rejoining = true;
     try {
@@ -337,6 +354,7 @@ export class Connection {
           this._livekitAlias = livekitAlias;
           await this.livekitRoom.connect(url, jwt);
           this.logger.info(`Rejoined after ${attempt + 1} attempt(s)`);
+          this.advertiseRejoin();
           return;
         } catch (e) {
           this.logger.warn(`Rejoin attempt ${attempt + 1} failed`, e);

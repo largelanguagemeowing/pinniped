@@ -29,6 +29,7 @@ import { BehaviorSubject, map, of } from "rxjs";
 import { logger } from "matrix-js-sdk/lib/logger";
 import { type LocalParticipant, type LocalTrack } from "livekit-client";
 
+import { DEAFENED_ATTRIBUTE, localDeafened$ } from "../../../livekit/deafened";
 import { PosthogAnalytics } from "../../../analytics/PosthogAnalytics";
 import { MatrixRTCMode } from "../../../settings/settings";
 import { type HomeserverDisconnectReason } from "./HomeserverConnected";
@@ -828,6 +829,69 @@ describe("LocalMembership", () => {
     expect(publishers[0].destroy).toHaveBeenCalled();
     // expect(publishers[0].stopTracks).toHaveBeenCalled();
   });
+
+  it("shares the deafened state each time the connection is (re)established", async () => {
+    const scope = new ObservableScope();
+    const setAttributes = vi.fn().mockResolvedValue(undefined);
+    const state$ = new BehaviorSubject<ConnectionState>(
+      ConnectionState.LivekitConnecting,
+    );
+    const connection = {
+      state$,
+      transport: aTransport,
+      livekitRoom: mockLivekitRoom({
+        localParticipant: {
+          isScreenShareEnabled: false,
+          trackPublications: [],
+          getTrackPublication: () => undefined,
+          setAttributes,
+        } as unknown as LocalParticipant,
+      }),
+    } as unknown as Connection;
+    const data = new ConnectionManagerData();
+    data.add(connection, []);
+
+    createLocalMembership$({
+      scope,
+      ...defaultCreateLocalMemberValues,
+      connectionManager: {
+        connectionManagerData$: new BehaviorSubject(new Epoch(data)),
+      },
+      localTransport$: new BehaviorSubject({
+        advertised$: new BehaviorSubject(aTransport),
+        active$: new BehaviorSubject(aTransportWithSFUConfig),
+      } as LocalTransport),
+    });
+    await flushPromises();
+    // Nothing is sent before the session exists.
+    expect(setAttributes).not.toHaveBeenCalled();
+
+    state$.next(ConnectionState.LivekitConnected);
+    await flushPromises();
+    expect(setAttributes).toHaveBeenCalledTimes(1);
+    expect(setAttributes).toHaveBeenLastCalledWith({
+      [DEAFENED_ATTRIBUTE]: "false",
+    });
+
+    // The SFU dropped us and the connection rejoined: the new session has no attributes.
+    state$.next(ConnectionState.LivekitDisconnected);
+    await flushPromises();
+    expect(setAttributes).toHaveBeenCalledTimes(1);
+    state$.next(ConnectionState.LivekitConnected);
+    await flushPromises();
+    expect(setAttributes).toHaveBeenCalledTimes(2);
+
+    localDeafened$.next(true);
+    await flushPromises();
+    expect(setAttributes).toHaveBeenCalledTimes(3);
+    expect(setAttributes).toHaveBeenLastCalledWith({
+      [DEAFENED_ATTRIBUTE]: "true",
+    });
+
+    localDeafened$.next(false);
+    scope.end();
+  });
+
   // TODO add tests for matrix local matrix participation.
 
   describe("reconnecting analytics", () => {
