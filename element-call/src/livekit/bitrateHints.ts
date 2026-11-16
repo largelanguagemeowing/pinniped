@@ -5,7 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
+import { logger as rootLogger } from "matrix-js-sdk/lib/logger";
+
 import { screenShareMaxBitrate } from "./options";
+
+const logger = rootLogger.getChild("[BitrateHints]");
 
 /**
  * Chrome's congestion control starts a video sender at ~300 kbps and ramps up
@@ -22,7 +26,11 @@ const PASSIVE_CODECS = /^(rtx|red|ulpfec|flexfec-03)$/i;
 /**
  * Opus parameters for the audio we send, written into the answer because that is
  * where Chrome reads its sender configuration from. In-band FEC is off: it spends
- * bitrate on redundancy that only helps lossy links.
+ * bitrate on redundancy that only helps lossy links. `sprop-stereo` is dropped:
+ * it only hints what the remote end sends, and livekit-client sets it on stereo
+ * tracks only, so mono and stereo audio sections (microphone, soundboard) would
+ * otherwise carry different parameters for the one bundled Opus payload type,
+ * which Chrome rejects ("BUNDLE group contains a codec collision").
  */
 export function disableOpusFec(sdp: string): string {
   const lines = sdp.split("\r\n");
@@ -37,7 +45,7 @@ export function disableOpusFec(sdp: string): string {
   const params = (config: string): string => {
     const kept = config
       .split(";")
-      .filter((p) => p !== "" && !/^useinbandfec=/.test(p.trim()));
+      .filter((p) => !/^(|useinbandfec=.*|sprop-stereo=.*)$/.test(p.trim()));
     return [...kept, "useinbandfec=0"].join(";");
   };
   const out: string[] = [];
@@ -112,6 +120,49 @@ export function addBitrateHints(sdp: string, maxKbps: number): string {
   return out.join("\r\n");
 }
 
+const CONGESTION_FEEDBACK = /^(transport-cc|goog-remb|ack ccfb)$/;
+
+/**
+ * The congestion-control feedback each payload type offers, per media section,
+ * e.g. `video 1: 96 VP8 [transport-cc goog-remb] | 97 rtx []`. Chrome ignores
+ * all of it ("Inconsistent congestion control feedback types") when the payload
+ * types of a section disagree, which leaves bandwidth estimation without feedback.
+ */
+export function summarizeCongestionFeedback(sdp: string): string[] {
+  const out: string[] = [];
+  let header = "";
+  let names = new Map<string, string>();
+  let feedback = new Map<string, string[]>();
+  const flush = (): void => {
+    if (header === "") return;
+    const codecs = [...names].map(
+      ([pt, name]) =>
+        `${pt} ${name} [${[...(feedback.get(pt) ?? []), ...(feedback.get("*") ?? [])].join(" ")}]`,
+    );
+    out.push(`${header}: ${codecs.join(" | ")}`);
+  };
+  for (const line of sdp.split("\r\n")) {
+    const m = /^m=(\w+) /.exec(line);
+    if (m) {
+      flush();
+      header = m[1];
+      names = new Map();
+      feedback = new Map();
+      continue;
+    }
+    const midLine = /^a=mid:(.+)$/.exec(line);
+    if (midLine) header = `${header.split(" ")[0]} ${midLine[1]}`;
+    const rtpmap = /^a=rtpmap:(\d+) ([^/]+)\//.exec(line);
+    if (rtpmap) names.set(rtpmap[1], rtpmap[2]);
+    const fb = /^a=rtcp-fb:(\S+) (.+)$/.exec(line);
+    if (fb && CONGESTION_FEEDBACK.test(fb[2])) {
+      feedback.set(fb[1], [...(feedback.get(fb[1]) ?? []), fb[2]]);
+    }
+  }
+  flush();
+  return out;
+}
+
 /**
  * Patches the answers our peer connections receive. The subscriber's offers
  * from the SFU are left alone: those hints would configure its receiving side.
@@ -124,6 +175,11 @@ export function installBitrateHints(): void {
     this: RTCPeerConnection,
     description: RTCSessionDescriptionInit,
   ): Promise<void> {
+    if (description?.type === "answer" && description.sdp) {
+      logger.info(
+        `answer congestion feedback: ${summarizeCongestionFeedback(description.sdp).join("; ")}`,
+      );
+    }
     const patched =
       description?.type === "answer" && description.sdp
         ? {

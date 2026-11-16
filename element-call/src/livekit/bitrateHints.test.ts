@@ -7,7 +7,11 @@ Please see LICENSE in the repository root for full details.
 
 import { describe, expect, it } from "vitest";
 
-import { addBitrateHints, disableOpusFec } from "./bitrateHints";
+import {
+  addBitrateHints,
+  disableOpusFec,
+  summarizeCongestionFeedback,
+} from "./bitrateHints";
 
 const sdp = [
   "v=0",
@@ -52,6 +56,25 @@ describe("disableOpusFec", () => {
     );
   });
 
+  it("gives every audio section the same Opus parameters", () => {
+    const mixed = [
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111",
+      "a=rtpmap:111 opus/48000/2",
+      "a=fmtp:111 minptime=10;useinbandfec=1",
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111",
+      "a=rtpmap:111 opus/48000/2",
+      "a=fmtp:111 minptime=10;sprop-stereo=1;useinbandfec=1",
+      "",
+    ].join("\r\n");
+    const fmtps = disableOpusFec(mixed)
+      .split("\r\n")
+      .filter((l) => l.startsWith("a=fmtp:"));
+    expect(fmtps).toEqual([
+      "a=fmtp:111 minptime=10;useinbandfec=0",
+      "a=fmtp:111 minptime=10;useinbandfec=0",
+    ]);
+  });
+
   it("adds an fmtp line when Opus has none", () => {
     const bare = [
       "m=audio 9 UDP/TLS/RTP/SAVPF 111",
@@ -72,5 +95,28 @@ describe("disableOpusFec", () => {
       "",
     ].join("\r\n");
     expect(disableOpusFec(noAudio)).toBe(noAudio);
+  });
+});
+
+describe("summarizeCongestionFeedback", () => {
+  const withFeedback = [
+    "m=video 9 UDP/TLS/RTP/SAVPF 96 97",
+    "a=mid:1",
+    "a=rtpmap:96 VP8/90000",
+    "a=rtcp-fb:96 transport-cc",
+    "a=rtcp-fb:96 nack",
+    "a=rtpmap:97 rtx/90000",
+    "m=audio 9 UDP/TLS/RTP/SAVPF 111",
+    "a=mid:0",
+    "a=rtpmap:111 opus/48000/2",
+    "a=rtcp-fb:* ack ccfb",
+    "",
+  ].join("\r\n");
+
+  it("lists the congestion feedback of every payload type per section", () => {
+    expect(summarizeCongestionFeedback(withFeedback)).toEqual([
+      "video 1: 96 VP8 [transport-cc] | 97 rtx []",
+      "audio 0: 111 opus [ack ccfb]",
+    ]);
   });
 });
