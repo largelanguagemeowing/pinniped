@@ -1,8 +1,9 @@
 import { AvatarFallback, AvatarImage, color } from 'folds';
-import React, { ReactEventHandler, ReactNode, useState } from 'react';
+import React, { ReactEventHandler, ReactNode } from 'react';
 import classNames from 'classnames';
 import * as css from './UserAvatar.css';
 import colorMXID, { gradientMXID } from '../../../util/colorMXID';
+import { useImageFailure } from '../../hooks/useImageFailure';
 
 type UserAvatarProps = {
   className?: string;
@@ -12,13 +13,14 @@ type UserAvatarProps = {
   renderFallback: () => ReactNode;
 };
 export function UserAvatar({ className, userId, src, alt, renderFallback }: UserAvatarProps) {
-  const [error, setError] = useState(false);
+  const { failed, onError, onLoad } = useImageFailure(src);
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
+    onLoad();
     evt.currentTarget.setAttribute('data-image-loaded', 'true');
   };
 
-  if (!src || error) {
+  if (!src || failed) {
     return (
       <AvatarFallback
         style={{
@@ -38,7 +40,7 @@ export function UserAvatar({ className, userId, src, alt, renderFallback }: User
       className={classNames(css.UserAvatar, className)}
       src={src}
       alt={alt}
-      onError={() => setError(true)}
+      onError={onError}
       onLoad={handleLoad}
       draggable={false}
     />

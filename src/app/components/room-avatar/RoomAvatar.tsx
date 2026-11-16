@@ -1,9 +1,10 @@
 import { JoinRule } from 'matrix-js-sdk';
 import { AvatarFallback, AvatarImage, Icon, Icons, color } from 'folds';
-import React, { ComponentProps, ReactEventHandler, ReactNode, forwardRef, useState } from 'react';
+import React, { ComponentProps, ReactEventHandler, ReactNode, forwardRef } from 'react';
 import * as css from './RoomAvatar.css';
 import { getRoomIconSrc } from '../../utils/room';
 import colorMXID, { gradientMXID } from '../../../util/colorMXID';
+import { useImageFailure } from '../../hooks/useImageFailure';
 
 type RoomAvatarProps = {
   roomId: string;
@@ -20,13 +21,14 @@ export function RoomAvatar({
   alt,
   renderFallback,
 }: RoomAvatarProps) {
-  const [error, setError] = useState(false);
+  const { failed, onError, onLoad } = useImageFailure(src);
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
+    onLoad();
     evt.currentTarget.setAttribute('data-image-loaded', 'true');
   };
 
-  if (!src || error) {
+  if (!src || failed) {
     return (
       <AvatarFallback
         style={{
@@ -46,7 +48,7 @@ export function RoomAvatar({
       className={css.RoomAvatar}
       src={src}
       alt={alt}
-      onError={() => setError(true)}
+      onError={onError}
       onLoad={handleLoad}
       draggable={false}
     />

@@ -31,6 +31,7 @@ import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { AttachmentLoadError } from './AttachmentLoadError';
 import { validBlurHash } from '../../../utils/blurHash';
 import { useHoverPlay } from '../../../hooks/useHoverPlay';
+import { clearFailure, isBackedOff, recordFailure } from '../../../utils/requestBackoff';
 import { StillImage } from '../../media';
 
 type RenderViewerProps = {
@@ -106,11 +107,19 @@ export const ImageContent = as<'div', ImageContentProps>(
       useCallback(async () => {
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
+        // A URL that just failed is not asked again until its wait is over; Retry clears it.
+        if (isBackedOff(mediaUrl)) throw new Error('This image failed to load a moment ago');
         if (encInfo) {
-          const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-            decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
-          );
-          return URL.createObjectURL(fileContent);
+          try {
+            const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
+              decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
+            );
+            clearFailure(mediaUrl);
+            return URL.createObjectURL(fileContent);
+          } catch (err) {
+            recordFailure(mediaUrl);
+            throw err;
+          }
         }
         return mediaUrl;
       }, [mx, url, useAuthentication, mimeType, encInfo])
@@ -125,7 +134,12 @@ export const ImageContent = as<'div', ImageContentProps>(
     const animatedBadge = animated && (!load || paused);
     const sizeBadge = !load && sizeLabel !== undefined;
 
+    // The URL the <img> loads directly; encrypted media is a blob whose failures are not remote.
+    const directSrc =
+      !encInfo && srcState.status === AsyncStatus.Success ? srcState.data : undefined;
+
     const handleLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+      if (directSrc) clearFailure(directSrc);
       setLoad(true);
       setLoadedImage(event.currentTarget);
     };
@@ -137,11 +151,14 @@ export const ImageContent = as<'div', ImageContentProps>(
           loadSrc();
         }, 1000);
       } else {
+        if (directSrc) recordFailure(directSrc);
         setError(true);
       }
     };
 
     const handleRetry = () => {
+      const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+      if (mediaUrl) clearFailure(mediaUrl);
       setError(false);
       setRetryCount(0);
       loadSrc();

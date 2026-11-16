@@ -1,4 +1,5 @@
 import { IPreviewUrlResponse, MatrixClient } from 'matrix-js-sdk';
+import { clearFailure, isBackedOff, recordFailure } from './requestBackoff';
 
 // Link previews from an optional third-party preview server (configured in
 // settings with a server URL and a preview-only token). Only that token is
@@ -10,6 +11,38 @@ import { IPreviewUrlResponse, MatrixClient } from 'matrix-js-sdk';
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const CACHE_MAX = 500;
 const DEFAULT_RETRY_MS = 1000;
+
+// The SDK keeps every preview promise, a rejected one too, for the life of the client, so a
+// preview that failed during a server restart would stay failed until the app restarts. This
+// mirrors the key it caches under (`urlPreviewCache`, see `MatrixClient.getUrlPreview`).
+export const sdkPreviewCacheKey = (url: string, ts: number): string => {
+  const parsed = new URL(url);
+  parsed.hash = '';
+  return `${Math.floor(ts / 60000) * 60000}_${parsed.toString()}`;
+};
+
+/** The homeserver's preview; a failure is dropped from the SDK cache and backed off. */
+const getHomeserverPreview = async (
+  mx: MatrixClient,
+  url: string,
+  ts: number
+): Promise<IPreviewUrlResponse> => {
+  const backoffKey = `preview:${url}`;
+  if (isBackedOff(backoffKey)) throw new Error('Link preview failed a moment ago');
+  try {
+    const preview = await mx.getUrlPreview(url, ts);
+    clearFailure(backoffKey);
+    return preview;
+  } catch (err) {
+    recordFailure(backoffKey);
+    try {
+      delete mx.urlPreviewCache[sdkPreviewCacheKey(url, ts)];
+    } catch {
+      // not a parsable URL, so the SDK cached nothing either
+    }
+    throw err;
+  }
+};
 
 const cache = new Map<string, { expires: number; preview: Promise<IPreviewUrlResponse> }>();
 let blockedUntil = 0;
@@ -64,7 +97,7 @@ export const getUrlPreview = (
   server?: string,
   token?: string
 ): Promise<IPreviewUrlResponse> => {
-  if (!server || !token) return mx.getUrlPreview(url, ts);
+  if (!server || !token) return getHomeserverPreview(mx, url, ts);
 
   const key = `${server}\n${url}`;
   const hit = cache.get(key);
@@ -73,7 +106,7 @@ export const getUrlPreview = (
   const preview = fetchFromPreviewServer(server, token, url).catch(() => {
     // Don't keep failures (or the fallback) cached for the preview server.
     if (cache.get(key)?.preview === preview) cache.delete(key);
-    return mx.getUrlPreview(url, ts);
+    return getHomeserverPreview(mx, url, ts);
   });
 
   cache.delete(key);

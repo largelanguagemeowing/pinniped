@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { IPreviewUrlResponse } from 'matrix-js-sdk';
 import { Box, as, config, toRem } from 'folds';
 import { ImageOverlay } from '../ImageOverlay';
-import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
+import { AsyncStatus, useAsyncLoad } from '../../hooks/useAsyncCallback';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import {
   UrlPreview,
@@ -63,7 +63,7 @@ export const UrlPreviewCard = as<'article', { url: string; ts: number }>(
     const [imgAttempt, setImgAttempt] = useState(0);
     const [previewServer] = useSetting(settingsAtom, 'urlPreviewServer');
     const [previewToken] = useSetting(settingsAtom, 'urlPreviewServerToken');
-    const [previewStatus, loadPreview] = useAsyncCallback(
+    const [previewStatus, loadPreview] = useAsyncLoad(
       useCallback(
         () => getUrlPreview(mx, url, ts, previewServer, previewToken),
         [url, ts, mx, previewServer, previewToken]
