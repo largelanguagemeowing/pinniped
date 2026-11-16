@@ -9,6 +9,7 @@ import {
 } from '../../types/matrix/richPresence';
 import { useMatrixClient } from './useMatrixClient';
 import { userRichPresenceAtomFamily } from '../state/richPresence';
+import { requestProfile } from '../utils/profileRequests';
 
 const hasRichPresenceField = (profile: Record<string, unknown>): boolean =>
   Object.prototype.hasOwnProperty.call(profile, MSC4320_RPC) ||
@@ -116,13 +117,13 @@ const startSubscription = (
   const loadProfile = async () => {
     const loadVersion = updateVersion;
     try {
-      const profile = await fetchProfileThrottled(mx, userId);
+      const profile = await requestProfile(mx, userId, (id) => fetchProfileThrottled(mx, id));
       if (active && loadVersion === updateVersion) {
         setRichPresence(getProfileRichPresence(profile));
       }
     } catch {
-      // Keep the last known state on a failed refresh; only the expiry timer
-      // or a profile update clears it.
+      // Keep the last known state on a failed refresh (or one remembered as failed); only the
+      // expiry timer or a profile update clears it.
     }
   };
 
@@ -220,8 +221,8 @@ export const useUserRichPresence = (userId: string): RichPresence | undefined =>
     let cancelled = false;
     const timer = setTimeout(() => {
       if (cancelled) return;
-      mx.getExtendedProfile(userId)
-        .then((profile: Record<string, unknown>) => {
+      requestProfile(mx, userId)
+        .then((profile) => {
           const next = getProfileRichPresence(profile);
           console.debug('[pinniped:rpc] song-end refetch', userId, next);
           if (!cancelled) setRichPresence(next);
