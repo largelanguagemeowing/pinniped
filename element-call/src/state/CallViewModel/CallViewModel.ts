@@ -48,7 +48,6 @@ import {
 } from "matrix-js-sdk/lib/matrixrtc";
 import { type IWidgetApiRequest } from "matrix-widget-api";
 import { type CallMembershipIdentityParts } from "matrix-js-sdk/lib/matrixrtc/EncryptionManager";
-import { v4 as uuidv4 } from "uuid";
 import { type IMembershipManager } from "matrix-js-sdk/lib/matrixrtc/IMembershipManager";
 
 import {
@@ -105,6 +104,7 @@ import {
   observeParticipantActivity$,
   type ParticipantActivity,
 } from "./participantActivity.ts";
+import { ownMemberId } from "./ownMemberId.ts";
 import { createHomeserverConnected$ } from "./localMember/HomeserverConnected.ts";
 import {
   createLocalMembership$,
@@ -478,8 +478,7 @@ export function createCallViewModel$(
   const ownMembershipIdentity: CallMembershipIdentityParts = {
     userId,
     deviceId,
-    // This will only be consumed by the sticky membership manager. So it has no impact on legacy calls.
-    memberId: uuidv4(),
+    memberId: ownMemberId(matrixRTCMode$.value, userId, deviceId),
   };
 
   const localTransport$ = scope.behavior(
