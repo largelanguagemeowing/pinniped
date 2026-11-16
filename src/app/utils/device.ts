@@ -106,4 +106,4 @@ export const getDeviceDisplayName = (): string =>
   `${isDesktop() ? 'Pinniped Desktop' : 'Pinniped Web'} (${__APP_COMMIT__})`;
 
 // package.json version plus the commit this bundle was built from
-export const APP_VERSION = `v4.12.6 (${__APP_COMMIT__})`;
+export const APP_VERSION = `v${__APP_VERSION__} (${__APP_COMMIT__})`;

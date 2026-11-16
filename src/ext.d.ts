@@ -2,6 +2,8 @@
 
 // Fork-only: short git commit hash, injected by vite.config.js.
 declare const __APP_COMMIT__: string;
+// package.json version, injected by vite.config.js.
+declare const __APP_VERSION__: string;
 
 declare module 'browser-encrypt-attachment' {
   export interface EncryptedAttachmentInfo {

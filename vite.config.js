@@ -25,6 +25,11 @@ const appCommit = (() => {
   }
 })();
 
+// package.json is the one place the version lives; the bundle reads it from here.
+const appVersion = JSON.parse(
+  fs.readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8')
+).version;
+
 const elementCallPath = prepareElementCall();
 
 // vite-plugin-static-copy 2+ keeps the source directory structure in the output, so
@@ -189,6 +194,7 @@ export default defineConfig({
   publicDir: false,
   define: {
     __APP_COMMIT__: JSON.stringify(appCommit),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   base: buildConfig.base,
   // Vite 8 follows Node's CJS interop in this "type": "module" package: a default import
