@@ -32,6 +32,16 @@ export type ScreenSharePickerSource = {
 
 export type AutostartState = { enabled: boolean; minimized: boolean };
 
+/** The desktop app's self-update, as the main process reports it. */
+export type UpdateStatus =
+  | { state: 'unsupported' }
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'downloading'; version: string; percent: number }
+  | { state: 'current' }
+  | { state: 'ready'; version: string }
+  | { state: 'error'; message: string };
+
 declare global {
   interface Window {
     pinnipedDesktop?: {
@@ -89,6 +99,16 @@ declare global {
        * membership ends at once instead of timing out. Returns the unregister.
        */
       onLeaveCallRequest?: (handler: () => Promise<unknown>) => () => void;
+      /** Self-update of the installed build; `getStatus` resolves to `unsupported` elsewhere. */
+      updater?: {
+        getStatus: () => Promise<UpdateStatus>;
+        /** Starts a check unless one is under way; resolves to the status right after. */
+        check: () => Promise<UpdateStatus>;
+        /** Quits and installs a downloaded update; does nothing before one is ready. */
+        install: () => Promise<void>;
+        /** Calls `cb` on every status change. Returns the unsubscribe. */
+        onStatus: (cb: (status: UpdateStatus) => void) => () => void;
+      };
       supportsRichPresenceBridge?: true;
       startRichPresenceBridge?: () => Promise<RichPresenceBridgeStartResult>;
       stopRichPresenceBridge?: () => Promise<void>;

@@ -8,6 +8,7 @@ import PinnipedSVG from '../../../../../public/res/svg/pinniped.svg';
 import { clearCacheAndReload } from '../../../../client/initMatrix';
 import { APP_VERSION } from '../../../utils/device';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
+import { UpdateCheck } from './UpdateCheck';
 
 type AboutProps = {
   requestClose: () => void;
@@ -61,6 +62,7 @@ export function About({ requestClose }: AboutProps) {
                   direction="Column"
                   gap="400"
                 >
+                  <UpdateCheck />
                   <SettingTile
                     title="Clear Cache & Reload"
                     description="Clear all your locally stored data and reload from server."

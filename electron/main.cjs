@@ -25,6 +25,7 @@ const {
 } = require('./screenshare-picker.cjs');
 const { buildLoadErrorPage } = require('./load-error.cjs');
 const { startUpdater } = require('./updater.cjs');
+const { UNSUPPORTED: UPDATES_UNSUPPORTED } = require('./update-status.cjs');
 
 // Startup log: wall-clock lines on stdout plus a timing summary once the page is interactive.
 const startupMarks = [];
@@ -651,6 +652,15 @@ const showMainWindow = () => {
 let updater = null;
 let updateVersion = null;
 
+// The About page's update check; a build that never updates itself reports `unsupported`.
+handleFromApp('updater:status', () => updater?.status() ?? UPDATES_UNSUPPORTED);
+handleFromApp('updater:check', () => updater?.checkNow() ?? UPDATES_UNSUPPORTED);
+handleFromApp('updater:install', () => {
+  if (updater?.status().state !== 'ready') return;
+  isQuitting = true;
+  updater.installNow();
+});
+
 function trayMenu() {
   return Menu.buildFromTemplate([
     { label: 'Open Pinniped', click: showMainWindow },
@@ -726,6 +736,11 @@ if (!app.requestSingleInstanceLock()) {
       onReady: (version) => {
         updateVersion = version;
         tray?.setContextMenu(trayMenu());
+      },
+      onStatus: (status) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('updater:status', status);
+        }
       },
     });
 

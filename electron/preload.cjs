@@ -80,6 +80,17 @@ contextBridge.exposeInMainWorld('pinnipedDesktop', {
       if (leaveCallHandler === handler) leaveCallHandler = null;
     };
   },
+  // The installed Windows build updates itself; `getStatus` says `unsupported` everywhere else.
+  updater: {
+    getStatus: () => ipcRenderer.invoke('updater:status'),
+    check: () => ipcRenderer.invoke('updater:check'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    onStatus: (cb) => {
+      const listener = (_event, status) => cb(status);
+      ipcRenderer.on('updater:status', listener);
+      return () => ipcRenderer.removeListener('updater:status', listener);
+    },
+  },
   // MSC4320 rich-presence publisher: the main process impersonates Discord's
   // local RPC pipe and forwards activity here for the renderer to publish.
   supportsRichPresenceBridge: true,
