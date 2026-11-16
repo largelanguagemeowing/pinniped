@@ -4,7 +4,8 @@
 export const sanitizeForRegex = (unsafeText: string): string =>
   unsafeText.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d');
 
-export const HTTP_URL_PATTERN = `https?:\\/\\/(?:www\\.)?(?:[^\\s)]*)(?<![.,:;!/?()[\\]\\s]+)`;
+// Trailing punctuation and quotes around a link are not part of it; an apostrophe inside is.
+export const HTTP_URL_PATTERN = `https?:\\/\\/(?:www\\.)?(?:[^\\s)]*)(?<![.,:;!/?()[\\]'"\\s]+)`;
 
 export const URL_REG = new RegExp(HTTP_URL_PATTERN, 'g');
 
