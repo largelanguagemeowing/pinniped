@@ -95,6 +95,7 @@ import { useMatrixEventRenderer } from '../../hooks/useMatrixEventRenderer';
 import { PollContent, PollEnd, PollIcon } from '../../components/poll';
 import { isPollStartType, parsePollStart } from '../../utils/poll';
 import { Reactions, Message, Event, EncryptedContent } from './message';
+import { useDecryptedRelation } from '../../hooks/useDecryptedRelation';
 import { useMemberEventParser } from '../../hooks/useMemberEventParser';
 import * as customHtmlCss from '../../styles/CustomHtml.css';
 import { RoomIntro } from '../../components/room-intro';
@@ -681,6 +682,11 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       },
       [mx, room, unreadInfo, trackUnread, hideActivity]
     )
+  );
+
+  useDecryptedRelation(
+    room,
+    useCallback(() => setTimeline((ct) => ({ ...ct })), [])
   );
 
   const handleOpenEvent = useCallback(
