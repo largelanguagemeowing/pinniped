@@ -66,6 +66,7 @@ import { useStateEvent } from '../../hooks/useStateEvent';
 import { BackRouteHandler } from '../../components/BackRouteHandler';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { RoomPinMenu } from './room-pin-menu';
+import { RoomBookmarkMenu } from './room-bookmark-menu';
 import { useOpenRoomSettings } from '../../state/hooks/roomSettings';
 import { RoomNotificationModeSwitcher } from '../../components/RoomNotificationSwitcher';
 import {
@@ -745,6 +746,11 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                 label="Pinned Messages"
                 icon={Icons.Pin}
                 renderMenu={(close) => <RoomPinMenu room={room} requestClose={close} />}
+              />
+              <HeaderMenuButton
+                label="Bookmarks"
+                icon={Icons.Bookmark}
+                renderMenu={(close) => <RoomBookmarkMenu room={room} requestClose={close} />}
               />
             </>
           )}

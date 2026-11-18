@@ -72,6 +72,7 @@ import { EmojiBoard } from '../../../components/emoji-board';
 import { ReactionViewer } from '../reaction-viewer';
 import { MessageEditor } from './MessageEditor';
 import { MessageCopyImageItem } from './MessageCopyImageItem';
+import { MessageBookmarkItem } from './MessageBookmarkItem';
 import { MessageImageMetadataItem } from '../../image-metadata';
 import { UserAvatar } from '../../../components/user-avatar';
 import { copyToClipboard } from '../../../utils/dom';
@@ -1270,6 +1271,7 @@ export const Message = as<'div', MessageProps>(
                             place="end"
                             onClose={closeMenu}
                           />
+                          <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                           {canPinEvent && (
                             <MessagePinItem room={room} mEvent={mEvent} onClose={closeMenu} />
                           )}

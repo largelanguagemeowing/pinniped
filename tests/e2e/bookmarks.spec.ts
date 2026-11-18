@@ -1,0 +1,114 @@
+import { expect, Page, test } from '@playwright/test';
+import { matrixRequest, redactEvent } from './support/matrix';
+
+const ROOM_ID = '!pFxmCvJLPLEicHDuJi:stablecat.club';
+const ROOM_PATH = '%23test%3Astablecat.club/!pFxmCvJLPLEicHDuJi%3Astablecat.club';
+const INDEX_TYPE = 'org.matrix.msc4438.bookmarks.index';
+const ITEM_PREFIX = 'org.matrix.msc4438.bookmark.';
+
+type Index = { revision: number; bookmark_ids: string[] };
+type Item = { room_id: string; event_id: string; deleted?: boolean };
+
+const userPath = async (page: Page) => {
+  const userId = await page.evaluate(() => localStorage.getItem('cinny_user_id'));
+  if (!userId) throw new Error('Missing authenticated Matrix session');
+  return `/user/${encodeURIComponent(userId)}/account_data`;
+};
+
+const readIndex = async (page: Page): Promise<Index | undefined> =>
+  matrixRequest<Index>(page, {
+    method: 'GET',
+    path: `${await userPath(page)}/${INDEX_TYPE}`,
+    allowNotFound: true,
+  });
+
+const readItem = async (page: Page, id: string): Promise<Item | undefined> =>
+  matrixRequest<Item>(page, {
+    method: 'GET',
+    path: `${await userPath(page)}/${encodeURIComponent(ITEM_PREFIX + id)}`,
+    allowNotFound: true,
+  });
+
+/** IDs in the index whose item points at the event. */
+const bookmarkIdsOf = async (page: Page, eventId: string): Promise<string[]> => {
+  const index = await readIndex(page);
+  const items = await Promise.all(
+    (index?.bookmark_ids ?? []).map(async (id) => [id, await readItem(page, id)] as const)
+  );
+  return items.filter(([, item]) => item?.event_id === eventId).map(([id]) => id);
+};
+
+const isAccountDataPut = (url: string, type: string) =>
+  decodeURIComponent(url).endsWith(`/account_data/${type}`);
+
+test('bookmarks a message privately and lists it in the room header', async ({ page }) => {
+  let eventId: string | undefined;
+
+  try {
+    await page.goto(`/${ROOM_PATH}`);
+    const editor = page.locator('[data-editable-name="RoomInput"]');
+    await expect(editor).toBeVisible();
+
+    const marker = `bookmark e2e ${Date.now()}`;
+    await editor.fill(marker);
+    await editor.press('Enter');
+
+    const message = page
+      .getByText(marker, { exact: true })
+      .locator('xpath=ancestor::*[@data-message-id][1]');
+    await expect.poll(() => message.getAttribute('data-message-id')).toMatch(/^\$/);
+    eventId = (await message.getAttribute('data-message-id')) ?? undefined;
+    if (!eventId) throw new Error('Missing sent event ID');
+
+    // bookmark from the context menu
+    await page.getByText(marker, { exact: true }).click({ button: 'right' });
+    const added = page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && isAccountDataPut(r.url(), INDEX_TYPE)
+    );
+    await page.getByRole('button', { name: 'Bookmark Message' }).click();
+    expect((await added).ok()).toBe(true);
+
+    const [bookmarkId] = await bookmarkIdsOf(page, eventId);
+    expect(bookmarkId).toBeTruthy();
+    expect(await readItem(page, bookmarkId)).toMatchObject({
+      room_id: ROOM_ID,
+      event_id: eventId,
+      body_preview: marker,
+    });
+
+    // it is account data on the server, so a fresh load still has it
+    await page.reload();
+    await expect(page.getByText(marker, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Bookmarks', exact: true }).click();
+    await expect(page.getByText(marker, { exact: true })).toHaveCount(2);
+
+    const removed = page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && isAccountDataPut(r.url(), INDEX_TYPE)
+    );
+    await page.getByRole('button', { name: 'Remove Bookmark' }).click();
+    expect((await removed).ok()).toBe(true);
+    await expect(page.getByText('No Bookmarks')).toBeVisible();
+    await expect(page.getByText(marker, { exact: true })).toHaveCount(1);
+
+    expect(await bookmarkIdsOf(page, eventId)).toEqual([]);
+    await expect.poll(async () => (await readItem(page, bookmarkId))?.deleted).toBe(true);
+  } finally {
+    if (eventId) {
+      const leftover = await bookmarkIdsOf(page, eventId);
+      const index = await readIndex(page);
+      if (leftover.length > 0 && index) {
+        await matrixRequest(page, {
+          method: 'PUT',
+          path: `${await userPath(page)}/${INDEX_TYPE}`,
+          body: {
+            ...index,
+            revision: index.revision + 1,
+            updated_ts: Date.now(),
+            bookmark_ids: index.bookmark_ids.filter((id) => !leftover.includes(id)),
+          },
+        });
+      }
+      await redactEvent(page, ROOM_ID, eventId);
+    }
+  }
+});

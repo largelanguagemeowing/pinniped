@@ -131,7 +131,7 @@ import type { IconName, IconSrc } from 'folds/dist/components/icon/Icons';
 // verify each one; defaults to outline so nothing renders as a blob.
 // createElement (not JSX) keeps these off the react/function-component-definition
 // rule, since these are folds render functions, not React components.
-const SOLID = new Set<string>(['Star']);
+const SOLID = new Set<string>(['Star', 'Bookmark']);
 
 const outline =
   (Comp: LucideIcon): IconSrc =>

@@ -39,6 +39,9 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'm.image_pack.rooms': Record<string, unknown>;
     'im.ponies.user_emotes': Record<string, unknown>;
     'im.ponies.emote_rooms': Record<string, unknown>;
+    // MSC4438 bookmarks (unstable prefix): an index plus one item event per bookmark ID
+    'org.matrix.msc4438.bookmarks.index': Record<string, unknown>;
+    [bookmarkItem: `org.matrix.msc4438.bookmark.${string}`]: Record<string, unknown>;
     // pre-rename types read by the legacy account data migration
     'im.kibby.room_order': Record<string, unknown>;
     'im.kibby.gif_favorites': Record<string, unknown>;
