@@ -9,9 +9,12 @@ export async function loginWithTestAccount(page: Page): Promise<void> {
   await expect(username).toBeVisible();
   await username.fill(e2eCredentials.username);
   await password.fill(e2eCredentials.password);
-  await page.getByRole('button', { name: 'Login', exact: true }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
   await page.waitForURL(/\/(home|rooms|%23space)/, { timeout: 60_000 });
+  // every login is a new device; skipping verification is remembered in the saved storage state
+  await page.getByRole('button', { name: 'Continue without verifying' }).click({ timeout: 60_000 });
+  await page.getByRole('button', { name: 'Continue unverified' }).click();
   await expect(page.getByRole('button', { name: 'User Settings' })).toBeVisible({
     timeout: 60_000,
   });
