@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, forwardRef, useEffect, useState } from 'react';
+import React, { MouseEventHandler, ReactElement, forwardRef, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   Box,
@@ -10,6 +10,7 @@ import {
   IconButton,
   Icon,
   Icons,
+  IconSrc,
   Tooltip,
   TooltipProvider,
   Menu,
@@ -326,6 +327,64 @@ const CallMenu = forwardRef<HTMLDivElement, CallMenuProps>(
   }
 );
 
+type HeaderMenuButtonProps = {
+  label: string;
+  icon: IconSrc;
+  renderMenu: (requestClose: () => void) => ReactElement;
+};
+/** A header button that opens a popout menu below it. */
+function HeaderMenuButton({ label, icon, renderMenu }: HeaderMenuButtonProps) {
+  const [anchor, setAnchor] = useState<RectCords>();
+  const close = () => setAnchor(undefined);
+
+  return (
+    <>
+      <TooltipProvider
+        position="Bottom"
+        offset={4}
+        tooltip={
+          <Tooltip>
+            <Text>{label}</Text>
+          </Tooltip>
+        }
+      >
+        {(triggerRef) => (
+          <IconButton
+            fill="None"
+            size="300"
+            style={{ position: 'relative' }}
+            onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
+            ref={triggerRef}
+            aria-label={label}
+            aria-pressed={!!anchor}
+          >
+            <Icon size="300" src={icon} filled={!!anchor} />
+          </IconButton>
+        )}
+      </TooltipProvider>
+      <PopOut
+        anchor={anchor}
+        position="Bottom"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              returnFocusOnDeactivate: false,
+              onDeactivate: close,
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+              isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            {renderMenu(close)}
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
+
 function CallButton() {
   const room = useRoom();
   const direct = useIsDirectRoom();
@@ -469,7 +528,6 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
   const rtcSupported = webRTCSupported();
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-  const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
   const callIdle = useAtomValue(callIdleAtom);
   const embed = useCallEmbed();
   // The black call bar and its idle fade apply only while this room's call is joined.
@@ -521,10 +579,6 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleOpenPinMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setPinMenuAnchor(evt.currentTarget.getBoundingClientRect());
   };
 
   const openSettings = useOpenRoomSettings();
@@ -687,46 +741,10 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
           )}
           {!callView && (
             <>
-              <TooltipProvider
-                position="Bottom"
-                offset={4}
-                tooltip={
-                  <Tooltip>
-                    <Text>Pinned Messages</Text>
-                  </Tooltip>
-                }
-              >
-                {(triggerRef) => (
-                  <IconButton
-                    fill="None"
-                    size="300"
-                    style={{ position: 'relative' }}
-                    onClick={handleOpenPinMenu}
-                    ref={triggerRef}
-                    aria-pressed={!!pinMenuAnchor}
-                  >
-                    <Icon size="300" src={Icons.Pin} filled={!!pinMenuAnchor} />
-                  </IconButton>
-                )}
-              </TooltipProvider>
-              <PopOut
-                anchor={pinMenuAnchor}
-                position="Bottom"
-                content={
-                  <FocusTrap
-                    focusTrapOptions={{
-                      initialFocus: false,
-                      returnFocusOnDeactivate: false,
-                      onDeactivate: () => setPinMenuAnchor(undefined),
-                      clickOutsideDeactivates: true,
-                      isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                      isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                      escapeDeactivates: stopPropagation,
-                    }}
-                  >
-                    <RoomPinMenu room={room} requestClose={() => setPinMenuAnchor(undefined)} />
-                  </FocusTrap>
-                }
+              <HeaderMenuButton
+                label="Pinned Messages"
+                icon={Icons.Pin}
+                renderMenu={(close) => <RoomPinMenu room={room} requestClose={close} />}
               />
             </>
           )}
