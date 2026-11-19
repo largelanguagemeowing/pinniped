@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 
+// layout cleanup runs before child class components' componentWillUnmount, so callbacks they fire while tearing down already see false
 export const useAlive = (): (() => boolean) => {
   const aliveRef = useRef<boolean>(true);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     aliveRef.current = true;
     return () => {
       aliveRef.current = false;
