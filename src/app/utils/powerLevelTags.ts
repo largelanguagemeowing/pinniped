@@ -73,7 +73,7 @@ const DEFAULT_TAGS: PowerLevelTags = {
   },
 };
 
-const FOUNDER_POWER = 101;
+export const FOUNDER_POWER = 101;
 
 const generateFallbackTag = (powerLevelTags: PowerLevelTags, power: number): MemberPowerTag => {
   const highToLow = sortPowers(getPowers(powerLevelTags));

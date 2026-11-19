@@ -14,10 +14,24 @@ type MemberTileProps = {
   room: Room;
   member: RoomMember;
   useAuthentication: boolean;
+  /** shown right after the name */
+  nameAfter?: ReactNode;
   after?: ReactNode;
 };
 export const MemberTile = as<'button', MemberTileProps>(
-  ({ as: AsMemberTile = 'button', mx, room, member, useAuthentication, after, ...props }, ref) => {
+  (
+    {
+      as: AsMemberTile = 'button',
+      mx,
+      room,
+      member,
+      useAuthentication,
+      nameAfter,
+      after,
+      ...props
+    },
+    ref
+  ) => {
     const name = getName(room, member);
     const username = getMxIdLocalPart(member.userId);
 
@@ -37,9 +51,12 @@ export const MemberTile = as<'button', MemberTileProps>(
           />
         </Avatar>
         <Box grow="Yes" as="span" direction="Column">
-          <Text as="span" size="T300" truncate>
-            <b>{name}</b>
-          </Text>
+          <Box as="span" alignItems="Center" gap="100">
+            <Text as="span" size="T300" truncate>
+              <b>{name}</b>
+            </Text>
+            {nameAfter}
+          </Box>
           <Box alignItems="Center" justifyContent="SpaceBetween" gap="100">
             <Text as="span" size="T200" priority="300" truncate>
               {username}

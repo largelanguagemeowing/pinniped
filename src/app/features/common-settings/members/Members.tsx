@@ -23,6 +23,7 @@ import {
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { RoomMember } from 'matrix-js-sdk';
+import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageHeader } from '../../../components/page';
 import { useRoom } from '../../../hooks/useRoom';
 import { useRoomMembers } from '../../../hooks/useRoomMembers';
@@ -56,6 +57,8 @@ import { useSpaceOptionally } from '../../../hooks/useSpace';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '../../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { getMouseEventCords } from '../../../utils/dom';
+import { mDirectAtom } from '../../../state/mDirectList';
+import { CreatorCrown, useCreatorCrownColor } from '../../../components/creator-crown';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -88,6 +91,9 @@ export function Members({ requestClose }: MembersProps) {
   const creators = useRoomCreators(room);
   const getPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
   const getPowerLevel = useGetMemberPowerLevel(powerLevels);
+  // DMs show no role cues
+  const showCreators = !useAtomValue(mDirectAtom).has(room.roomId);
+  const crown = <CreatorCrown crownColor={useCreatorCrownColor(room, powerLevels)} />;
 
   const [membershipFilterIndex, setMembershipFilterIndex] = useState(0);
   const [sortFilterIndex, setSortFilterIndex] = useSetting(settingsAtom, 'memberSortFilterIndex');
@@ -327,6 +333,9 @@ export function Members({ requestClose }: MembersProps) {
                             room={room}
                             member={tagOrMember}
                             useAuthentication={useAuthentication}
+                            nameAfter={
+                              showCreators && creators.has(tagOrMember.userId) ? crown : undefined
+                            }
                             after={
                               server && (
                                 <Box as="span" shrink="No" alignSelf="End">

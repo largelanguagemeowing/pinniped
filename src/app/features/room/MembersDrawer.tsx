@@ -1,6 +1,7 @@
 import React, {
   ChangeEventHandler,
   MouseEventHandler,
+  ReactNode,
   useCallback,
   useMemo,
   useRef,
@@ -29,6 +30,7 @@ import {
 import { MatrixClient, Room, RoomMember } from 'matrix-js-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
+import { useAtomValue } from 'jotai';
 
 import * as css from './MembersDrawer.css';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -63,6 +65,8 @@ import { useSpaceOptionally } from '../../hooks/useSpace';
 import { ContainerColor } from '../../styles/ContainerColor.css';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
+import { CreatorCrown, useCreatorCrownColor } from '../../components/creator-crown';
+import { mDirectAtom } from '../../state/mDirectList';
 
 type MemberDrawerHeaderProps = {
   room: Room;
@@ -114,6 +118,8 @@ type MemberItemProps = {
   pressed?: boolean;
   typing?: boolean;
   showPresence?: boolean;
+  /** shown right after the name */
+  nameAfter?: ReactNode;
 };
 function MemberItem({
   mx,
@@ -124,6 +130,7 @@ function MemberItem({
   pressed,
   typing,
   showPresence,
+  nameAfter,
 }: MemberItemProps) {
   const name =
     getMemberDisplayName(room, member.userId) ?? getMxIdLocalPart(member.userId) ?? member.userId;
@@ -169,9 +176,12 @@ function MemberItem({
       }
     >
       <Box grow="Yes" direction="Column">
-        <Text size="T400" truncate>
-          {name}
-        </Text>
+        <Box alignItems="Center" gap="100">
+          <Text size="T400" truncate>
+            {name}
+          </Text>
+          {nameAfter}
+        </Box>
         {(statusMsg || richPresence) && (
           <PresenceStatus
             className={css.MemberStatus}
@@ -211,6 +221,9 @@ export function MembersDrawer({ room, members, hideHeader }: MembersDrawerProps)
   const creators = useRoomCreators(room);
   const getPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
   const getPowerLevel = useGetMemberPowerLevel(powerLevels);
+  // DMs show no role cues
+  const showCreators = !useAtomValue(mDirectAtom).has(room.roomId);
+  const crown = <CreatorCrown crownColor={useCreatorCrownColor(room, powerLevels)} />;
 
   const fetchingMembers = members.length < room.getJoinedMemberCount();
   const openUserRoomProfile = useOpenUserRoomProfile();
@@ -445,6 +458,9 @@ export function MembersDrawer({ room, members, hideHeader }: MembersDrawerProps)
                         onClick={handleMemberClick}
                         pressed={openProfileUserId === tagOrMember.userId}
                         showPresence={showPresenceInMemberList}
+                        nameAfter={
+                          showCreators && creators.has(tagOrMember.userId) ? crown : undefined
+                        }
                         typing={typingMembers.some(
                           (receipt) => receipt.userId === tagOrMember.userId
                         )}
