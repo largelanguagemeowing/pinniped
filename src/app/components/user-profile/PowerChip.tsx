@@ -44,7 +44,6 @@ import {
   useAccessiblePowerTagColors,
   useGetMemberPowerTag,
 } from '../../hooks/useMemberPowerTag';
-import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '../../hooks/useMemberPowerCompare';
@@ -166,7 +165,7 @@ export function PowerChip({ userId }: { userId: string }) {
 
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
   const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
-  const roleColors = useAccessiblePowerTagColors(useRoomCreatorsTag(), powerLevelTags);
+  const roleColors = useAccessiblePowerTagColors(powerLevelTags);
 
   const myUserId = mx.getSafeUserId();
   const canChangePowers =

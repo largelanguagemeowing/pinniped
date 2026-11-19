@@ -132,7 +132,6 @@ import { useSpaceOptionally } from '../../hooks/useSpace';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { useAccessiblePowerTagColors, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
-import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { eventToTranscriptLine } from '../../utils/copyTranscript';
 import {
@@ -467,11 +466,10 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const powerLevels = usePowerLevelsContext();
   const creators = useRoomCreators(room);
 
-  const creatorsTag = useRoomCreatorsTag();
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
   const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
 
-  const accessiblePowerTagColors = useAccessiblePowerTagColors(creatorsTag, powerLevelTags);
+  const accessiblePowerTagColors = useAccessiblePowerTagColors(powerLevelTags);
 
   const permissions = useRoomPermissions(creators, powerLevels);
 

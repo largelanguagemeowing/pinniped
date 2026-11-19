@@ -7,6 +7,8 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { usePowerLevels } from '../../hooks/usePowerLevels';
 import { useRoom } from '../../hooks/useRoom';
+import { useAtomValue } from 'jotai';
+import { mDirectAtom } from '../../state/mDirectList';
 import { useUserPresence } from '../../hooks/useUserPresence';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip } from './UserChips';
 import { PowerChip } from './PowerChip';
@@ -17,7 +19,6 @@ import { Membership } from '../../../types/matrix/room';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '../../hooks/useMemberPowerCompare';
-import { CreatorChip } from './CreatorChip';
 import { useUserRichPresence } from '../../hooks/useUserRichPresence';
 import { UserRichPresence } from './UserRichPresence';
 import { useUserProfile } from '../../hooks/useUserProfile';
@@ -39,6 +40,8 @@ export function UserRoomProfile({ userId }: UserRoomProfileProps) {
   const ignored = ignoredUsers.includes(userId);
 
   const room = useRoom();
+  // Read the m.direct list, not the route's context: the rooms route always reports false.
+  const direct = useAtomValue(mDirectAtom).has(room.roomId);
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
 
@@ -46,7 +49,6 @@ export function UserRoomProfile({ userId }: UserRoomProfileProps) {
   const { hasMorePower } = useMemberPowerCompare(creators, powerLevels);
 
   const myUserId = mx.getSafeUserId();
-  const creator = creators.has(userId);
 
   const canKickUser = permissions.action('kick', myUserId) && hasMorePower(myUserId, userId);
   const canBanUser = permissions.action('ban', myUserId) && hasMorePower(myUserId, userId);
@@ -87,7 +89,7 @@ export function UserRoomProfile({ userId }: UserRoomProfileProps) {
             <UserHeroName displayName={displayName} userId={userId} pronouns={pronouns} />
           </Box>
           <Box alignItems="Center" gap="200" wrap="Wrap">
-            {creator ? <CreatorChip /> : <PowerChip userId={userId} />}
+            {!direct && <PowerChip userId={userId} />}
             {userId !== myUserId && <MutualRoomsChip userId={userId} />}
             {userId !== myUserId && (
               <OptionsChip

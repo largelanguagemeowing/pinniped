@@ -50,7 +50,6 @@ import {
   useGetMemberPowerTag,
 } from '../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
-import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 
 type SearchResultGroupProps = {
   room: Room;
@@ -81,11 +80,10 @@ export function SearchResultGroup({
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
 
-  const creatorsTag = useRoomCreatorsTag();
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
   const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
 
-  const accessibleTagColors = useAccessiblePowerTagColors(creatorsTag, powerLevelTags);
+  const accessibleTagColors = useAccessiblePowerTagColors(powerLevelTags);
 
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();

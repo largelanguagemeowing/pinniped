@@ -4,7 +4,6 @@ import { MatrixClient, Room, RoomMember } from 'matrix-js-sdk';
 import { getPowerLevelTag, usePowerLevelTags } from './usePowerLevelTags';
 import { IPowerLevels, readPowerLevel } from './usePowerLevels';
 import { MemberPowerTag, MemberPowerTagIcon, PowerLevelTags } from '../../types/matrix/room';
-import { useRoomCreatorsTag } from './useRoomCreatorsTag';
 import { color } from 'folds';
 import { ThemeKind, useTheme } from './useTheme';
 import { getRolePalette } from '../themes/fork/roleHues';
@@ -22,19 +21,14 @@ export const useGetMemberPowerTag = (
   creators: Set<string>,
   powerLevels: IPowerLevels
 ) => {
-  const creatorsTag = useRoomCreatorsTag();
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
 
   const getMemberPowerTag: GetMemberPowerTag = useCallback(
     (userId) => {
-      if (creators.has(userId)) {
-        return creatorsTag;
-      }
-
       const power = readPowerLevel.user(powerLevels, userId);
       return getPowerLevelTag(powerLevelTags, power);
     },
-    [creators, creatorsTag, powerLevels, powerLevelTags]
+    [powerLevels, powerLevelTags]
   );
 
   return getMemberPowerTag;
@@ -52,7 +46,6 @@ export const getPowerTagIconSrc = (
 };
 
 export const useAccessiblePowerTagColors = (
-  creatorsTag: MemberPowerTag,
   powerLevelTags: PowerLevelTags
 ): Map<string, string> => {
   const [mode] = useSetting(settingsAtom, 'roleColorMode');
@@ -62,7 +55,7 @@ export const useAccessiblePowerTagColors = (
 
   return useMemo(() => {
     const tagColors: string[] = [];
-    [creatorsTag, ...Object.values(powerLevelTags)].forEach((tag) => {
+    Object.values(powerLevelTags).forEach((tag) => {
       if (tag.color) tagColors.push(tag.color);
     });
     const base = {
@@ -75,7 +68,7 @@ export const useAccessiblePowerTagColors = (
       spread,
       tone: (tagColor) => toneOf(tagColor, base),
     });
-  }, [mode, spread, themeId, kind, powerLevelTags, creatorsTag, readable]);
+  }, [mode, spread, themeId, kind, powerLevelTags, readable]);
 };
 
 export const useFlattenPowerTagMembers = (

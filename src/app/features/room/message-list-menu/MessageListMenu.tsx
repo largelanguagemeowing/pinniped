@@ -76,7 +76,6 @@ import {
   useAccessiblePowerTagColors,
   useGetMemberPowerTag,
 } from '../../../hooks/useMemberPowerTag';
-import { useRoomCreatorsTag } from '../../../hooks/useRoomCreatorsTag';
 import { useUrlPreviewSetting } from '../../../hooks/useUrlPreview';
 
 type ListedMessageProps = {
@@ -264,11 +263,10 @@ export const MessageListMenu = forwardRef<HTMLDivElement, MessageListMenuProps>(
     const powerLevels = usePowerLevelsContext();
     const creators = useRoomCreators(room);
 
-    const creatorsTag = useRoomCreatorsTag();
     const powerLevelTags = usePowerLevelTags(room, powerLevels);
     const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
 
-    const accessibleTagColors = useAccessiblePowerTagColors(creatorsTag, powerLevelTags);
+    const accessibleTagColors = useAccessiblePowerTagColors(powerLevelTags);
 
     const useAuthentication = useMediaAuthentication();
     const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');

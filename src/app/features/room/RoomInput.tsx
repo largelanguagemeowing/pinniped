@@ -133,7 +133,6 @@ import colorMXID from '../../../util/colorMXID';
 import { useIsDirectRoom } from '../../hooks/useRoom';
 import { useAccessiblePowerTagColors, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
-import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { useComposingCheck } from '../../hooks/useComposingCheck';
 import { PollCreator, PollIcon } from '../../components/poll';
@@ -185,9 +184,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const replyUserID = replyDraft?.userId;
 
     const powerLevelTags = usePowerLevelTags(room, powerLevels);
-    const creatorsTag = useRoomCreatorsTag();
     const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
-    const accessibleTagColors = useAccessiblePowerTagColors(creatorsTag, powerLevelTags);
+    const accessibleTagColors = useAccessiblePowerTagColors(powerLevelTags);
 
     const replyPowerTag = replyUserID ? getMemberPowerTag(replyUserID) : undefined;
     const replyPowerColor = replyPowerTag?.color

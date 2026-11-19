@@ -25,8 +25,6 @@ import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { stopPropagation } from '../../../utils/keyboard';
 import { PermissionGroup } from './types';
 import { getPowerTagIconSrc } from '../../../hooks/useMemberPowerTag';
-import { useRoomCreatorsTag } from '../../../hooks/useRoomCreatorsTag';
-import { useRoomCreators } from '../../../hooks/useRoomCreators';
 
 type PeekPermissionsProps = {
   powerLevels: IPowerLevels;
@@ -111,42 +109,9 @@ export function Powers({ powerLevels, permissionGroups, onEdit }: PowersProps) {
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
-  const creators = useRoomCreators(room);
-  const creatorsTag = useRoomCreatorsTag();
-  const creatorTagIconSrc =
-    creatorsTag.icon && getPowerTagIconSrc(mx, useAuthentication, creatorsTag.icon);
 
   return (
     <Box direction="Column" gap="100">
-      {creators.size > 0 && (
-        <SequenceCard
-          variant="SurfaceVariant"
-          className={SequenceCardStyle}
-          direction="Column"
-          gap="400"
-        >
-          <SettingTile
-            title="Founders"
-            description="Founding members has all permissions and can only be changed during upgrade."
-          />
-
-          <SettingTile>
-            <Box gap="200" wrap="Wrap">
-              <Chip
-                disabled
-                variant="Secondary"
-                radii="300"
-                before={<PowerColorBadge color={creatorsTag.color} />}
-                after={creatorTagIconSrc && <PowerIcon size="50" iconSrc={creatorTagIconSrc} />}
-              >
-                <Text size="T300" truncate>
-                  <b>{creatorsTag.name}</b>
-                </Text>
-              </Chip>
-            </Box>
-          </SettingTile>
-        </SequenceCard>
-      )}
       <SequenceCard
         variant="SurfaceVariant"
         className={SequenceCardStyle}
