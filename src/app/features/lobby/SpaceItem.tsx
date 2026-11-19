@@ -28,6 +28,7 @@ import { LocalRoomSummaryLoader } from '../../components/RoomSummaryLoader';
 import { getRoomAvatarUrl } from '../../utils/room';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import * as css from './SpaceItem.css';
+import { JoinErrorIcon } from './JoinErrorIcon';
 import * as styleCss from './style.css';
 import { useDraggableItem } from './DnD';
 import { stopPropagation } from '../../utils/keyboard';
@@ -151,13 +152,7 @@ function UnjoinedSpaceProfile({
             <Text size="L400">Suggested</Text>
           </Badge>
         )}
-        {joinState.status === AsyncStatus.Error && (
-          <Badge variant="Critical" fill="Soft" radii="Pill" outlined>
-            <Text size="L400" truncate>
-              {joinState.error.name}
-            </Text>
-          </Badge>
-        )}
+        {joinState.status === AsyncStatus.Error && <JoinErrorIcon error={joinState.error} />}
       </Box>
     </Chip>
   );

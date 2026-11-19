@@ -12,10 +12,7 @@ import {
   OverlayCenter,
   Spinner,
   Text,
-  Tooltip,
-  TooltipProvider,
   as,
-  color,
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
@@ -33,6 +30,7 @@ import { onEnterOrSpace, stopPropagation } from '../../utils/keyboard';
 import { Membership } from '../../../types/matrix/room';
 import * as css from './RoomItem.css';
 import * as styleCss from './style.css';
+import { JoinErrorIcon } from './JoinErrorIcon';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '../../utils/room';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
@@ -55,32 +53,7 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
 
   return (
     <Box shrink="No" gap="200" alignItems="Center">
-      {joinState.status === AsyncStatus.Error && (
-        <TooltipProvider
-          tooltip={
-            <Tooltip variant="Critical" style={{ maxWidth: toRem(200) }}>
-              <Box direction="Column" gap="100">
-                <Text style={{ wordBreak: 'break-word' }} size="T400">
-                  {joinState.error.data?.error || joinState.error.message}
-                </Text>
-                <Text size="T200">{joinState.error.name}</Text>
-              </Box>
-            </Tooltip>
-          }
-        >
-          {(triggerRef) => (
-            <Icon
-              ref={triggerRef}
-              style={{ color: color.Critical.Main, cursor: 'pointer' }}
-              src={Icons.Warning}
-              size="400"
-              filled
-              tabIndex={0}
-              aria-label={joinState.error.data?.error || joinState.error.message}
-            />
-          )}
-        </TooltipProvider>
-      )}
+      {joinState.status === AsyncStatus.Error && <JoinErrorIcon error={joinState.error} tabbable />}
       <Chip
         variant="Secondary"
         fill="Soft"
