@@ -5,21 +5,19 @@ import * as css from './styles.css';
 import { CallRoomName } from './CallRoomName';
 import { CallControl, CallHangupButton } from './CallControl';
 import { ContainerColor } from '../../styles/ContainerColor.css';
-import { CallEmbed } from '../../plugins/call/CallEmbed';
+import type { Call } from '../../plugins/call/Call';
+import { useBehavior } from '../../plugins/call/engine/useBehavior';
 import { CallStatsPopout } from './stats/CallStatsPopout';
-import { useCallConnectionStatus, useCallJoined } from '../../hooks/useCallEmbed';
-import { useCallError } from '../../plugins/call/hooks';
 
 type CallStatusProps = {
-  callEmbed: CallEmbed;
+  call: Call;
 };
 /** "Voice Connected" panel for the bottom of the room list. */
-export function CallStatus({ callEmbed }: CallStatusProps) {
-  const { room } = callEmbed;
+export function CallStatus({ call }: CallStatusProps) {
+  const { room } = call;
 
-  const callJoined = useCallJoined(callEmbed);
-  const connectionStatus = useCallConnectionStatus(callEmbed);
-  const callError = useCallError(callEmbed);
+  const connected = useBehavior(call.vm.connected$);
+  const publishError = useBehavior(call.vm.publishError$);
   const [statsCords, setStatsCords] = useState<RectCords>();
 
   return (
@@ -36,7 +34,7 @@ export function CallStatus({ callEmbed }: CallStatusProps) {
           grow="Yes"
           alignItems="Center"
           gap="200"
-          disabled={!callJoined}
+          disabled={!connected}
           aria-label="Connection stats"
           aria-pressed={!!statsCords}
           onClick={(evt: React.MouseEvent<HTMLButtonElement>) =>
@@ -49,42 +47,44 @@ export function CallStatus({ callEmbed }: CallStatusProps) {
             padding: 0,
             textAlign: 'left',
             color: 'inherit',
-            cursor: callJoined ? 'pointer' : 'default',
+            cursor: connected ? 'pointer' : 'default',
           }}
         >
-          {callJoined ? (
+          {connected ? (
             <Icon size="200" src={Icons.VolumeHigh} filled style={{ color: color.Success.Main }} />
           ) : (
             <Spinner variant="Secondary" size="200" />
           )}
           <Box grow="Yes" direction="Column" style={{ minWidth: 0 }}>
             <Text size="T300" style={{ color: color.Success.Main }} truncate>
-              {callJoined ? 'Voice Connected' : connectionStatus}
+              {connected ? 'Voice Connected' : 'Connecting…'}
             </Text>
             <CallRoomName room={room} plain />
           </Box>
         </Box>
         <CallStatsPopout
-          callEmbed={callEmbed}
+          call={call}
           anchor={statsCords}
           requestClose={() => setStatsCords(undefined)}
         />
         <Box shrink="No">
-          <CallHangupButton callEmbed={callEmbed} callJoined={callJoined} />
+          <CallHangupButton call={call} />
         </Box>
       </Box>
-      {callError && (
+      {publishError && (
         <Box role="alert" alignItems="Start" gap="200" style={{ color: color.Critical.Main }}>
           <Icon size="200" src={Icons.Warning} filled />
           <Box grow="Yes" direction="Column" style={{ minWidth: 0 }}>
             <Text size="T300">
-              <b>{callError.title}</b>
+              <b>{publishError.localisedTitle}</b>
             </Text>
-            {callError.message && <Text size="T200">{callError.message}</Text>}
+            {publishError.localisedMessage && (
+              <Text size="T200">{publishError.localisedMessage}</Text>
+            )}
           </Box>
         </Box>
       )}
-      <CallControl callJoined={callJoined} callEmbed={callEmbed} />
+      <CallControl call={call} connected={connected} />
     </Box>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { CallEmbed } from '../../plugins/call';
+import type { Call } from '../../plugins/call/Call';
 import { PackSound, Sound } from '../../plugins/sound-pack';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -10,7 +10,7 @@ import { decryptFile, downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
 
 const MAX_RECENT = 12;
 
-/** Downloaded sounds as blob: URLs, which the (same-origin) call widget can fetch. */
+/** Downloaded sounds as blob: URLs, which the call decodes. */
 const blobUrls = new Map<string, Promise<string>>();
 
 export const useSoundBlobUrl = () => {
@@ -38,7 +38,7 @@ export const useSoundBlobUrl = () => {
 };
 
 /** Plays soundboard sounds into the call: everyone in it hears them, and so do you. */
-export const useSoundPlayer = (callEmbed: CallEmbed) => {
+export const useSoundPlayer = (call: Call) => {
   const getBlobUrl = useSoundBlobUrl();
   const [recent, setRecent] = useSetting(settingsAtom, 'soundboardRecent');
 
@@ -46,16 +46,16 @@ export const useSoundPlayer = (callEmbed: CallEmbed) => {
     async (sound: Sound) => {
       logSound('play', `soundboard ${sound.key}`, sound.name);
       const url = await getBlobUrl(sound.url, sound.file);
-      await callEmbed.soundboard({ op: 'play', url, mode: sound.mode });
+      call.vm.soundboard({ op: 'play', url, mode: sound.mode });
       setRecent([sound.key, ...recent.filter((k) => k !== sound.key)].slice(0, MAX_RECENT));
     },
-    [callEmbed, getBlobUrl, recent, setRecent]
+    [call, getBlobUrl, recent, setRecent]
   );
 
   const stop = useCallback(() => {
     logSound('stop', 'soundboard');
-    return callEmbed.soundboard({ op: 'stop' });
-  }, [callEmbed]);
+    call.vm.soundboard({ op: 'stop' });
+  }, [call]);
 
   return { play, stop };
 };

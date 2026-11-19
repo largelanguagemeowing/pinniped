@@ -1,7 +1,7 @@
 // System audio for screen shares on Linux: a virtual PipeWire microphone that
 // carries the audio of every other application but not Pinniped's own, so the
 // call and the soundboard never echo back into the share. Chromium's
-// getDisplayMedia() cannot capture system audio on Linux, so the call widget
+// getDisplayMedia() cannot capture system audio on Linux, so the call
 // opens this virtual microphone and publishes it as the share's audio track.
 //
 // The helper (electron/helper/src/screenshare.rs) does the PipeWire work. The
@@ -11,13 +11,13 @@
 // Windows has no virtual microphone without a driver, so the helper (electron/helper/src/windows)
 // captures the audio itself: the applications that play on the output device, minus Pinniped's
 // own process tree. It arrives here as PCM chunks (`pcm` events: 16-bit stereo 48 kHz), which
-// main.cjs forwards to the page and the page to the call widget.
+// main.cjs forwards to the page and the page to the call.
 //
 // The renderer calls prepare() once a call is up so the device exists when a
 // share starts, link(true) while a share runs and release() when it is over.
 const { helper } = require('./helper.cjs');
 
-// Shown as the device's name; the call widget finds the device by it.
+// Shown as the device's name; the call finds the device by it.
 const DEVICE_LABEL = 'Pinniped Screen Share Audio';
 
 const { EventEmitter } = require('events');

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
-import { callEmbedAtom } from '../../state/callEmbed';
+import { callAtom } from '../../state/call';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import { bindingsToShortcuts, isCallHotkeyAction } from './hotkeys';
@@ -10,7 +10,7 @@ import { bindingsToShortcuts, isCallHotkeyAction } from './hotkeys';
  * one is pressed. Renders nothing. Outside the desktop app there is no bridge, so it does nothing.
  */
 export function CallHotkeys() {
-  const callEmbed = useAtomValue(callEmbedAtom);
+  const call = useAtomValue(callAtom);
   const [bindings] = useSetting(settingsAtom, 'callHotkeys');
 
   const shortcuts = useMemo(() => bindingsToShortcuts(bindings), [bindings]);
@@ -30,12 +30,11 @@ export function CallHotkeys() {
     const onHotkey = window.pinnipedDesktop?.onHotkey;
     if (!onHotkey) return undefined;
     return onHotkey((id) => {
-      const control = callEmbed?.control;
-      if (!control || !isCallHotkeyAction(id)) return;
-      if (id === 'mute') control.toggleMicrophone();
-      else control.toggleSound();
+      if (!call || !isCallHotkeyAction(id)) return;
+      if (id === 'mute') call.toggleMicrophone();
+      else call.toggleSound();
     });
-  }, [callEmbed]);
+  }, [call]);
 
   return null;
 }

@@ -19,7 +19,7 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { Room } from 'matrix-js-sdk';
-import { CallEmbed } from '../../plugins/call';
+import type { Call } from '../../plugins/call/Call';
 import { Sound, SoundPack } from '../../plugins/sound-pack';
 import { useCallSoundPacks } from '../../hooks/useSoundPacks';
 import { useSoundFavorites } from '../../state/soundFavorites';
@@ -111,18 +111,18 @@ function PackAvatar({ pack, fallback }: { pack: SoundPack; fallback: string }) {
 }
 
 type SoundboardPickerProps = {
-  callEmbed: CallEmbed;
+  call: Call;
   room: Room;
   anchor: RectCords | undefined;
   requestClose: () => void;
 };
 /** Pick a sound to play into the call: your own, favourites, recents and the room's packs. */
-export function SoundboardPicker({ callEmbed, room, anchor, requestClose }: SoundboardPickerProps) {
+export function SoundboardPicker({ call, room, anchor, requestClose }: SoundboardPickerProps) {
   const { user, rooms } = useCallSoundPacks(room);
   const [favorites, toggleFavorite] = useSoundFavorites();
   const [recentKeys] = useSetting(settingsAtom, 'soundboardRecent');
   const [volume, setVolume] = useSetting(settingsAtom, 'soundboardVolume');
-  const { play, stop } = useSoundPlayer(callEmbed);
+  const { play, stop } = useSoundPlayer(call);
   const [query, setQuery] = useState('');
   const [showVolume, setShowVolume] = useState(false);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());

@@ -1,11 +1,6 @@
-import {
-  CallStatsConnection,
-  CallStatsSample,
-  formatBitrate,
-  formatBytes,
-  StatPoint,
-  valueSeries,
-} from '../../../plugins/call';
+import type { CallStatsSample } from '../../../plugins/call/Call';
+import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/callStats';
+import { formatBitrate, formatBytes, StatPoint, valueSeries } from '../../../plugins/call/stats';
 import { APP_VERSION, isDesktop } from '../../../utils/device';
 import {
   ChartSpec,

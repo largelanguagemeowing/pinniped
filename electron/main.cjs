@@ -52,7 +52,7 @@ const APP_ICON = path
   .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 
 // Asks the renderer to leave the call it is in, if any (see onLeaveCallRequest in preload.cjs),
-// and gives the widget a moment to publish the leave. The renderer answers `call:left` with the
+// and gives it a moment to publish the leave. The renderer answers `call:left` with the
 // request id and whether it was in a call. Never waits longer than a few seconds, so a hung
 // renderer cannot block closing.
 const LEAVE_CALL_TIMEOUT_MS = 3000;
@@ -318,8 +318,8 @@ handleFromApp('startup:set', async (_event, enabled, minimized) => {
 
 // Authenticated media: the homeserver wants a bearer token on media downloads and thumbnails,
 // which <img>, <audio> and <video> cannot send themselves. On the web a service worker adds
-// it; here the main process does, for every request of the session (the call iframe and
-// workers included) with no worker to start, control or race. The renderer hands over the
+// it; here the main process does, for every request of the session (workers
+// included) with no worker to start, control or race. The renderer hands over the
 // homeserver URL and token at login and clears them at logout (see src/sw-session.ts).
 let mediaAuth = null;
 const MEDIA_URL_PATTERNS = ['*://*/*_matrix/client/v1/media/*', '*://*/*_matrix/media/v3/*'];
@@ -564,8 +564,8 @@ function createWindow() {
   });
 
   mainWindow.on('close', (event) => {
-    // Closing destroys the call iframe, which would leave the call by killing the widget
-    // mid-call and leave the membership to time out. Leave it first, then close for real.
+    // Closing destroys the page, which would drop the call mid-call and leave the membership
+    // to time out. Leave it first, then close for real.
     if (!callLeft) {
       event.preventDefault();
       if (leavingCall) return;
@@ -632,8 +632,8 @@ function createWindow() {
 // finishes writing a new index.html. Same origin as production, so the session sticks.
 let reloadTimer = null;
 function watchDistForReload() {
-  // Reloading destroys the call iframe, so leave the call properly first instead of
-  // letting the widget get killed mid-call.
+  // Reloading destroys the page, so leave the call properly first instead of dropping it
+  // mid-call.
   const reloadAfterLeavingCall = async () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     await leaveCall();

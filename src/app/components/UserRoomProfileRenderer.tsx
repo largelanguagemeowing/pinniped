@@ -1,15 +1,5 @@
 import React from 'react';
-import {
-  Align,
-  Menu,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  PopOut,
-  Position,
-  RectCords,
-  toRem,
-} from 'folds';
+import { Align, Menu, PopOut, Position, RectCords, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useCloseUserRoomProfile, useUserRoomProfileState } from '../state/hooks/userRoomProfile';
 import { UserRoomProfile } from './user-profile';
@@ -46,7 +36,7 @@ const getPlacement = (
 };
 
 function UserRoomProfileContextMenu({ state }: { state: UserRoomProfileState }) {
-  const { roomId, spaceId, userId, cords, position, centered } = state;
+  const { roomId, spaceId, userId, cords, position } = state;
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
   const room = getRoom(roomId);
@@ -55,6 +45,12 @@ function UserRoomProfileContextMenu({ state }: { state: UserRoomProfileState }) 
   const close = useCloseUserRoomProfile();
 
   if (!room) return null;
+
+  // PopOut measures its content once, when it opens, but the profile (and its
+  // bio) loads afterwards and grows the card. So pick the side/alignment from
+  // the space a full card needs, so it grows away from the nearest screen edge
+  // instead of getting clipped, while staying attached to the anchor.
+  const placement = getPlacement(cords, position ?? 'Top');
 
   const card = (
     <FocusTrap
@@ -74,20 +70,6 @@ function UserRoomProfileContextMenu({ state }: { state: UserRoomProfileState }) 
       </Menu>
     </FocusTrap>
   );
-
-  if (centered) {
-    return (
-      <Overlay open backdrop={<OverlayBackdrop />}>
-        <OverlayCenter>{card}</OverlayCenter>
-      </Overlay>
-    );
-  }
-
-  // PopOut measures its content once, when it opens, but the profile (and its
-  // bio) loads afterwards and grows the card. So pick the side/alignment from
-  // the space a full card needs, so it grows away from the nearest screen edge
-  // instead of getting clipped, while staying attached to the anchor.
-  const placement = getPlacement(cords, position ?? 'Top');
 
   return (
     <PopOut anchor={cords} position={placement.position} align={placement.align} content={card} />

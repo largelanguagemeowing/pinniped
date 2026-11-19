@@ -3,7 +3,7 @@ import { useSetAtom } from 'jotai';
 import { useParams } from 'react-router-dom';
 import { Box, Text, TooltipProvider, Tooltip, Icon, Icons, IconButton, toRem } from 'folds';
 import { Page, PageHeader } from '../../components/page';
-import { callChatAtom } from '../../state/callEmbed';
+import { callChatAtom } from '../../state/call';
 import { RoomView } from './RoomView';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 

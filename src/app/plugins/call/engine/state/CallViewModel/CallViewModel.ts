@@ -222,7 +222,7 @@ export interface CallViewModel {
    * Whether we are ringing a call recipient.
    */
   ringing$: Behavior<boolean>;
-  /** Observable that emits when the user should leave the call (hangup pressed, widget action, error).
+  /** Observable that emits when the user should leave the call (hangup pressed, auto leave, error).
    * THIS DOES NOT LEAVE THE CALL YET. The only way to leave the call (send the hangup event) is
    *  - by ending the scope
    *  - or calling requestDisconnect

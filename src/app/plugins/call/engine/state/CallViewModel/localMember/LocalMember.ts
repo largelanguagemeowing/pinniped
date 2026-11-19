@@ -921,7 +921,6 @@ interface EnterRTCSessionOptions {
  * @param ownMembershipIdentity - Options for entering the RTC session.
  * @param transport - The LivekitTransport to use for this session.
  * @param options - `encryptMedia`: Whether to encrypt media `matrixRTCMode`: The Matrix RTC mode to use.
- * @throws If the widget could not send ElementWidgetActions.JoinCall action.
  */
 // Exported for unit testing
 export function enterRTCSession(

@@ -83,8 +83,7 @@ import { useOpenedSidebarFolderAtom } from '../../../state/hooks/openedSidebarFo
 import { usePowerLevels } from '../../../hooks/usePowerLevels';
 import { useRoomsUnread } from '../../../state/hooks/unread';
 import { roomToUnreadAtom } from '../../../state/room/roomToUnread';
-import { useSpaceHasCall } from '../../../hooks/useCall';
-import { useCallEmbed, useCallJoined } from '../../../hooks/useCallEmbed';
+import { useCall, useSpaceHasCall } from '../../../hooks/useCall';
 import { markAsRead } from '../../../utils/notifications';
 import { copyToClipboard } from '../../../utils/dom';
 import { stopPropagation } from '../../../utils/keyboard';
@@ -684,9 +683,7 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const [openedFolder, setOpenedFolder] = useAtom(useOpenedSidebarFolderAtom());
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
-  const callEmbed = useCallEmbed();
-  const callJoined = useCallJoined(callEmbed);
-  const activeCallRoomId = callJoined ? callEmbed?.roomId : undefined;
+  const activeCallRoomId = useCall()?.roomId;
 
   useDnDMonitor(
     scrollRef,

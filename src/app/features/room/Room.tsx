@@ -13,11 +13,10 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useRoomMembers } from '../../hooks/useRoomMembers';
 import { CallView } from '../call/CallView';
 import { RoomViewHeader } from './RoomViewHeader';
-import { callChatAtom } from '../../state/callEmbed';
+import { callChatAtom } from '../../state/call';
 import { CallChatView } from './CallChatView';
-import { useCallEmbed, useCallJoined } from '../../hooks/useCallEmbed';
 import * as callCss from '../call/styles.css';
-import { useCallMembers, useCallSession } from '../../hooks/useCall';
+import { useCall, useCallMembers, useCallSession } from '../../hooks/useCall';
 import { DmCallSplit } from './DmCallSplit';
 
 export function Room() {
@@ -27,8 +26,8 @@ export function Room() {
 
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(callSession);
-  const callEmbed = useCallEmbed();
-  const callJoined = useCallJoined(callEmbed);
+  const call = useCall();
+  const inCall = call?.roomId === room.roomId;
 
   const [isDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
   const screenSize = useScreenSizeContext();
@@ -37,7 +36,7 @@ export function Room() {
   const chat = useAtomValue(callChatAtom);
   const direct = useIsDirectRoom();
 
-  const callView = callEmbed?.roomId === room.roomId || room.isCallRoom() || callMembers.length > 0;
+  const callView = inCall || room.isCallRoom() || callMembers.length > 0;
 
   // In DMs the call sits above the chat instead of replacing it.
   const dmSplit = callView && direct && !room.isCallRoom();
@@ -49,11 +48,7 @@ export function Room() {
           <Box
             grow="Yes"
             direction="Column"
-            className={
-              callEmbed?.roomId === room.roomId && callJoined
-                ? undefined
-                : callCss.PrescreenGradient
-            }
+            className={inCall ? undefined : callCss.PrescreenGradient}
           >
             <RoomViewHeader callView />
             <Box grow="Yes">

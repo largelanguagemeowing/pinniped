@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Box, color, Text, toRem } from 'folds';
-import { formatAxis, STATS_WINDOW_MS, StatPoint } from '../../../plugins/call';
+import { STATS_WINDOW_MS } from '../../../plugins/call/Call';
+import { formatAxis, StatPoint } from '../../../plugins/call/stats';
 
 const WIDTH = 400;
 const HEIGHT = 110;

@@ -39,25 +39,3 @@ export const useOpenUserRoomProfile = (): OpenCallback => {
 
   return open;
 };
-
-/** Opens the profile card centred over a backdrop, for callers with nothing to anchor it to. */
-export const useOpenCenteredUserRoomProfile = (): ((
-  roomId: string,
-  spaceId: string | undefined,
-  userId: string
-) => void) => {
-  const setUserRoomProfile = useSetAtom(userRoomProfileAtom);
-
-  return useCallback(
-    (roomId, spaceId, userId) => {
-      setUserRoomProfile({
-        roomId,
-        spaceId,
-        userId,
-        cords: { x: 0, y: 0, width: 0, height: 0 },
-        centered: true,
-      });
-    },
-    [setUserRoomProfile]
-  );
-};

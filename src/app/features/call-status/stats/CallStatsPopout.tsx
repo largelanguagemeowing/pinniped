@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Box, Button, color, config, Icon, Icons, Menu, PopOut, RectCords, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { CallEmbed, useCallStats, valueSeries } from '../../../plugins/call';
+import type { Call } from '../../../plugins/call/Call';
+import { useBehavior } from '../../../plugins/call/engine/useBehavior';
+import { valueSeries } from '../../../plugins/call/stats';
 import { stopPropagation } from '../../../utils/keyboard';
 import { StatChart } from './StatChart';
 import { CallStatsDebug } from './CallStatsDebug';
@@ -10,13 +12,13 @@ import { CallStatsDebug } from './CallStatsDebug';
 const HIGH_PING_MS = 250;
 
 type CallStatsPopoutProps = {
-  callEmbed: CallEmbed;
+  call: Call;
   anchor: RectCords | undefined;
   requestClose: () => void;
 };
 /** Ping graph and a link to the full WebRTC stats, opened from the "Voice Connected" label. */
-export function CallStatsPopout({ callEmbed, anchor, requestClose }: CallStatsPopoutProps) {
-  const samples = useCallStats(callEmbed);
+export function CallStatsPopout({ call, anchor, requestClose }: CallStatsPopoutProps) {
+  const samples = useBehavior(call.stats$);
   const [debug, setDebug] = useState(false);
 
   const ping = valueSeries(samples, (s) => s.connections[0]?.rtt ?? undefined);
@@ -25,7 +27,7 @@ export function CallStatsPopout({ callEmbed, anchor, requestClose }: CallStatsPo
   const average =
     ping.length > 0 ? ping.reduce((sum, p) => sum + p.value, 0) / ping.length : undefined;
   const fmt = (v: number | undefined) => (v === undefined ? '—' : `${Math.round(v)} ms`);
-  const encrypted = callEmbed.room.hasEncryptionStateEvent();
+  const encrypted = call.room.hasEncryptionStateEvent();
 
   return (
     <>
@@ -88,7 +90,7 @@ export function CallStatsPopout({ callEmbed, anchor, requestClose }: CallStatsPo
           </FocusTrap>
         }
       />
-      {debug && <CallStatsDebug callEmbed={callEmbed} requestClose={() => setDebug(false)} />}
+      {debug && <CallStatsDebug call={call} requestClose={() => setDebug(false)} />}
     </>
   );
 }

@@ -59,8 +59,7 @@ export function DmCallSplit({ call, chat }: DmCallSplitProps) {
         direction="Column"
         style={{ height: toRem(height), maxHeight: `calc(100% - ${toRem(MIN_CHAT_HEIGHT)})` }}
       >
-        {/* the call iframe floats above this pane, don't let it swallow the drag */}
-        <Box grow="Yes" style={{ pointerEvents: dragging ? 'none' : undefined, minHeight: 0 }}>
+        <Box grow="Yes" style={{ minHeight: 0 }}>
           {call}
         </Box>
       </Box>

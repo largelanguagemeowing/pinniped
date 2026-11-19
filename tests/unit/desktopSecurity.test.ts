@@ -14,9 +14,7 @@ describe('desktop permissions', () => {
   it("grants what calls and notifications need to the app's own pages", async () => {
     const { permissions } = await loadElectronMain();
     expect(await ask(permissions.request, 'media', 'app://cinny/')).toBe(true);
-    expect(
-      await ask(permissions.request, 'display-capture', 'app://cinny/public/element-call/')
-    ).toBe(true);
+    expect(await ask(permissions.request, 'display-capture', 'app://cinny/home')).toBe(true);
     expect(await ask(permissions.request, 'notifications', 'app://cinny/home')).toBe(true);
     expect(permissions.check?.({}, 'media', 'app://cinny', {})).toBe(true);
   });

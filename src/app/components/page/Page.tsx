@@ -2,7 +2,7 @@ import React, { ComponentProps, MutableRefObject, ReactNode } from 'react';
 import { Box, Header, Line, Scroll, Text, as } from 'folds';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
-import { callFullscreenAtom } from '../../state/callEmbed';
+import { callFullscreenAtom } from '../../state/call';
 import { CallStatusRenderer } from '../../pages/CallStatusRenderer';
 import { ContainerColor } from '../../styles/ContainerColor.css';
 import * as css from './style.css';

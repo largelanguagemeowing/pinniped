@@ -16,15 +16,10 @@ import {
   OverlayCenter,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import {
-  CallEmbed,
-  CallStatsConnection,
-  formatBitrate,
-  formatBytes,
-  useCallStats,
-  valueSeries,
-} from '../../../plugins/call';
-import { useMatrixClient } from '../../../hooks/useMatrixClient';
+import type { Call } from '../../../plugins/call/Call';
+import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/callStats';
+import { useBehavior } from '../../../plugins/call/engine/useBehavior';
+import { formatBitrate, formatBytes, valueSeries } from '../../../plugins/call/stats';
 import { stopPropagation } from '../../../utils/keyboard';
 import { StatChartTile } from './StatChart';
 import { StatRow, StreamStats } from './StreamStats';
@@ -52,15 +47,14 @@ const pages = (
 ];
 
 type CallStatsDebugProps = {
-  callEmbed: CallEmbed;
+  call: Call;
   requestClose: () => void;
 };
 /** Full WebRTC stats, one section per media server connection. */
-export function CallStatsDebug({ callEmbed, requestClose }: CallStatsDebugProps) {
-  const samples = useCallStats(callEmbed);
-  const mx = useMatrixClient();
-  const room = mx.getRoom(callEmbed.roomId);
-  const who = (userId: string) => room?.getMember(userId)?.name ?? userId;
+export function CallStatsDebug({ call, requestClose }: CallStatsDebugProps) {
+  const samples = useBehavior(call.stats$);
+  const { room } = call;
+  const who = (userId: string) => room.getMember(userId)?.name ?? userId;
   const [selected, setSelected] = useState<{ conn: number; page: Page }>({
     conn: 0,
     page: 'transport',
@@ -76,9 +70,9 @@ export function CallStatsDebug({ callEmbed, requestClose }: CallStatsDebugProps)
       buildCallReport({
         samples,
         who,
-        roomName: room?.name ?? callEmbed.roomId,
-        roomId: callEmbed.roomId,
-        encrypted: callEmbed.room.hasEncryptionStateEvent(),
+        roomName: room.name,
+        roomId: call.roomId,
+        encrypted: room.hasEncryptionStateEvent(),
       })
     );
     setCopied(true);

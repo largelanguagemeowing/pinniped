@@ -1,7 +1,7 @@
 //! System audio for screen shares on Linux: a virtual PipeWire microphone that carries the audio
 //! of every other application but not Pinniped's own, so the call and the soundboard never echo
 //! back into the share. Chromium's getDisplayMedia() cannot capture system audio on Linux, so the
-//! call widget opens this virtual microphone and publishes it as the share's audio track.
+//! call opens this virtual microphone and publishes it as the share's audio track.
 //!
 //! The device and its links are objects this helper creates on its own PipeWire connection, not
 //! lingering ones, so PipeWire removes them when the helper exits, however it exits.
@@ -30,7 +30,7 @@ use tokio::io::unix::AsyncFd;
 
 /// The device's node name, unique to Pinniped.
 const DEVICE_NAME: &str = "pinniped-screenshare";
-/// Shown as the device's name; the call widget finds the device by it
+/// Shown as the device's name; the call finds the device by it
 /// (`SCREEN_SHARE_AUDIO_DEVICE` in src/app/plugins/call/types.ts).
 const DEVICE_LABEL: &str = "Pinniped Screen Share Audio";
 
@@ -43,7 +43,7 @@ pub struct ScreenShare {
 
 impl ScreenShare {
     /// Creates the virtual microphone, connecting to PipeWire first if needed. Resolves once
-    /// PipeWire has made the device, so the widget can find it from then on.
+    /// PipeWire has made the device, so the call can find it from then on.
     pub async fn prepare(&mut self) -> Result<(), Error> {
         if self.conn.is_none() {
             self.conn = Some(Connection::new()?);

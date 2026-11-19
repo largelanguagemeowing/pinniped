@@ -60,7 +60,7 @@ describe('leaving the call before the desktop window closes', () => {
   it('still answers when leaving fails', async () => {
     const { api, ipcRenderer, askToLeave } = loadPreload();
     (api.onLeaveCallRequest as (h: () => Promise<void>) => void)(() =>
-      Promise.reject(new Error('widget gone'))
+      Promise.reject(new Error('leave failed'))
     );
     await askToLeave(4);
     expect(ipcRenderer.send).toHaveBeenLastCalledWith('call:left', 4, false);

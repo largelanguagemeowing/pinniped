@@ -13,7 +13,7 @@ ipcRenderer.on('call:leave', async (_event, requestId) => {
       await handler();
       inCall = true;
     } catch {
-      // the widget is gone already; close anyway
+      // leaving failed; close anyway
     }
   }
   ipcRenderer.send('call:left', requestId, inCall);

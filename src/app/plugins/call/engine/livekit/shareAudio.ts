@@ -5,15 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { Subject } from 'rxjs';
-
 /**
- * Screen share audio the embedding client captured itself (the `pcm` source of the screenShareAudio
- * setting; Pinniped on Windows). Each chunk is interleaved stereo signed 16-bit little-endian PCM at
- * 48 kHz, sent with the club.stablecat.pinniped.share_audio action.
+ * Sample rate of the screen share audio Pinniped's desktop app captures itself (the `pcm` source;
+ * Windows), pushed in with `CallViewModel.pushShareAudio` as interleaved stereo signed 16-bit
+ * little-endian PCM.
  */
-export const shareAudioPcm$ = new Subject<Uint8Array>();
-
 export const SHARE_AUDIO_RATE = 48000;
 
 /** Splits interleaved 16-bit PCM into left and right channels of floats in [-1, 1). */

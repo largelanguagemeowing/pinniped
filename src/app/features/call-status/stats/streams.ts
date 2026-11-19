@@ -1,4 +1,7 @@
-import { CallStatsConnection, CallStatsStream } from '../../../plugins/call';
+import type {
+  CallStatsConnection,
+  CallStatsStream,
+} from '../../../plugins/call/engine/livekit/callStats';
 
 /** The SFU connection's streams in one direction, or none before the connection exists. */
 export const streamsOf = (

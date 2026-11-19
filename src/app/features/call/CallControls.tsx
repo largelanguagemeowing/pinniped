@@ -17,22 +17,23 @@ import {
 } from 'folds';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import FocusTrap from 'focus-trap-react';
-import { callFullscreenAtom, callIdleAtom } from '../../state/callEmbed';
+import { callFullscreenAtom, callIdleAtom } from '../../state/call';
 import { settingsModalAtom } from '../../state/settingsModal';
 import { SettingsPages } from '../settings';
 import * as css from './styles.css';
 import { MicrophoneButton, ScreenShareButton, SoundButton, VideoButton } from './Controls';
 import { SoundboardButton } from '../soundboard/SoundboardButton';
-import { CallEmbed, useCallControlState } from '../../plugins/call';
+import type { Call } from '../../plugins/call/Call';
+import { useBehavior } from '../../plugins/call/engine/useBehavior';
 import { stopPropagation } from '../../utils/keyboard';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { ScreenSharePicker } from './ScreenSharePicker';
 
 type CallControlsProps = {
-  callEmbed: CallEmbed;
+  call: Call;
 };
-export function CallControls({ callEmbed }: CallControlsProps) {
+export function CallControls({ call }: CallControlsProps) {
   const controlRef = useRef<HTMLDivElement>(null);
   const idle = useAtomValue(callIdleAtom);
   const [invitePrompt, setInvitePrompt] = useState(false);
@@ -54,9 +55,9 @@ export function CallControls({ callEmbed }: CallControlsProps) {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
   };
-  const { microphone, video, sound, screenshare, spotlight } = useCallControlState(
-    callEmbed.control
-  );
+  const { microphone, video, sound, screenshare, spotlight } = useBehavior(call.controlState$);
+  // Screen share and soundboard need the media connection.
+  const connected = useBehavior(call.vm.connected$);
 
   const [cords, setCords] = useState<RectCords>();
 
@@ -65,7 +66,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
   };
 
   const handleSpotlightClick = () => {
-    callEmbed.control.toggleSpotlight();
+    call.toggleSpotlight();
     setCords(undefined);
   };
 
@@ -75,15 +76,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
     setCords(undefined);
   };
 
-  const handleMicrophoneToggle = useCallback(
-    () => callEmbed.control.toggleMicrophone(),
-    [callEmbed]
-  );
-  const handleVideoToggle = useCallback(() => callEmbed.control.toggleVideo(), [callEmbed]);
-
-  const [hangupState, hangup] = useAsyncCallback(
-    useCallback(() => callEmbed.hangup(), [callEmbed])
-  );
+  const [hangupState, hangup] = useAsyncCallback(useCallback(() => call.hangup(), [call]));
   const exiting =
     hangupState.status === AsyncStatus.Loading || hangupState.status === AsyncStatus.Success;
 
@@ -127,7 +120,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
           )}
         </TooltipProvider>
         {invitePrompt && (
-          <InviteUserPrompt room={callEmbed.room} requestClose={() => setInvitePrompt(false)} />
+          <InviteUserPrompt room={call.room} requestClose={() => setInvitePrompt(false)} />
         )}
       </Box>
       <Box className={css.EdgeControlRight} alignItems="Center">
@@ -162,24 +155,23 @@ export function CallControls({ callEmbed }: CallControlsProps) {
         </TooltipProvider>
       </Box>
       <Box className={css.ControlGroup} alignItems="Center" gap="100">
-        <MicrophoneButton enabled={microphone} onToggle={handleMicrophoneToggle} />
-        <SoundButton enabled={sound} onToggle={() => callEmbed.control.toggleSound()} />
-        <VideoButton enabled={video} onToggle={handleVideoToggle} />
+        <MicrophoneButton enabled={microphone} onToggle={() => call.toggleMicrophone()} />
+        <SoundButton enabled={sound} onToggle={() => call.toggleSound()} />
+        <VideoButton enabled={video} onToggle={() => call.toggleVideo()} />
       </Box>
       <Box className={css.ControlGroup} alignItems="Center" gap="100">
         <ScreenShareButton
           enabled={screenshare}
           // Starting a share asks for its options first; stopping one is immediate.
-          onToggle={() =>
-            screenshare ? callEmbed.control.stopScreenshare() : setPickingShare(true)
-          }
+          onToggle={() => (screenshare ? call.stopScreenShare() : setPickingShare(true))}
+          disabled={!connected}
         />
         <ScreenSharePicker
-          callEmbed={callEmbed}
+          call={call}
           open={pickingShare}
           requestClose={() => setPickingShare(false)}
         />
-        <SoundboardButton callEmbed={callEmbed} variant="bar" />
+        <SoundboardButton call={call} variant="bar" disabled={!connected} />
         <PopOut
           anchor={cords}
           position="Top"

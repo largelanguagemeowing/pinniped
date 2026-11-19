@@ -1,7 +1,6 @@
 import React from 'react';
 import { Icon, IconButton, Icons, Line, Text, Tooltip, TooltipProvider } from 'folds';
 import * as css from './styles.css';
-import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { useCameraAvailable } from '../../hooks/useCameraAvailable';
 
 export function ControlDivider() {
@@ -12,12 +11,9 @@ export function ControlDivider() {
 
 type MicrophoneButtonProps = {
   enabled: boolean;
-  onToggle: () => Promise<unknown>;
+  onToggle: () => void;
 };
 export function MicrophoneButton({ enabled, onToggle }: MicrophoneButtonProps) {
-  const [micState, toggleMic] = useAsyncCallback(onToggle);
-  const loading = micState.status === AsyncStatus.Loading;
-
   return (
     <TooltipProvider
       position="Top"
@@ -35,9 +31,8 @@ export function MicrophoneButton({ enabled, onToggle }: MicrophoneButtonProps) {
           fill="Soft"
           radii="400"
           size="400"
-          onClick={toggleMic}
+          onClick={() => onToggle()}
           outlined
-          disabled={loading}
         >
           <Icon size="400" src={enabled ? Icons.Mic : Icons.MicMute} filled={!enabled} />
         </IconButton>
@@ -84,14 +79,11 @@ export function SoundButton({ enabled, onToggle }: SoundButtonProps) {
 
 type VideoButtonProps = {
   enabled: boolean;
-  onToggle: () => Promise<unknown>;
-  disabled?: boolean;
+  onToggle: () => void;
   /** The smaller, full-width button of the call status popout. */
   compact?: boolean;
 };
-export function VideoButton({ enabled, onToggle, disabled, compact }: VideoButtonProps) {
-  const [videoState, toggleVideo] = useAsyncCallback(onToggle);
-  const loading = videoState.status === AsyncStatus.Loading;
+export function VideoButton({ enabled, onToggle, compact }: VideoButtonProps) {
   const cameraAvailable = useCameraAvailable();
   const unavailable = !cameraAvailable;
 
@@ -115,9 +107,9 @@ export function VideoButton({ enabled, onToggle, disabled, compact }: VideoButto
           radii={compact ? '300' : '400'}
           size={compact ? '300' : '400'}
           style={compact ? { width: '100%' } : undefined}
-          onClick={toggleVideo}
+          onClick={() => onToggle()}
           outlined
-          disabled={disabled || loading || unavailable}
+          disabled={unavailable}
         >
           <Icon
             size={compact ? '100' : '400'}
@@ -133,8 +125,9 @@ export function VideoButton({ enabled, onToggle, disabled, compact }: VideoButto
 type ScreenShareButtonProps = {
   enabled: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 };
-export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps) {
+export function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareButtonProps) {
   return (
     <TooltipProvider
       position="Top"
@@ -154,6 +147,7 @@ export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps)
           size="400"
           onClick={() => onToggle()}
           outlined
+          disabled={disabled}
         >
           <Icon size="400" src={Icons.ScreenShare} filled={enabled} />
         </IconButton>

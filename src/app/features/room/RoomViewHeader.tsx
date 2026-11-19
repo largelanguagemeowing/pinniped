@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, ReactElement, forwardRef, useEffect, useState } from 'react';
+import React, { MouseEventHandler, ReactElement, forwardRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   Box,
@@ -81,18 +81,12 @@ import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
 import { ContainerColor } from '../../styles/ContainerColor.css';
 import { RoomSettingsPage } from '../../state/roomSettings';
-import { callChatAtom, callIdleAtom } from '../../state/callEmbed';
+import { callChatAtom, callIdleAtom, callStreamHeightAtom } from '../../state/call';
 import { roomSearchDrawerActiveAtom } from '../../state/roomSearch';
 import { RoomSearchBar } from '../message-search/RoomSearchBar';
-import { useCallParticipantActivity } from '../../hooks/useCallSpeakers';
-import { CallEmbed } from '../../plugins/call/CallEmbed';
-import { CallControlEvent } from '../../plugins/call/CallControl';
-import {
-  useCallEmbed,
-  useCallJoined,
-  useCallStart,
-  useCallStartPreferences,
-} from '../../hooks/useCallEmbed';
+import { useCallParticipantActivity } from '../../hooks/useCallParticipantActivity';
+import { useCallStart, useCallStartPreferences } from '../../hooks/useActiveCall';
+import { useCall } from '../../hooks/useCall';
 import { useLivekitSupport } from '../../hooks/useLivekitSupport';
 import { webRTCSupported } from '../../utils/rtc';
 
@@ -390,11 +384,11 @@ function CallButton() {
   const room = useRoom();
   const direct = useIsDirectRoom();
 
-  const callEmbed = useCallEmbed();
+  const call = useCall();
   const startCall = useCallStart(direct);
   const startPreferences = useCallStartPreferences();
-  const callStarted = callEmbed && callEmbed.roomId === room.roomId;
-  const inAnotherCall = callEmbed && !callStarted;
+  const callStarted = call && call.roomId === room.roomId;
+  const inAnotherCall = call && !callStarted;
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -461,27 +455,6 @@ function CallButton() {
   );
 }
 
-/** Resolution of the shared screen being watched, as the call reports it (e.g. "720p"). */
-function useStreamQuality(embed?: CallEmbed): string | undefined {
-  const [height, setHeight] = useState<number>();
-
-  useEffect(() => {
-    if (!embed) {
-      setHeight(undefined);
-      return undefined;
-    }
-    const { control } = embed;
-    const update = () => setHeight(control.streamHeight);
-    update();
-    control.on(CallControlEvent.StateUpdate, update);
-    return () => {
-      control.off(CallControlEvent.StateUpdate, update);
-    };
-  }, [embed]);
-
-  return height ? `${height}p` : undefined;
-}
-
 function CallChatToggleButton() {
   const [chat, setChat] = useAtom(callChatAtom);
 
@@ -530,14 +503,12 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const callIdle = useAtomValue(callIdleAtom);
-  const embed = useCallEmbed();
-  // The black call bar and its idle fade apply only while this room's call is joined.
-  const callJoined = useCallJoined(embed);
-  const inCall = callView && embed?.roomId === room.roomId && callJoined;
-  const { screenSharers } = useCallParticipantActivity(
-    embed?.roomId === room.roomId ? embed : undefined
-  );
-  const [sharerId] = Array.from(screenSharers);
+  const call = useCall();
+  const roomCall = call?.roomId === room.roomId ? call : undefined;
+  // The black call bar and its idle fade apply only while in this room's call.
+  const inCall = callView && roomCall !== undefined;
+  const { screenSharing } = useCallParticipantActivity(roomCall);
+  const [sharerId] = Array.from(screenSharing);
   const sharerName = sharerId
     ? (getMemberDisplayName(room, sharerId) ?? getMxIdLocalPart(sharerId) ?? sharerId)
     : undefined;
@@ -545,7 +516,9 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
   const sharerAvatarUrl = sharerAvatarMxc
     ? (mxcUrlToHttp(mx, sharerAvatarMxc, useAuthentication, 48, 48, 'crop') ?? undefined)
     : undefined;
-  const streamQuality = useStreamQuality(sharerId ? embed : undefined);
+  // Resolution of the shared screen being watched, as the call view reports it (e.g. "720p").
+  const streamHeight = useAtomValue(callStreamHeightAtom);
+  const streamQuality = sharerId && streamHeight !== null ? `${streamHeight}p` : undefined;
   const direct = useIsDirectRoom();
 
   const searchDrawerActive = useAtomValue(roomSearchDrawerActiveAtom);

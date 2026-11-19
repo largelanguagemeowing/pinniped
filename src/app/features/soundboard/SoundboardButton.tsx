@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Icon, IconButton, RectCords, Text, Tooltip, TooltipProvider } from 'folds';
-import { CallEmbed } from '../../plugins/call';
+import type { Call } from '../../plugins/call/Call';
 import { SoundboardIcon } from './icon';
 import { SoundboardPicker } from './SoundboardPicker';
 
 type SoundboardButtonProps = {
-  callEmbed: CallEmbed;
+  call: Call;
   /** `panel` fills a cell of the sidebar's call controls; `bar` is the call view's control bar. */
   variant: 'panel' | 'bar';
   disabled?: boolean;
 };
-export function SoundboardButton({ callEmbed, variant, disabled }: SoundboardButtonProps) {
+export function SoundboardButton({ call, variant, disabled }: SoundboardButtonProps) {
   const [anchor, setAnchor] = useState<RectCords>();
   const bar = variant === 'bar';
 
@@ -44,8 +44,8 @@ export function SoundboardButton({ callEmbed, variant, disabled }: SoundboardBut
         )}
       </TooltipProvider>
       <SoundboardPicker
-        callEmbed={callEmbed}
-        room={callEmbed.room}
+        call={call}
+        room={call.room}
         anchor={anchor}
         requestClose={() => setAnchor(undefined)}
       />

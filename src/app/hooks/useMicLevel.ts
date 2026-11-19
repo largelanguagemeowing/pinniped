@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/** The voice gate's 0-1 scale covers -70 dBFS to -20 dBFS, as the call widget's threshold does. */
+/** The voice gate's 0-1 scale covers -70 dBFS to -20 dBFS, as the call's threshold does. */
 export const GATE_DB_MIN = -70;
 export const GATE_DB_SPAN = 50;
 

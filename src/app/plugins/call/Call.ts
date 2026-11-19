@@ -5,7 +5,17 @@ import {
   type RTCNotificationType,
 } from 'matrix-js-sdk/lib/matrixrtc';
 import { setLogLevel as setLivekitLogLevel } from 'livekit-client';
-import { BehaviorSubject, first, interval, type Observable } from 'rxjs';
+import {
+  BehaviorSubject,
+  combineLatest,
+  filter,
+  firstValueFrom,
+  interval,
+  map,
+  merge,
+  type Observable,
+  Subject,
+} from 'rxjs';
 
 import { playCallEndSound } from '../../sound/play';
 import { loopCallSound, playCallSound } from '../../sound/callSounds';
@@ -21,12 +31,15 @@ import {
   createCallViewModel$,
 } from './engine/state/CallViewModel/CallViewModel';
 import { MatrixRTCMode } from './engine/state/CallViewModel/matrixRTCMode';
-import { constant } from './engine/state/Behavior';
+import { type Behavior, constant } from './engine/state/Behavior';
 import { MediaDevices } from './engine/state/MediaDevices';
 import { MuteStates } from './engine/state/MuteStates';
 import { ObservableScope } from './engine/state/ObservableScope';
+import { type ElementCallError } from './engine/utils/errors';
 
-export type CallLeaveReason = 'user' | AutoLeaveReason;
+/** How a call ended: left by us or by itself, or stopped by an error it could not recover from. */
+export type CallEnd =
+  { reason: 'user' | AutoLeaveReason } | { reason: 'error'; error: ElementCallError };
 
 /** One second of WebRTC counters across every SFU connection of the call. */
 export type CallStatsSample = { time: number; connections: CallStatsConnection[] };
@@ -35,6 +48,22 @@ export type CallStatsSample = { time: number; connections: CallStatsConnection[]
 export const STATS_WINDOW_MS = 5 * 60 * 1000;
 
 const STATS_INTERVAL_MS = 1000;
+
+/** What Pinniped's call buttons show. The microphone shows as off while deafened. */
+export type CallControlState = {
+  microphone: boolean;
+  video: boolean;
+  /** Whether the call is audible; false is deafened. */
+  sound: boolean;
+  screenshare: boolean;
+  spotlight: boolean;
+};
+
+/** A microphone or sound toggle the user made, remembered for the next call. */
+export type CallUserToggle = Partial<Pick<CallPreferences, 'microphone' | 'sound'>>;
+
+/** How long leaving may take to tell the homeserver before the call is gone anyway. */
+const LEAVE_TIMEOUT_MS = 1000;
 
 /** How we join: whether the room is a DM, and the microphone, camera and sound to start with. */
 export type CallJoinOptions = {
@@ -70,10 +99,21 @@ export class Call {
   /** WebRTC stats of the last {@link STATS_WINDOW_MS}, oldest first. */
   public readonly stats$ = new BehaviorSubject<CallStatsSample[]>([]);
 
-  /** Emits once, why the call ended; the call is disposed by then. */
-  public readonly left$: Observable<CallLeaveReason>;
+  /** Resolves with how the call ended, once it has; the call is disposed by then. */
+  public readonly left: Promise<CallEnd>;
+
+  public readonly controlState$: Behavior<CallControlState>;
+
+  /** Microphone and sound toggles the user made (not ones the call made itself). */
+  public readonly userToggles$ = new Subject<CallUserToggle>();
 
   private readonly scope = new ObservableScope();
+
+  // The call picks its layout for the shape of the view showing it; the window's until one does.
+  private readonly viewSize$ = new BehaviorSubject({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   private ended = false;
 
@@ -110,6 +150,7 @@ export class Call {
         autoLeaveWhenOthersLeft: dm,
         waitForCallPickup: this.ringing,
         matrixRTCMode$: constant(MatrixRTCMode.Compatibility),
+        windowSize$: this.viewSize$,
       },
       reactions.raisedHands$,
       reactions.reactions$
@@ -118,11 +159,39 @@ export class Call {
     this.playCallSounds();
     this.sampleStats();
 
-    this.left$ = this.vm.leave$.pipe(first());
-    this.left$.subscribe((reason) => {
-      playCallEndSound(reason);
-      this.dispose();
-    });
+    this.controlState$ = this.scope.behavior(
+      combineLatest(
+        [
+          this.muteStates.audio.enabled$,
+          this.muteStates.video.enabled$,
+          this.muteStates.deafened$,
+          this.vm.sharingScreen$,
+          this.vm.gridMode$,
+        ],
+        (microphone, video, deafened, screenshare, gridMode) => ({
+          microphone,
+          video,
+          sound: !deafened,
+          screenshare,
+          spotlight: gridMode === 'spotlight',
+        })
+      )
+    );
+
+    const fatalError$: Observable<CallEnd> = this.vm.fatalError$.pipe(
+      filter((error): error is ElementCallError => error !== null),
+      map((error) => ({ reason: 'error', error }))
+    );
+    this.left = firstValueFrom(
+      merge(this.vm.leave$.pipe(map((reason): CallEnd => ({ reason }))), fatalError$)
+    );
+    this.left.then(
+      (end) => {
+        if (end.reason !== 'error') playCallEndSound(end.reason);
+        this.dispose();
+      },
+      () => undefined
+    );
 
     this.vm.join();
   }
@@ -131,9 +200,49 @@ export class Call {
     return this.room.roomId;
   }
 
-  /** Leaves the call; {@link left$} emits once it has. */
-  public hangup(): void {
+  /** Leaves the call; resolves once the homeserver has been told, or after a second. */
+  public async hangup(): Promise<void> {
+    // Leave the session first: ending the call's scope leaves it too, but without waiting.
+    const leaving = this.session.leave(LEAVE_TIMEOUT_MS);
     this.vm.hangup();
+    await leaving;
+  }
+
+  /** The size of the view showing the call, for its layout. */
+  public setViewSize(width: number, height: number): void {
+    const { value } = this.viewSize$;
+    if (value.width !== width || value.height !== height) this.viewSize$.next({ width, height });
+  }
+
+  public toggleMicrophone(): void {
+    const microphone = !this.muteStates.audio.enabled$.value;
+    // The microphone shows as off while deafened, so unmuting while deafened also undeafens.
+    if (microphone && this.muteStates.deafened$.value) this.muteStates.setDeafened(false);
+    this.muteStates.audio.setEnabled$.value?.(microphone);
+    this.userToggles$.next({ microphone });
+  }
+
+  public toggleVideo(): void {
+    this.muteStates.video.toggle$.value?.();
+  }
+
+  public toggleSound(): void {
+    const sound = this.muteStates.deafened$.value;
+    this.muteStates.setDeafened(!sound);
+    this.userToggles$.next({ sound });
+  }
+
+  public toggleSpotlight(): void {
+    this.vm.setGridMode(this.vm.gridMode$.value === 'spotlight' ? 'grid' : 'spotlight');
+  }
+
+  /** Starts a screen share with the quality and audio in the call settings. */
+  public startScreenShare(): void {
+    this.vm.startScreenShare();
+  }
+
+  public stopScreenShare(): void {
+    this.vm.stopScreenShare();
   }
 
   /** Stops the call without the leave sound, e.g. when the client logs out. Leaves the session. */

@@ -7,9 +7,15 @@ import {
 import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { useEffect, useState } from 'react';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
+import { useAtomValue } from 'jotai';
 import { useMatrixClient } from './useMatrixClient';
 import { getSpaceChildren } from '../utils/room';
 import { StateEvent } from '../../types/matrix/room';
+import type { Call } from '../plugins/call/Call';
+import { callAtom } from '../state/call';
+
+/** The call this client is in, in whichever room. */
+export const useCall = (): Call | undefined => useAtomValue(callAtom);
 
 /**
  * The client lazy-loads room members, but matrix-js-sdk drops the call membership of anyone

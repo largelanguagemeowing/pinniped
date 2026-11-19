@@ -21,7 +21,7 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
 vi.mock('jotai', async (importOriginal) => {
   const actual = await importOriginal<typeof import('jotai')>();
   // The mocked state modules below hand string pseudo-atoms to the hooks;
-  // real atoms (e.g. callEmbedAtom in EventSounds) use the real implementation.
+  // real atoms (e.g. callAtom in EventSounds) use the real implementation.
   return {
     ...actual,
     useAtomValue: (atomOrKey: unknown) =>
@@ -71,7 +71,6 @@ vi.mock('../../src/app/hooks/useNotificationDefaultsSync', () => ({
 }));
 vi.mock('../../src/app/hooks/useRoomNavShortcuts', () => ({ useRoomNavShortcuts: vi.fn() }));
 vi.mock('../../src/app/hooks/useRoomNavHistory', () => ({ useRoomNavHistory: vi.fn() }));
-vi.mock('../../src/app/hooks/useCallEmbed', () => ({ useCallJoined: () => false }));
 vi.mock('../../src/app/hooks/useSoundToggle', () => ({ useSoundToggle: () => false }));
 vi.mock('../../src/app/hooks/useSoundVolume', () => ({ useSoundVolume: vi.fn() }));
 vi.mock('../../src/app/state/gifFavorites', () => ({

@@ -20,12 +20,8 @@ import {
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import {
-  CallEmbed,
-  screenShareAudioSource,
-  screenShareFrameRates,
-  screenShareResolutions,
-} from '../../plugins/call';
+import type { Call } from '../../plugins/call/Call';
+import { screenShareFrameRates, screenShareResolutions } from '../../plugins/call/types';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import { stopPropagation } from '../../utils/keyboard';
@@ -118,7 +114,7 @@ function Dropdown<T>({ title, value, options, onChange }: DropdownProps<T>) {
 }
 
 type ScreenSharePickerProps = {
-  callEmbed: CallEmbed;
+  call: Call;
   open: boolean;
   requestClose: () => void;
 };
@@ -128,7 +124,7 @@ type ScreenSharePickerProps = {
  * own), its resolution, frame rate and audio. The quality choices are remembered, and Go Live
  * starts the share with them.
  */
-export function ScreenSharePicker({ callEmbed, open, requestClose }: ScreenSharePickerProps) {
+export function ScreenSharePicker({ call, open, requestClose }: ScreenSharePickerProps) {
   const [quality, setQuality] = useSetting(settingsAtom, 'callScreenShare');
   const [shareAudio, setShareAudio] = useSetting(settingsAtom, 'callScreenShareAudio');
   const [source, setSource] = useState<string>();
@@ -144,10 +140,7 @@ export function ScreenSharePicker({ callEmbed, open, requestClose }: ScreenShare
   const goLive = () => {
     // The main process captures what was chosen here; it needs it before the share asks.
     picker?.select(source ?? null);
-    callEmbed.startScreenshare(
-      `${quality.resolution}:${quality.fps}`,
-      screenShareAudioSource(shareAudio)
-    );
+    call.startScreenShare();
     requestClose();
   };
 

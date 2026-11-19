@@ -58,7 +58,7 @@ declare global {
       getSystemIdleTime?: () => Promise<number>;
       /**
        * Other applications' audio, for screen shares: on Linux a virtual microphone, on Windows
-       * PCM chunks from `onPcm` (16-bit stereo 48 kHz), which the page hands to the call widget.
+       * PCM chunks from `onPcm` (16-bit stereo 48 kHz), which the page hands to the call.
        */
       screenShareAudio?: {
         prepare: () => Promise<{ ok: true; label: string } | { ok: false; error: string }>;

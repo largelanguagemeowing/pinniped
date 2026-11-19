@@ -1,11 +1,8 @@
-import React, { RefObject, useRef } from 'react';
-import { Box, color, Text, toRem } from 'folds';
-import {
-  useCallEmbed,
-  useCallJoined,
-  useCallEmbedPlacementSync,
-  useCallIdle,
-} from '../../hooks/useCallEmbed';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Box, color, PopOut, RectCords, Text, toRem } from 'folds';
+import FocusTrap from 'focus-trap-react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { useCallIdle } from '../../hooks/useActiveCall';
 import { ContainerColor } from '../../styles/ContainerColor.css';
 import { PrescreenControls } from './PrescreenControls';
 import { usePowerLevelsContext } from '../../hooks/usePowerLevels';
@@ -14,7 +11,7 @@ import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { StateEvent } from '../../../types/matrix/room';
-import { useCallMembers, useCallSession } from '../../hooks/useCall';
+import { useCall, useCallMembers, useCallSession } from '../../hooks/useCall';
 import { CallMemberRenderer } from './CallMemberCard';
 import * as css from './styles.css';
 import { CallControls } from './CallControls';
@@ -24,6 +21,12 @@ import { getMemberDisplayName, getRoomName } from '../../utils/room';
 import { getMxIdLocalPart } from '../../utils/matrix';
 import { type Room } from 'matrix-js-sdk';
 import { type CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import type { Call } from '../../plugins/call/Call';
+import { callFailureAtom, callIdleAtom, callStreamHeightAtom } from '../../state/call';
+import { type ElementCallError } from '../../plugins/call/engine/utils/errors';
+import { stopPropagation } from '../../utils/keyboard';
+import { CallMemberMenu } from './CallMemberMenu';
+import { CallStage } from './stage';
 
 function LivekitServerMissingMessage() {
   return (
@@ -78,6 +81,16 @@ function voiceSummary(room: Room, members: CallMembership[]): string {
   return `${names[0]}, ${names[1]} and ${names.length - 2} others are currently in voice`;
 }
 
+function CallFailedMessage({ error }: { error: ElementCallError }) {
+  return (
+    <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
+      {error.localisedMessage
+        ? `${error.localisedTitle}: ${error.localisedMessage}`
+        : error.localisedTitle}
+    </Text>
+  );
+}
+
 function NoPermissionMessage() {
   return (
     <Text style={{ margin: 'auto' }} size="L400" align="Center">
@@ -113,10 +126,12 @@ function CallPrescreen() {
   const callMembers = useCallMembers(callSession);
   const hasParticipant = callMembers.length > 0;
 
-  const callEmbed = useCallEmbed();
-  const inOtherCall = callEmbed && callEmbed.roomId !== room.roomId;
+  const call = useCall();
+  const inOtherCall = call && call.roomId !== room.roomId;
 
   const canJoin = hasPermission && livekitSupported && rtcSupported;
+  const failure = useAtomValue(callFailureAtom);
+  const failed = failure?.roomId === room.roomId ? failure.error : undefined;
 
   return (
     <Box className={css.PrescreenBackground} grow="Yes" alignItems="Center" justifyContent="Center">
@@ -137,7 +152,9 @@ function CallPrescreen() {
         <CallMemberRenderer members={callMembers} />
         <PrescreenControls canJoin={canJoin} />
         <Box className={css.PrescreenMessage} alignItems="Center">
-          {!inOtherCall &&
+          {failed && !inOtherCall && <CallFailedMessage error={failed} />}
+          {!failed &&
+            !inOtherCall &&
             (hasPermission ? (
               <JoinMessage
                 hasParticipant={hasParticipant}
@@ -155,40 +172,80 @@ function CallPrescreen() {
 }
 
 type CallJoinedProps = {
-  containerRef: RefObject<HTMLDivElement | null>;
-  joined: boolean;
+  call: Call;
 };
-function CallJoined({ joined, containerRef }: CallJoinedProps) {
-  const callEmbed = useCallEmbed();
+function CallJoined({ call }: CallJoinedProps) {
+  const mx = useMatrixClient();
+  const idle = useAtomValue(callIdleAtom);
+  const setStreamHeight = useSetAtom(callStreamHeightAtom);
+  const [menu, setMenu] = useState<{ userId: string; cords: RectCords }>();
+
+  // Nothing is watched once the call view is gone.
+  useEffect(() => () => setStreamHeight(null), [setStreamHeight]);
+
+  const handleMemberMenu = useCallback(
+    (userId: string, cords: RectCords) => setMenu({ userId, cords }),
+    []
+  );
 
   return (
-    // Takes no room until joined, so the prescreen can fill the view.
-    <Box grow={joined ? 'Yes' : 'No'} direction="Column">
-      <Box grow="Yes" ref={containerRef} />
-      {callEmbed && joined && <CallControls callEmbed={callEmbed} />}
+    <Box grow="Yes" direction="Column">
+      <Box grow="Yes" direction="Column" style={{ minHeight: 0 }}>
+        <CallStage
+          call={call}
+          idle={idle}
+          onMemberMenu={handleMemberMenu}
+          onStreamHeightChange={setStreamHeight}
+        />
+      </Box>
+      <CallControls call={call} />
+      <PopOut
+        anchor={menu?.cords}
+        offset={0}
+        alignOffset={0}
+        position="Bottom"
+        align="Start"
+        content={
+          menu && (
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                returnFocusOnDeactivate: false,
+                onDeactivate: () => setMenu(undefined),
+                clickOutsideDeactivates: true,
+                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                escapeDeactivates: stopPropagation,
+              }}
+            >
+              <CallMemberMenu
+                roomId={call.roomId}
+                userId={menu.userId}
+                cords={menu.cords}
+                call={menu.userId === mx.getSafeUserId() ? call : undefined}
+                requestClose={() => setMenu(undefined)}
+              />
+            </FocusTrap>
+          )
+        }
+      />
     </Box>
   );
 }
 
 export function CallView() {
   const room = useRoom();
-  const callContainerRef = useRef<HTMLDivElement>(null);
-  useCallEmbedPlacementSync(callContainerRef);
-
-  const callEmbed = useCallEmbed();
-  const callJoined = useCallJoined(callEmbed);
-
-  const currentJoined = callEmbed?.roomId === room.roomId && callJoined;
-  useCallIdle(currentJoined ? callEmbed : undefined);
+  const call = useCall();
+  const roomCall = call?.roomId === room.roomId ? call : undefined;
+  useCallIdle(roomCall !== undefined);
 
   return (
     <Box
       className={ContainerColor({ variant: 'Surface' })}
-      style={{ minWidth: toRem(280), background: currentJoined ? '#000' : 'transparent' }}
+      style={{ minWidth: toRem(280), background: roomCall ? '#000' : 'transparent' }}
       grow="Yes"
     >
-      {!currentJoined && <CallPrescreen />}
-      <CallJoined joined={currentJoined} containerRef={callContainerRef} />
+      {roomCall ? <CallJoined call={roomCall} /> : <CallPrescreen />}
     </Box>
   );
 }

@@ -8,12 +8,12 @@ import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { VolumeSlider } from '../../components/slider';
 import { getDMRoomFor } from '../../utils/matrix';
 import { getHomeRoomPath } from '../../pages/pathUtils';
-import { useCallControlState } from '../../plugins/call';
-import { CallControl } from '../../plugins/call/CallControl';
+import type { Call } from '../../plugins/call/Call';
+import { useBehavior } from '../../plugins/call/engine/useBehavior';
 import { copyToClipboard } from '../../utils/dom';
 import * as css from './styles.css';
 
-/** Up to 200%: past 100% the widget amplifies the voice. */
+/** Up to 200%: past 100% the call amplifies the voice. */
 const MAX_USER_VOLUME = 2;
 
 type CheckItemProps = { label: string; checked: boolean; onToggle: () => void };
@@ -35,14 +35,14 @@ function CheckItem({ label, checked, onToggle }: CheckItemProps) {
 }
 
 /** Your own mute and deafen in the call you are in. */
-function OwnCallToggles({ control }: { control: CallControl }) {
-  const { microphone, sound } = useCallControlState(control);
+function OwnCallToggles({ call }: { call: Call }) {
+  const { microphone, sound } = useBehavior(call.controlState$);
   return (
     <>
       <Line variant="Surface" size="300" />
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <CheckItem label="Mute" checked={!microphone} onToggle={() => control.toggleMicrophone()} />
-        <CheckItem label="Deafen" checked={!sound} onToggle={() => control.toggleSound()} />
+        <CheckItem label="Mute" checked={!microphone} onToggle={() => call.toggleMicrophone()} />
+        <CheckItem label="Deafen" checked={!sound} onToggle={() => call.toggleSound()} />
       </Box>
     </>
   );
@@ -53,8 +53,8 @@ type CallMemberMenuProps = {
   userId: string;
   /** Where the menu was opened, so the profile card can open at the same spot. */
   cords: RectCords;
-  /** Your own call's controls, when this is you in the call you are in. */
-  control?: CallControl;
+  /** The call you are in, when this is you in it. */
+  call?: Call;
   requestClose: () => void;
 };
 /**
@@ -62,13 +62,7 @@ type CallMemberMenuProps = {
  * (their voice level, muting them, muting their soundboard). The audio choices are yours
  * alone and are remembered across calls.
  */
-export function CallMemberMenu({
-  roomId,
-  userId,
-  cords,
-  control,
-  requestClose,
-}: CallMemberMenuProps) {
+export function CallMemberMenu({ roomId, userId, cords, call, requestClose }: CallMemberMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close on a click (or right-click) anywhere outside the menu, and on Escape.
@@ -133,7 +127,7 @@ export function CallMemberMenu({
           </MenuItem>
         )}
       </Box>
-      {self && control && <OwnCallToggles control={control} />}
+      {self && call && <OwnCallToggles call={call} />}
       {!self && (
         <>
           <Line variant="Surface" size="300" />

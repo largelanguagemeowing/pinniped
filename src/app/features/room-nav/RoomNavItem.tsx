@@ -79,10 +79,10 @@ import { PresenceStatus } from '../../components/presence/PresenceStatus';
 import { useRoomName } from '../../hooks/useRoomMeta';
 import { useStateEvent } from '../../hooks/useStateEvent';
 import { UnencryptedIcon } from '../../components/unencrypted-indicator';
-import { useCallMembers, useCallSession } from '../../hooks/useCall';
-import { useCallEmbed, useCallStart } from '../../hooks/useCallEmbed';
-import { useCallParticipantActivity } from '../../hooks/useCallSpeakers';
-import { callChatAtom } from '../../state/callEmbed';
+import { useCall, useCallMembers, useCallSession } from '../../hooks/useCall';
+import { useCallStart } from '../../hooks/useActiveCall';
+import { useCallParticipantActivity } from '../../hooks/useCallParticipantActivity';
+import { callChatAtom } from '../../state/call';
 import { useCallPreferencesAtom } from '../../state/hooks/callPreferences';
 import { useAutoDiscoveryInfo } from '../../hooks/useAutoDiscoveryInfo';
 import { livekitSupport } from '../../hooks/useLivekitSupport';
@@ -303,9 +303,9 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openUserProfile = useOpenUserRoomProfile();
-  const callEmbed = useCallEmbed();
-  const roomCallEmbed = callEmbed?.roomId === room.roomId ? callEmbed : undefined;
-  const { speakers, screenSharers, muted, deafened } = useCallParticipantActivity(roomCallEmbed);
+  const call = useCall();
+  const roomCall = call?.roomId === room.roomId ? call : undefined;
+  const { speaking, screenSharing, muted, deafened } = useCallParticipantActivity(roomCall);
   const myUserId = mx.getSafeUserId();
 
   return (
@@ -331,13 +331,13 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
             className={css.CallNavItemMember}
             aria-label={[
               name,
-              speakers.has(userId) && 'speaking',
-              screenSharers.has(userId) && 'sharing screen',
+              speaking.has(userId) && 'speaking',
+              screenSharing.has(userId) && 'sharing screen',
               muted.has(userId) && 'muted',
             ]
               .filter(Boolean)
               .join(', ')}
-            data-speaking={speakers.has(userId)}
+            data-speaking={speaking.has(userId)}
             aria-haspopup="menu"
             onContextMenu={(evt: React.MouseEvent<HTMLButtonElement>) => {
               evt.preventDefault();
@@ -364,7 +364,7 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
                 renderFallback={() => <Icon size="50" src={Icons.User} filled />}
               />
             </Avatar>
-            <Text size="T300" priority={speakers.has(userId) ? '500' : '300'} truncate>
+            <Text size="T300" priority={speaking.has(userId) ? '500' : '300'} truncate>
               {name}
             </Text>
             <Box shrink="No" alignItems="Center" gap="100" style={{ marginLeft: 'auto' }}>
@@ -372,7 +372,7 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
               {deafened.has(userId) && (
                 <CallMemberStateIcon src={Icons.HeadphoneMute} label="Deafened" />
               )}
-              {screenSharers.has(userId) && (
+              {screenSharing.has(userId) && (
                 <Box shrink="No" title="Sharing screen">
                   <Badge size="300" variant="Critical" fill="Solid" radii="300">
                     <Text size="L400">LIVE</Text>
@@ -406,7 +406,7 @@ function CallNavItemMembers({ room, members }: CallNavItemMembersProps) {
                 roomId={room.roomId}
                 userId={menu.userId}
                 cords={menu.cords}
-                control={menu.userId === myUserId ? roomCallEmbed?.control : undefined}
+                call={menu.userId === myUserId ? roomCall : undefined}
                 requestClose={() => setMenu(undefined)}
               />
             </FocusTrap>
@@ -484,7 +484,7 @@ export function RoomNavItem({
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(callSession);
   const startCall = useCallStart(direct);
-  const callEmbed = useCallEmbed();
+  const call = useCall();
   const callPref = useAtomValue(useCallPreferencesAtom());
   const autoDiscoveryInfo = useAutoDiscoveryInfo();
 
@@ -505,7 +505,7 @@ export function RoomNavItem({
     }
 
     // Do not join if already in call
-    if (callEmbed) {
+    if (call) {
       return;
     }
     // Start call in second click
@@ -621,9 +621,7 @@ export function RoomNavItem({
         </NavLink>
         {optionsVisible && (
           <NavItemOptions>
-            {selected && (callEmbed?.roomId === room.roomId || room.isCallRoom()) && (
-              <CallChatToggle />
-            )}
+            {selected && (call?.roomId === room.roomId || room.isCallRoom()) && <CallChatToggle />}
             <PopOut
               id={`menu-${room.roomId}`}
               aria-expanded={!!menuAnchor}

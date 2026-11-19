@@ -127,7 +127,7 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
 };
 
 /**
- * Replaces any cached copy of the homeserver's client well-known. The call widget reads it
+ * Replaces any cached copy of the homeserver's client well-known. The call reads it
  * through the HTTP cache on every join (for the RTC focus), and a well-known served without
  * Cache-Control can be heuristically cached for days, hiding server-side changes.
  */

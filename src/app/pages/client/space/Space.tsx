@@ -97,7 +97,7 @@ import { ContainerColor } from '../../../styles/ContainerColor.css';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { BreakWord } from '../../../styles/Text.css';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
-import { useCallEmbed } from '../../../hooks/useCallEmbed';
+import { useCall } from '../../../hooks/useCall';
 import { ASCIILexicalTable, orderKeys } from '../../../utils/ASCIILexicalTable';
 
 type SpaceMenuProps = {
@@ -481,7 +481,7 @@ export function Space() {
   const selectedRoomId = useSelectedRoom();
   const lobbySelected = useSpaceLobbySelected(spaceIdOrAlias);
   const searchSelected = useSpaceSearchSelected(spaceIdOrAlias);
-  const callEmbed = useCallEmbed();
+  const callRoomId = useCall()?.roomId;
 
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
@@ -510,10 +510,10 @@ export function Space() {
           return false;
         }
         const showRoomAnyway =
-          roomToUnread.has(roomId) || roomId === selectedRoomId || callEmbed?.roomId === roomId;
+          roomToUnread.has(roomId) || roomId === selectedRoomId || callRoomId === roomId;
         return !showRoomAnyway;
       },
-      [space.roomId, closedCategories, roomToUnread, selectedRoomId, callEmbed]
+      [space.roomId, closedCategories, roomToUnread, selectedRoomId, callRoomId]
     ),
     useCallback(
       (sId) => closedCategories.has(makeNavCategoryId(space.roomId, sId)),

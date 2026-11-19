@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box, color, Text } from 'folds';
+import type { CallStatsSample } from '../../../plugins/call/Call';
+import type { CallStatsStream } from '../../../plugins/call/engine/livekit/callStats';
 import {
-  CallStatsSample,
-  CallStatsStream,
   findStream,
   formatBitrate,
   formatBytes,
@@ -10,7 +10,7 @@ import {
   StatPoint,
   statNumber,
   valueSeries,
-} from '../../../plugins/call';
+} from '../../../plugins/call/stats';
 import { StatChartTile } from './StatChart';
 
 export type ChartSpec = {

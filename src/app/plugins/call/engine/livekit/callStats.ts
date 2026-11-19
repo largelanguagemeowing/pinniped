@@ -8,9 +8,9 @@ Please see LICENSE in the repository root for full details.
 import { type Room as LivekitRoom, Track, type TrackPublication } from 'livekit-client';
 
 /**
- * Raw WebRTC counters of one SFU connection, sampled once a second and sent to
- * the embedding client (see ElementWidgetActions.CallStats), which turns the
- * counters into rates and graphs. Counters are cumulative; the client diffs them.
+ * Raw WebRTC counters of one SFU connection, sampled once a second by the Call,
+ * which keeps their history for the stats view's rates and graphs. Counters are
+ * cumulative; the stats view diffs them.
  */
 export type StatValue = number | string | boolean;
 

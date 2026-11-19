@@ -9,8 +9,6 @@ import path from 'path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import buildConfig from './build.config.ts';
-import { prepareElementCall } from './scripts/fork/element-call/prepare.mjs';
-import { buildElementCallFork, ELEMENT_CALL_SRC } from './scripts/fork/element-call/build.mjs';
 
 // Fork-only: short commit hash baked into the bundle. The container build has
 // no .git, so the Dockerfile passes it in as APP_COMMIT.
@@ -30,20 +28,11 @@ const appVersion = JSON.parse(
   fs.readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8')
 ).version;
 
-const elementCallPath = prepareElementCall();
-
 // vite-plugin-static-copy 2+ keeps the source directory structure in the output, so
 // `stripBase` drops the leading source directories to land files where the app (and
 // public/manifest.json) expect them.
-const elementCallRelative = path.relative(process.cwd(), elementCallPath).split(path.sep);
-
 const copyFiles = {
   targets: [
-    {
-      src: `${elementCallRelative.join('/')}/**/*`,
-      dest: 'public/element-call',
-      rename: { stripBase: elementCallRelative.filter((part) => part !== '..').length },
-    },
     {
       src: 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
       dest: '',
@@ -65,6 +54,12 @@ const copyFiles = {
     },
     {
       src: 'public/locales',
+      dest: 'public/',
+      rename: { stripBase: 1 },
+    },
+    {
+      // DeepFilterNet's runtime and model, fetched by the call's noise suppression.
+      src: 'public/df3',
       dest: 'public/',
       rename: { stripBase: 1 },
     },
@@ -117,13 +112,12 @@ const MIME_TYPES = {
   '.woff2': 'font/woff2',
 };
 
-// viteStaticCopy only runs at build time, so dist serves config.json, public/ and
-// the Element Call bundle — but the dev server serves none of them and the app
-// fetches those paths at runtime. Serve them in dev from where they live.
-function serveRuntimeCopies(widgetDir) {
+// viteStaticCopy only runs at build time, so dist serves config.json and public/ — but
+// the dev server serves neither and the app fetches those paths at runtime. Serve them in
+// dev from where they live.
+function serveRuntimeCopies() {
   const sources = [
     ['/config.json', path.resolve('config.json')],
-    ['/public/element-call/', widgetDir],
     ['/public/', path.resolve('public')],
   ];
   return {
@@ -142,48 +136,6 @@ function serveRuntimeCopies(widgetDir) {
         res.setHeader('Content-Type', MIME_TYPES[path.extname(file)] ?? 'application/octet-stream');
         res.setHeader('Cache-Control', 'no-cache');
         fs.createReadStream(file).pipe(res);
-      });
-    },
-  };
-}
-
-// Dev only: rebuild the vendored Element Call widget when its source changes and
-// reload the page, so editing element-call/ behaves like editing src/.
-function rebuildElementCallOnChange(outDir) {
-  return {
-    name: 'vite-plugin-rebuild-element-call',
-    apply: 'serve',
-    configureServer(server) {
-      if (process.env.ELEMENT_CALL_FORK_REBUILD === '0' || !fs.existsSync(ELEMENT_CALL_SRC)) return;
-      const watched = ['src', 'locales', 'public', 'index.html'].map((n) =>
-        path.join(ELEMENT_CALL_SRC, n)
-      );
-      server.watcher.add(watched);
-      let timer;
-      let building = false;
-      let again = false;
-      const rebuild = () => {
-        if (building) {
-          again = true;
-          return;
-        }
-        building = true;
-        try {
-          buildElementCallFork(outDir);
-          server.ws.send({ type: 'full-reload' });
-        } catch (e) {
-          server.config.logger.error(`Element Call rebuild failed: ${e.message}`);
-        }
-        building = false;
-        if (again) {
-          again = false;
-          rebuild();
-        }
-      };
-      server.watcher.on('all', (_event, file) => {
-        if (!watched.some((w) => file === w || file.startsWith(w + path.sep))) return;
-        clearTimeout(timer);
-        timer = setTimeout(rebuild, 300);
       });
     },
   };
@@ -220,8 +172,7 @@ export default defineConfig({
     port: Number(process.env.PINNIPED_DEV_PORT) || 5173,
     host: true,
     watch: {
-      // The widget build output is reloaded explicitly by rebuildElementCallOnChange.
-      ignored: ['**/element-call/dist/**', '**/.pnpm-store/**'],
+      ignored: ['**/.pnpm-store/**'],
     },
     fs: {
       // Allow serving files from one level up to the project root
@@ -230,8 +181,7 @@ export default defineConfig({
   },
   plugins: [
     serverMatrixSdkCryptoWasm('/node_modules/.vite/deps/pkg/matrix_sdk_crypto_wasm_bg.wasm'),
-    serveRuntimeCopies(elementCallPath),
-    rebuildElementCallOnChange(elementCallPath),
+    serveRuntimeCopies(),
     viteStaticCopy(copyFiles),
     vanillaExtractPlugin(),
     wasm(),
@@ -252,10 +202,8 @@ export default defineConfig({
     }),
   ],
   optimizeDeps: {
-    // Scan only the app. By default Vite crawls every html file under the root, which includes
-    // the vendored Element Call widget (element-call/*.html); once its own node_modules exists
-    // (after `npm run build:element-call`) that pulled in a second copy of React and the app
-    // crashed with "Invalid hook call".
+    // Scan only the app. By default Vite crawls every html file under the root, including test
+    // harness pages that are not part of the app.
     entries: ['index.html'],
     rolldownOptions: {
       transform: {

@@ -24,7 +24,7 @@ import { Membership, StateEvent } from '../../types/matrix/room';
 import { getFallbackSession } from '../state/sessions';
 
 /**
- * Sends an event whose type is only known at runtime (developer tools, widget driver).
+ * Sends an event whose type is only known at runtime (developer tools).
  * The SDK keys its event maps by enum members, so an arbitrary type is widened here.
  */
 export const sendRawStateEvent = (

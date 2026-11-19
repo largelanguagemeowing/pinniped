@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import { Box } from 'folds';
 import { useAtomValue } from 'jotai';
 import { AccountBar } from './AccountBar';
-import { callFullscreenAtom } from '../../state/callEmbed';
+import { callFullscreenAtom } from '../../state/call';
 import { UnverifiedBanner } from '../../features/device-verification-gate/UnverifiedBanner';
 
 type ClientLayoutProps = {
