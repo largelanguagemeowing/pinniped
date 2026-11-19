@@ -1,8 +1,9 @@
 // Usage: node tests/call-stage-harness/run.mjs [scenarios-json]   (prints a JSON report)
 //        node tests/call-stage-harness/run.mjs --screenshots [dir]   (default: out/screenshots)
 // Mounts the real CallStage around a fake call in real Chromium windows and checks the tile
-// layout while resizing, including shrinking to tiny sizes. Same scenarios, sizes and report as
-// element-call/layout-harness/run.mjs, so the two reports can be compared.
+// layout while resizing, including shrinking to tiny sizes. Ported from Element Call's layout
+// harness with the same scenarios, sizes and report, so reports before and after a layout change
+// can be compared.
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';

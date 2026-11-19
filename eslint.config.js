@@ -6,8 +6,8 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default tseslint.config(
-  // element-call/ has its own toolchain (eslint, pnpm); experiment/ is scratch space.
-  { ignores: ['dist', 'electron/out', 'element-call', 'experiment', 'node_modules'] },
+  // experiment/ is scratch space.
+  { ignores: ['dist', 'electron/out', 'experiment', 'node_modules'] },
   js.configs.recommended,
   tseslint.configs.recommended,
   react.configs.flat.recommended,

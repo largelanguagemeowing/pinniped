@@ -28,113 +28,93 @@ Porting an upstream change is a deliberate act, not a sync: read the diff, re-im
 
 We own our dependency versions. Upgrade majors when it helps us, one concern per commit, and verify with `npm run typecheck`, `npm run test:unit` and `npm run build` before committing. There is no upstream lockfile to stay close to.
 
-## Element Call fork
+## Calls
 
-Calls run in an embedded Element Call widget (`element-call/`, vendored in the
-tree). It is NOT built by Pinniped's own build: `scripts/fork/element-call/build.mjs`
-runs `pnpm install && pnpm build:embedded` in `element-call/` and copies
-`dist/` to `node_modules/.cache/pinniped-element-call`, which
-`scripts/fork/element-call/prepare.mjs` (called from vite.config.js) embeds
-under `public/element-call/`. The Dockerfile and `element-call.nix` build it
-separately and point `ELEMENT_CALL_FORK_DIST` at the result.
-`vite` and `vite build` rebuild it automatically when anything under `element-call/` is newer than the last build (the Dockerfile and nix set `ELEMENT_CALL_FORK_REBUILD=0`). There is no fallback: without a widget build, vite fails and says to run `npm run build:element-call`.
+Calls run in Pinniped's own document; there is no widget and no iframe. The call core in
+`src/app/plugins/call/engine/` (view models, LiveKit and MatrixRTC handling, media e2ee; rxjs)
+is derived from Element Call `v0.20.1` plus the fork changes below. It runs on Pinniped's own
+`MatrixClient` and reads the call settings straight from Pinniped's settings atom
+(`engine/settings.ts`), so nothing is synced. Like Cinny, upstream Element Call is history: port a
+change deliberately, and keep the original copyright headers on derived files.
 
-The vendored tree is upstream `v0.20.1` with the former patch series
-(voice-call-layout, sound-overrides) applied plus fork changes made in place.
-There are no patch files anymore; edit `element-call/` directly. Its `matrix-js-sdk` is the pinned npm release (45.0.0), not the upstream git `develop` checkout: a git dependency builds itself in an install script, which the offline Nix build cannot run. To upgrade:
-refresh the tree from a new Element Call tag and re-do the fork changes (see
-`git log -- element-call/` for what they are).
+- `src/app/plugins/call/Call.ts` is one call: it builds the core for a room and joins, plays the
+  call sounds, samples stats, and exposes the controls (`toggleMicrophone`, `toggleVideo`,
+  `toggleSound` (deafen), `toggleSpotlight`, `startScreenShare`/`stopScreenShare`, `hangup`) and
+  `controlState$`. `call.left` resolves with how the call ended. `callAtom`
+  (`src/app/state/call.ts`) holds the call; setting another disposes the previous one, and a call
+  that ends removes itself. A fatal error ends the call and the room's call view shows it
+  (`callFailureAtom`).
+- The views are Pinniped's own (folds, vanilla-extract) in `src/app/features/call/stage/`:
+  `CallStage` (layouts, grid, tiles, incoming reactions and raised hands) in the room's call view,
+  and `CallAudio`, mounted app-wide by `CallFeatures` while the call runs so it stays audible when
+  the call view is not on screen. The call picks its layouts for the stage's size
+  (`Call.setViewSize`). Sending reactions is not offered; incoming ones are shown.
+- Tests: the core in `tests/unit/call-engine/` (the jsdom `call-engine` vitest project), the views
+  in `tests/unit/call-stage/`. `node tests/call-stage-harness/run.mjs` (`--screenshots`) mounts
+  the real `CallStage` around a fake call in Chromium and reports the tile layout while resizing.
+- Transports come from the homeserver's MSC4143 `rtc_transports` endpoint, then `.well-known`
+  (`org.matrix.msc4143.rtc_foci`); there is no app-config fallback.
 
-Fork changes on top of upstream + old patches:
+Fork changes on top of upstream Element Call:
 
-- **Audio pipeline** (`src/livekit/denoise.ts` and its callers): the mic is
-  always captured raw (browser noise suppression and AGC off; AEC stays with
-  the browser), DeepFilterNet 3 denoising via `deepfilternet3-noise-filter` as
-  an opt-in toggle (Pinniped settings → Calls, off by default; Pinniped seeds
-  the widget via the `denoise`/`audioInput`/`audioOutput` URL params and updates
-  them mid-call with the `club.stablecat.pinniped.call_settings` widget action; the mic and
-  speaker pickers live there too, and the widget's settings modal is not reachable
-  when embedded (all its entry points are hidden when `widget !== null`; its
-  remaining tabs — effect volume, camera, background blur — are dead there),
-  96 kbps Opus, DTX off, in-band FEC off (`disableOpusFec` in
-  `src/livekit/bitrateHints.ts` rewrites the Opus fmtp in the answer). An opt-in automatic
-  gain toggle (Pinniped settings → Calls → Call Audio, `autoGain` URL param and
-  `club.stablecat.pinniped.call_settings` field) re-constrains the live mic track with the browser's
-  AGC (`autoGainSync` in `denoise.ts`), ahead of the denoiser and gate; off by default.
-  The DF3 runtime wasm + model (~24 MB) are vendored
-  under `element-call/public/df3/` and copied into the widget output by
-  `scripts/fork/element-call/build.mjs` (the embedded vite build disables
-  publicDir). A previous `denoise-voice-clarity` attempt bundled an AGC/EQ/
-  compressor "clarity chain" that sounded fried; it was replaced by pure DF3.
-- **Voice activity gate** (Pinniped settings → Calls → Call Audio): only sends the mic
-  while it hears speech (`src/livekit/voiceGate.ts`, a track processor in
-  `denoise.ts`'s `applyProcessing`). It sits after DeepFilterNet, which keeps
-  processing everything while the gate is closed so its noise model keeps adapting,
-  and listens to the denoised signal. Automatic mode (`AdaptiveVoiceGate` in
-  `voiceActivity.ts`) follows the noise floor; manual mode uses a 0-1 threshold on
-  a -70..-20 dBFS scale, the same scale as the live meter in Pinniped's settings
-  (`useMicLevel`, `VoiceGateMeter`). Settings reach the widget through the
-  `voiceGate`, `voiceGateAuto` and `voiceGateThreshold` URL params and
-  `club.stablecat.pinniped.call_settings`. Fine tuning (stickiness/hysteresis, hold, fade in/out,
-  lookahead, automatic margin, speaking indicator sensitivity and hold) is one
-  `VoiceTuning` object, sent whole as the `voiceTuning` param/field; the ranges,
-  defaults and descriptions live in `src/app/plugins/call/voiceTuning.ts` (the widget
-  keeps a clamping copy of the defaults in `element-call/src/livekit/voiceTuning.ts`,
-  so add a knob in both).
-- **Speaking detection** also measures the audio itself (`voiceActivity.ts`), so the
-  speaking ring and activity are not limited to the server's coarse speaker updates.
-  It watches the audio tracks a participant sends (`broadcastTracks.ts`: microphone,
-  soundboard), so the indicator shows whenever the person or a sound they play is
-  heard; shared-screen audio is deliberately left out. Every track this client sends
-  (microphone with or without the voice gate, soundboard) is measured where any sound above digital silence
-  counts; remote participants use the indicator sensitivity setting (their gate is
-  invisible to us).
-- **Call controls**: Pinniped draws the call bar itself and never touches the
-  widget's document. Its buttons reach the widget as the
-  `club.stablecat.pinniped.call_control` action (layout, end screen share, deafen,
-  idle, scrollbar colours; `src/hostControl.ts` in the widget,
-  `src/app/plugins/call/view.ts` and `CallControl.ts` here), and the widget
-  reports what they show as `club.stablecat.pinniped.call_view` (layout, own
-  screen share, height of the watched stream). Input inside the call view comes
-  back as `club.stablecat.pinniped.user_activity`, and a tile's View Profile as
-  `club.stablecat.pinniped.view_profile`. Embedded, the widget hides its own
-  footer and page background in its own CSS (`data-pinniped-embedded`). New
-  behaviour across the boundary goes into these actions, not into DOM access.
-- **Call stats**: the widget (`src/livekit/callStats.ts`, reported from
-  `InCallView`) samples each SFU connection's `RTCPeerConnection` stats once a
-  second and sends the raw counters to Pinniped as the `club.stablecat.pinniped.call_stats`
-  widget action. `CallEmbed` keeps five minutes of history; clicking "Voice
-  Connected" opens the ping popout and its Debug view
-  (`src/app/features/call-status/stats/`).
-- **Participant activity** (speaking, muted, sharing a screen): the widget derives
-  it from its view models (`CallViewModel.participantActivity$`, built in
-  `state/CallViewModel/participantActivity.ts`) and sends a snapshot of Matrix user
-  IDs as the `club.stablecat.pinniped.call_activity` action whenever it changes; `CallEmbed`
-  keeps the latest and `useCallParticipantActivity` reads it. It does not depend on
-  which tiles are mounted. (It used to scrape `data-pinniped-*` attributes off tiles,
-  which only the grid tile set; those attributes remain only as styling hooks.)
-- **Publish errors**: when the media server's JWT service lets us join without
-  the `canPublish` grant (it only trusts certain homeservers), `LocalMember`
-  raises `PublishNotAllowedError` on `publishError$`. The widget shows it as a
-  toast and sends it to Pinniped as `club.stablecat.pinniped.call_error`; `CallStatus` shows it
-  under "Voice Connected". The widget defaults to `MatrixRTCMode.Compatibility`
-  (multi-SFU), so each member publishes through their own homeserver's server.
-- **Soundboard**: sounds live in Matrix data (`club.stablecat.pinniped.user_sounds`
-  account data for the user, `club.stablecat.pinniped.room_sounds` state for a
-  room or space, `club.stablecat.pinniped.sound_favorites` for favourites;
-  `src/app/plugins/sound-pack/`). Pinniped downloads a sound, hands the widget a
-  same-origin `blob:` URL via the `club.stablecat.pinniped.soundboard` action, and the widget
-  (`src/livekit/soundboard.ts`, owned by `Publisher`) decodes it and publishes it
-  on an audio track of its own (source `unknown`, which `MatrixAudioRenderer`
-  already plays) while also playing it locally. The mic track is untouched.
-  Sounds go out at full level; the volume is each listener's own
-  (`soundboardVolume`, sent to the widget with the other call settings): it
-  scales the local copy and the remote `soundboard` tracks.
-  The picker is `src/app/features/soundboard/`.
-- **Screen share audio** (Pinniped settings → Calls, `screenShareAudio` URL param and
-  `club.stablecat.pinniped.call_settings` / `.screenshare` field): `off`, `display` (what the
-  browser offers with the capture), `device:<label>` (a microphone published as the share's
-  audio; Linux, a PipeWire virtual mic made by the helper's `screenshare.rs`) or `pcm` (Windows).
+- **Audio pipeline** (`engine/livekit/denoise.ts` and its callers): the mic is always captured raw
+  (browser noise suppression and AGC off; AEC stays with the browser), DeepFilterNet 3 denoising
+  via `deepfilternet3-noise-filter` as an opt-in toggle (Pinniped settings → Calls, off by
+  default), 96 kbps Opus, DTX off, in-band FEC off (`disableOpusFec` in
+  `engine/livekit/bitrateHints.ts` rewrites the Opus fmtp in the answer; `installBitrateHints`
+  patches `RTCPeerConnection` once, before the first call). An opt-in automatic gain toggle
+  (Settings → Calls → Call Audio, `callAutoGain`) re-constrains the live mic track with the
+  browser's AGC (`autoGainSync`), ahead of the denoiser and gate; off by default. The DF3 runtime
+  wasm + model (~24 MB) are vendored under `public/df3/` and fetched from `/public/df3`. A previous
+  `denoise-voice-clarity` attempt bundled an AGC/EQ/compressor "clarity chain" that sounded fried;
+  it was replaced by pure DF3.
+- **Voice activity gate** (Settings → Calls → Call Audio): only sends the mic while it hears speech
+  (`engine/livekit/voiceGate.ts`, a track processor in `denoise.ts`'s `applyProcessing`). It sits
+  after DeepFilterNet, which keeps processing everything while the gate is closed so its noise
+  model keeps adapting, and listens to the denoised signal. Automatic mode (`AdaptiveVoiceGate` in
+  `voiceActivity.ts`) follows the noise floor; manual mode uses a 0-1 threshold on a -70..-20 dBFS
+  scale, the same scale as the live meter in Pinniped's settings (`useMicLevel`,
+  `VoiceGateMeter`). Fine tuning (stickiness/hysteresis, hold, fade in/out, lookahead, automatic
+  margin, speaking indicator sensitivity and hold) is one `VoiceTuning` object; the ranges,
+  defaults and descriptions live in `src/app/plugins/call/voiceTuning.ts`, whose
+  `normalizeVoiceTuning` clamps what the call reads.
+- **Speaking detection** also measures the audio itself (`voiceActivity.ts`), so the speaking ring
+  and activity are not limited to the server's coarse speaker updates. It watches the audio tracks
+  a participant sends (`broadcastTracks.ts`: microphone, soundboard), so the indicator shows
+  whenever the person or a sound they play is heard; shared-screen audio is deliberately left out.
+  Every track this client sends (microphone with or without the voice gate, soundboard) is measured
+  where any sound above digital silence counts; remote participants use the indicator sensitivity
+  setting (their gate is invisible to us).
+- **Call controls**: Pinniped's call bar (`features/call/CallControls.tsx`) and status panel
+  (`features/call-status/`) call `Call`'s methods and read `call.controlState$`. Microphone and
+  sound toggles the user makes are remembered for the next call (`call.userToggles$`).
+- **Deafen** lives in `MuteStates` (`deafened$`, `setDeafened`): it mutes the microphone, silences
+  the call's audio in `CallAudio` (shared-screen audio stays audible), and is shared with the other
+  participants as the client-reported `club.stablecat.pinniped.deafened` LiveKit attribute,
+  re-sent after every reconnect.
+- **Call stats**: `Call` samples each SFU connection's `RTCPeerConnection` stats once a second
+  (`engine/livekit/callStats.ts`) and keeps five minutes in `call.stats$`; clicking "Voice
+  Connected" opens the ping popout and its Debug view (`src/app/features/call-status/stats/`).
+- **Participant activity** (speaking, muted, deafened, sharing a screen):
+  `CallViewModel.participantActivity$` (`state/CallViewModel/participantActivity.ts`) gives Matrix
+  user IDs and does not depend on which tiles are mounted; `useCallParticipantActivity` reads it.
+- **Publish errors**: when the media server's JWT service lets us join without the `canPublish`
+  grant (it only trusts certain homeservers), `LocalMember` raises `PublishNotAllowedError` on
+  `publishError$`; `CallStatus` shows it under "Voice Connected". The call uses
+  `MatrixRTCMode.Compatibility` (multi-SFU), so each member publishes through their own
+  homeserver's server.
+- **Soundboard**: sounds live in Matrix data (`club.stablecat.pinniped.user_sounds` account data
+  for the user, `club.stablecat.pinniped.room_sounds` state for a room or space,
+  `club.stablecat.pinniped.sound_favorites` for favourites; `src/app/plugins/sound-pack/`).
+  Pinniped downloads a sound and passes a `blob:` URL to `call.vm.soundboard(...)`;
+  `engine/livekit/soundboard.ts` (owned by `Publisher`) decodes it and publishes it on an audio
+  track of its own (source `unknown`) while also playing it locally. The mic track is untouched.
+  Sounds go out at full level; the volume is each listener's own (`soundboardVolume`): it scales
+  the local copy and the remote `soundboard` tracks. The picker is `src/app/features/soundboard/`.
+- **Screen share audio** (Settings → Calls, `callScreenShareAudio`; the source follows the platform,
+  `engine/livekit/screenShareAudio.ts`): `off`, `display` (what the browser offers with the
+  capture), `device` (a microphone published as the share's audio; Linux, a PipeWire virtual mic
+  made by the helper's `screenshare.rs`) or `pcm` (Windows).
   Either desktop path shares only what plays on the output device the call uses
   (`callAudioOutput`) from other applications, never Pinniped's own process tree (call voices,
   soundboard, notifications), so nothing echoes back. Windows has no virtual mic without a driver,
@@ -152,9 +132,8 @@ Fork changes on top of upstream + old patches:
   start and stop, a mixer summary every 2 s). `PINNIPED_HELPER_DEBUG=stderr` logs to the stderr it
   was started with instead.
   `helper.cjs` re-emits them, `screenshare-audio.cjs` → main → the `screenShareAudio.onPcm`
-  preload bridge → `useScreenShareAudioBridge` → `CallEmbed.sendShareAudio` → the
-  `club.stablecat.pinniped.share_audio` widget action → `src/livekit/shareAudio.ts` (a
-  `shareAudioPcm$` subject, an AudioWorklet player with an 80 ms lead and a 300 ms cap, a
+  preload bridge → `useScreenShareAudioBridge` → `call.vm.pushShareAudio` →
+  `engine/livekit/shareAudio.ts` (an AudioWorklet player with an 80 ms lead and a 300 ms cap, a
   `MediaStreamAudioDestinationNode`) → published by `LocalMember` as the share audio track.
   Known limits: process loopback is per process, not per device, so a process tree that is
   playing on another active output device too is left out (and logged) rather than leaking that
@@ -164,14 +143,10 @@ Fork changes on top of upstream + old patches:
   a process that starts playing is heard after at most one rescan. The helper is built for Linux
   and Windows (target-gated dependencies in `Cargo.toml`, `linux/` and `windows/` modules) and
   shipped through `extraResources` in `electron/electron-builder.yml`; there is none for macOS.
-- Note: `element-call/` has its own pnpm/eslint/vitest setup. Its
-  `.eslintrc.cjs` sets `root: true` so the outer repo's eslint does not
-  cascade in. Run `pnpm lint:types`/`pnpm test:unit` inside `element-call/`.
-  The voice-call-layout change (pre-dating the vendoring) changed the layout
-  behaviour that 15 upstream tests pinned (the 35 failing cases in
-  `CallViewModel`, `LayoutSwitch`, `InCallView` and `SpotlightTile`); those
-  tests were removed rather than kept failing, so the suite is expected to be
-  green. Upstream `v0.20.1` still has them if you want to port one.
+- The voice-call-layout change (pre-dating the move in-process) changed the layout behaviour that
+  15 upstream tests pinned (the 35 failing cases in `CallViewModel`, `LayoutSwitch`, `InCallView`
+  and `SpotlightTile`); those tests were removed rather than kept failing. Upstream `v0.20.1` still
+  has them if you want to port one.
 
 ## Build and deployment
 
@@ -202,7 +177,7 @@ pushes an image that will not run. Use [OrbStack](https://orbstack.dev) (`brew i
 and always pass `--platform linux/amd64`. Docker Desktop and podman machine work too but are slower.
 
 - Select OrbStack explicitly with `docker --context orbstack ...` (Docker Desktop may be the default context).
-- The amd64 build runs under emulation and the Element Call widget build needs memory.
+- The amd64 build runs under emulation and needs memory.
   With the 8 GB default the daemon died mid-build (`error reading from server: EOF`);
   `orbctl config set memory_mib 12288 && orbctl stop && orbctl start` fixed it.
 - Log in once with `docker --context orbstack login repo.k8s.mreow.de`
@@ -279,7 +254,7 @@ unsigned, so SmartScreen warns on the first install; updates themselves are sile
 
 ## Nix flake
 
-`flake.nix`, `package.nix` and `element-call.nix` are fork-only. `element-call.nix` builds the vendored Element Call widget with pnpm (`fetchPnpmDeps`); `package.nix` builds the Electron app from source in the nixpkgs idiom, embedding that widget through `ELEMENT_CALL_FORK_DIST`: `buildNpmPackage` builds the Vite bundle, then a wrapper launches nixpkgs' `electron` against it. No electron-builder, fpm, or asar is involved (the main process uses only node built-ins + electron, so no node_modules are shipped). `dist/` and `electron/` are installed as siblings under `$out/lib/cinny` because `electron/main.cjs` resolves `../dist`.
+`flake.nix` and `package.nix` are fork-only. `package.nix` builds the Electron app from source in the nixpkgs idiom: `buildNpmPackage` builds the Vite bundle, then a wrapper launches nixpkgs' `electron` against it. No electron-builder, fpm, or asar is involved (the main process uses only node built-ins + electron, so no node_modules are shipped). `dist/` and `electron/` are installed as siblings under `$out/lib/cinny` because `electron/main.cjs` resolves `../dist`.
 
 ```bash
 nix build .#cinny           # build, symlinked at ./result
@@ -296,14 +271,13 @@ Caveats:
   nix run .#update-npm-deps
   ```
   (fork-only script `scripts/update-npm-deps.sh`; prefetches and rewrites the hash in `package.nix` in place, no-op if already current)
-- When `element-call/pnpm-lock.yaml` changes, the pnpm store hash in `element-call.nix` goes stale. It is per system (`x86_64-linux` is refreshed by CI with `scripts/update-pnpm-deps.sh <hash>`; `aarch64-linux` is still `lib.fakeHash` and needs a manual refresh on that architecture).
-- CI covers this automatically: `.github/workflows/npm-deps-hash.yml` (fork-only) runs on pushes to `fork/dev` that touch `package-lock.json`, `element-call/pnpm-lock.yaml` or the nix files, refreshes whichever hash is stale (npm and pnpm), verifies `nix build .#pinniped`, and opens a PR (`auto/npm-deps-hash`) that only needs merging. So normally: push the rebase, merge the PR if it appears, done.
+- CI covers this automatically: `.github/workflows/npm-deps-hash.yml` (fork-only) runs on pushes to `fork/dev` that touch `package-lock.json` or the nix files, refreshes the hash if it is stale, verifies `nix build .#pinniped`, and opens a PR (`auto/npm-deps-hash`) that only needs merging. So normally: push the rebase, merge the PR if it appears, done.
 
 ## Fork-only files
 
 - `AGENTS.md` itself is Pinniped-only. It does not exist upstream.
-- `flake.nix`, `package.nix` and `element-call.nix` are fork-only (see the Nix flake section). Upstream has none of them.
-- `element-call/` is fork-only (see the Element Call fork section).
+- `flake.nix` and `package.nix` are fork-only (see the Nix flake section). Upstream has none of them.
+- The call core (`src/app/plugins/call/engine/`) and views (`src/app/features/call/stage/`) are fork-only (see the Calls section).
 - Since we no longer rebase, new files do not need to avoid upstream paths, but keep scripts and configs clearly named.
 
 ## Frontend form sizing

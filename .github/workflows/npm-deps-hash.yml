@@ -1,5 +1,5 @@
-# Fork-only: refresh the fixed-output hashes of the Nix build (npmDepsHash in
-# package.nix, the pnpm store hash in element-call.nix) when a lockfile changes
+# Fork-only: refresh the fixed-output hash of the Nix build (npmDepsHash in
+# package.nix) when the lockfile changes
 # on fork/dev, verify the Nix build, and open a PR with the fix. The maintainer
 # only ever merges the PR; no local Nix tooling needed.
 name: npm-deps-hash
@@ -9,8 +9,6 @@ on:
     paths:
       - package-lock.json
       - package.nix
-      - element-call.nix
-      - element-call/pnpm-lock.yaml
       - flake.nix
   workflow_dispatch:
 
@@ -37,9 +35,8 @@ jobs:
           log="$RUNNER_TEMP/build.log"
           changed=false
           built=false
-          # Each stale fixed-output hash fails the build on its own, so fix one per
-          # attempt (npm deps, pnpm deps) until the whole build passes.
-          for attempt in 1 2 3 4; do
+          # A stale fixed-output hash fails the build; refresh it and build again.
+          for attempt in 1 2; do
             if nix build .#pinniped --no-link -L 2>&1 | tee "$log"; then
               built=true
               break
@@ -51,7 +48,6 @@ jobs:
               exit 1
             fi
             case "$drv" in
-              *pnpm-deps*) ./scripts/update-pnpm-deps.sh "$hash" ;;
               *npm-deps*) ./scripts/update-npm-deps.sh "$hash" ;;
               *)
                 echo "unrecognised fixed-output derivation: $drv" >&2
@@ -74,9 +70,8 @@ jobs:
           branch: auto/npm-deps-hash
           title: 'chore: refresh Nix dependency hashes'
           body: |
-            A lockfile changed but the Nix dependency hashes (`npmDepsHash` in
-            `package.nix`, the pnpm store hash in `element-call.nix`) were stale.
-            Hashes refreshed and `nix build .#pinniped` verified on CI. Merge to keep
-            the Nix flake buildable.
+            The lockfile changed but the Nix dependency hash (`npmDepsHash` in
+            `package.nix`) was stale. Hash refreshed and `nix build .#pinniped`
+            verified on CI. Merge to keep the Nix flake buildable.
           commit-message: 'chore: refresh Nix dependency hashes'
           delete-branch: true

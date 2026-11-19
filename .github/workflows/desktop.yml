@@ -26,25 +26,11 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
       - run: npm ci
-      # The Element Call widget only changes with element-call/, so reuse its build
-      # (restored after npm ci, which wipes node_modules).
-      - name: Restore the Element Call widget build
-        id: widget
-        uses: actions/cache@v4
-        with:
-          path: node_modules/.cache/pinniped-element-call
-          key: element-call-${{ hashFiles('element-call/**', 'scripts/fork/element-call/build.mjs') }}
-      - name: Build (includes the Element Call fork)
+      - name: Build
         env:
           APP_COMMIT: ${{ github.sha }}
           NODE_OPTIONS: --max_old_space_size=8192
-          # File mtimes after a checkout are always newer than the cached build, so
-          # tell vite to trust a cache hit instead of rebuilding the widget.
-          ELEMENT_CALL_FORK_REBUILD: ${{ steps.widget.outputs.cache-hit == 'true' && '0' || '1' }}
         run: npm run build
       - uses: actions/upload-artifact@v4
         with:

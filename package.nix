@@ -8,7 +8,6 @@
   makeDesktopItem,
   copyDesktopItems,
   makeWrapper,
-  element-call,
 }:
 
 buildNpmPackage {
@@ -32,9 +31,6 @@ buildNpmPackage {
 
   # electron's postinstall would try to download a binary in the sandbox.
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
-  # The call widget is built by element-call.nix; vite embeds it as is.
-  env.ELEMENT_CALL_FORK_DIST = "${element-call}";
-  env.ELEMENT_CALL_FORK_REBUILD = "0";
 
   # No dependency needs its lifecycle scripts for the vite build; skipping
   # them also stops husky's `prepare` from failing (no .git in the sandbox).

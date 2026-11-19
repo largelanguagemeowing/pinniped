@@ -2,7 +2,6 @@
 # Keep in sync with .gitignore; everything here is either regenerated locally
 # or not needed to build the web bundle.
 **/node_modules
-element-call/dist
 .git
 dist
 electron/out

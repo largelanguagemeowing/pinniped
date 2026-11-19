@@ -1,3 +1,0 @@
-# dependencies where we use branches and hashes in the package.json. But that also use a pre/post install script.
-onlyBuiltDependencies:
-  - "matrix-js-sdk"
