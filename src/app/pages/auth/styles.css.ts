@@ -4,6 +4,20 @@ import { DefaultReset, color, config, toRem } from 'folds';
 // Below this width the aside stacks under the form instead of sitting beside it.
 const WIDE = 'screen and (min-width: 960px)';
 
+// Not folds Scroll: it pads in a gutter for overlay scrollbars, and the sections below run
+// edge to edge in two colours, so nothing can fill that strip.
+export const AuthScroll = style({
+  height: '100%',
+  overflowY: 'auto',
+  scrollbarWidth: 'thin',
+  scrollbarColor: 'transparent transparent',
+  selectors: {
+    '&:hover': {
+      scrollbarColor: `${color.Background.ContainerLine} transparent`,
+    },
+  },
+});
+
 export const AuthLayout = style({
   minHeight: '100%',
   display: 'flex',

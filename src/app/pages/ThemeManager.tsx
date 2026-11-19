@@ -10,6 +10,7 @@ import {
 } from '../hooks/useTheme';
 import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
+import './ThemeManager.css';
 
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
