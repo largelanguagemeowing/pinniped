@@ -69,7 +69,6 @@ import { usePowerLevelTags } from '../../../hooks/usePowerLevelTags';
 import { PowerIcon } from '../../../components/power';
 import colorMXID from '../../../../util/colorMXID';
 import { useAtomValue } from 'jotai';
-import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import {
   GetMemberPowerTag,
   getPowerTagIconSrc,
@@ -263,10 +262,9 @@ export const MessageListMenu = forwardRef<HTMLDivElement, MessageListMenuProps>(
   ) => {
     const mx = useMatrixClient();
     const powerLevels = usePowerLevelsContext();
-    const creators = useRoomCreators(room);
 
     const powerLevelTags = usePowerLevelTags(room, powerLevels);
-    const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+    const getMemberPowerTag = useGetMemberPowerTag(room, powerLevels);
 
     const accessibleTagColors = useAccessiblePowerTagColors(powerLevelTags);
 

@@ -465,7 +465,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const creators = useRoomCreators(room);
 
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
-  const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+  const getMemberPowerTag = useGetMemberPowerTag(room, powerLevels);
 
   const accessiblePowerTagColors = useAccessiblePowerTagColors(powerLevelTags);
 

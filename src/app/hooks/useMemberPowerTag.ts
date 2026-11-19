@@ -16,11 +16,7 @@ import { isMxcUrl } from '../utils/mxc';
 
 export type GetMemberPowerTag = (userId: string) => MemberPowerTag;
 
-export const useGetMemberPowerTag = (
-  room: Room,
-  creators: Set<string>,
-  powerLevels: IPowerLevels
-) => {
+export const useGetMemberPowerTag = (room: Room, powerLevels: IPowerLevels) => {
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
 
   const getMemberPowerTag: GetMemberPowerTag = useCallback(

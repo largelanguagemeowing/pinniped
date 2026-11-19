@@ -94,7 +94,6 @@ import {
   useAccessiblePowerTagColors,
   useGetMemberPowerTag,
 } from '../../../hooks/useMemberPowerTag';
-import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useUrlPreviewSetting } from '../../../hooks/useUrlPreview';
 
 type RoomNotificationsGroup = {
@@ -227,10 +226,9 @@ function RoomNotificationsGroupComp({
   const directRoom = useAtomValue(mDirectAtom).has(room.roomId);
 
   const powerLevels = usePowerLevels(room);
-  const creators = useRoomCreators(room);
 
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
-  const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+  const getMemberPowerTag = useGetMemberPowerTag(room, powerLevels);
 
   const accessibleTagColors = useAccessiblePowerTagColors(powerLevelTags);
 

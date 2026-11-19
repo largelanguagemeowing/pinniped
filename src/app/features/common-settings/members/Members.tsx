@@ -89,7 +89,7 @@ export function Members({ requestClose }: MembersProps) {
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
-  const getPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+  const getPowerTag = useGetMemberPowerTag(room, powerLevels);
   const getPowerLevel = useGetMemberPowerLevel(powerLevels);
   // DMs show no role cues
   const showCreators = !useAtomValue(mDirectAtom).has(room.roomId);

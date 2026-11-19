@@ -132,7 +132,6 @@ import { usePowerLevelsContext } from '../../hooks/usePowerLevels';
 import colorMXID from '../../../util/colorMXID';
 import { useIsDirectRoom } from '../../hooks/useRoom';
 import { useAccessiblePowerTagColors, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
-import { useRoomCreators } from '../../hooks/useRoomCreators';
 import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { useComposingCheck } from '../../hooks/useComposingCheck';
 import { PollCreator, PollIcon } from '../../components/poll';
@@ -174,7 +173,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const lastSendTouchEndRef = useRef(-Infinity);
     const roomToParents = useAtomValue(roomToParentsAtom);
     const powerLevels = usePowerLevelsContext();
-    const creators = useRoomCreators(room);
 
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(roomId));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(roomId));
@@ -184,7 +182,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const replyUserID = replyDraft?.userId;
 
     const powerLevelTags = usePowerLevelTags(room, powerLevels);
-    const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+    const getMemberPowerTag = useGetMemberPowerTag(room, powerLevels);
     const accessibleTagColors = useAccessiblePowerTagColors(powerLevelTags);
 
     const replyPowerTag = replyUserID ? getMemberPowerTag(replyUserID) : undefined;

@@ -164,7 +164,7 @@ export function PowerChip({ userId }: { userId: string }) {
   const { hasMorePower } = useMemberPowerCompare(creators, powerLevels);
 
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
-  const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
+  const getMemberPowerTag = useGetMemberPowerTag(room, powerLevels);
   const roleColors = useAccessiblePowerTagColors(powerLevelTags);
 
   const myUserId = mx.getSafeUserId();
