@@ -124,5 +124,22 @@ export const withDefaultTuning = (value: Partial<VoiceTuning> | undefined): Voic
   ...value,
 });
 
+const tuningSpecs = [...gateTuningSpecs, ...autoTuningSpecs, ...indicatorTuningSpecs];
+
+/**
+ * Stored tuning as the call applies it: missing or malformed values take the default, the rest
+ * is clamped to the range the settings page offers.
+ */
+export function normalizeVoiceTuning(value: unknown): VoiceTuning {
+  const given =
+    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  const result = { ...defaultVoiceTuning };
+  tuningSpecs.forEach(({ key, min, max }) => {
+    const n = given[key];
+    if (typeof n === 'number' && Number.isFinite(n)) result[key] = Math.min(max, Math.max(min, n));
+  });
+  return result;
+}
+
 export const formatTuningValue = (spec: VoiceTuningSpec, value: number): string =>
   spec.percent ? `${Math.round(value * 100)}%` : `${value} ${spec.unit}`;

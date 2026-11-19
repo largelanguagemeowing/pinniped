@@ -35,7 +35,8 @@ export default tseslint.config(
       'jsx-a11y/no-autofocus': ['error', { ignoreNonDOM: true }],
 
       '@typescript-eslint/no-shadow': 'error',
-      '@typescript-eslint/no-unused-vars': 'error',
+      // A leading underscore marks a parameter a callback must accept but does not use.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },

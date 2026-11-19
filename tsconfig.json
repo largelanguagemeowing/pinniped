@@ -11,7 +11,7 @@
     "resolveJsonModule": true,
     "outDir": "dist",
     "skipLibCheck": true,
-    "lib": ["ES2016", "DOM"]
+    "lib": ["ES2024", "DOM", "DOM.Iterable"]
   },
   "exclude": ["node_modules", "dist"],
   "include": ["src"]
