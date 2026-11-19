@@ -1,9 +1,7 @@
 import React from 'react';
-import { Box, Icon, IconButton, Icons, Text, as } from 'folds';
+import { Box, Text, as } from 'folds';
 import { Room } from 'matrix-js-sdk';
 import classNames from 'classnames';
-import { useSetAtom } from 'jotai';
-import { roomIdToTypingMembersAtom } from '../../state/typingMembers';
 import { TypingIndicator } from '../../components/typing-indicator';
 import { getMemberDisplayName } from '../../utils/room';
 import { getMxIdLocalPart } from '../../utils/matrix';
@@ -16,7 +14,6 @@ export type RoomViewTypingProps = {
 };
 export const RoomViewTyping = as<'div', RoomViewTypingProps>(
   ({ className, room, ...props }, ref) => {
-    const setTypingMembers = useSetAtom(roomIdToTypingMembersAtom);
     const mx = useMatrixClient();
     const typingMembers = useRoomTypingMember(room.roomId);
 
@@ -30,18 +27,6 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
     if (typingNames.length === 0) {
       return null;
     }
-
-    const handleDropAll = () => {
-      // some homeserver does not timeout typing status
-      // we have given option so user can drop their typing status
-      typingMembers.forEach((receipt) =>
-        setTypingMembers({
-          type: 'DELETE',
-          roomId: room.roomId,
-          userId: receipt.userId,
-        })
-      );
-    };
 
     return (
       <div style={{ position: 'relative' }}>
@@ -111,9 +96,6 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
               </>
             )}
           </Text>
-          <IconButton title="Drop Typing Status" size="300" radii="Pill" onClick={handleDropAll}>
-            <Icon size="50" src={Icons.Cross} />
-          </IconButton>
         </Box>
       </div>
     );
