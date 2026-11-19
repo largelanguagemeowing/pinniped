@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useRef, useState } from 'react';
+import React, { ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import { MatrixError, Room } from 'matrix-js-sdk';
 import {
   Avatar,
@@ -32,6 +32,7 @@ import { useJoinedRoomId } from '../../hooks/useJoinedRoomId';
 import { useElementSizeObserver } from '../../hooks/useElementSizeObserver';
 import { getRoomAvatarUrl, getStateEvent } from '../../utils/room';
 import { useStateEventCallback } from '../../hooks/useStateEventCallback';
+import { useForceUpdate } from '../../hooks/useForceUpdate';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { stripUnsafeTextChars } from '../../utils/sanitize';
 
@@ -166,9 +167,7 @@ export const RoomCard = as<'div', RoomCardProps>(
     const useAuthentication = useMediaAuthentication();
     const joinedRoomId = useJoinedRoomId(allRooms, roomIdOrAlias);
     const joinedRoom = mx.getRoom(joinedRoomId);
-    const [topicEvent, setTopicEvent] = useState(() =>
-      joinedRoom ? getStateEvent(joinedRoom, StateEvent.RoomTopic) : undefined
-    );
+    const [topicUpdateCount, forceTopicUpdate] = useForceUpdate();
 
     const fallbackName = getMxIdLocalPart(roomIdOrAlias) ?? roomIdOrAlias;
     const fallbackTopic = roomIdOrAlias;
@@ -178,6 +177,12 @@ export const RoomCard = as<'div', RoomCardProps>(
       : avatarUrl && mxcUrlToHttp(mx, avatarUrl, useAuthentication, 96, 96, 'crop');
 
     const roomName = stripUnsafeTextChars(joinedRoom?.name || name || fallbackName);
+    // Read on render: the joined room can appear after the card mounts, without a topic event.
+    const topicEvent = useMemo(
+      () => (joinedRoom ? getStateEvent(joinedRoom, StateEvent.RoomTopic) : undefined),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [joinedRoom, topicUpdateCount]
+    );
     const roomTopic = stripUnsafeTextChars(
       (topicEvent?.getContent().topic as string) || undefined || topic || fallbackTopic
     );
@@ -192,10 +197,10 @@ export const RoomCard = as<'div', RoomCardProps>(
             event.getRoomId() === joinedRoom.roomId &&
             event.getType() === StateEvent.RoomTopic
           ) {
-            setTopicEvent(getStateEvent(joinedRoom, StateEvent.RoomTopic));
+            forceTopicUpdate();
           }
         },
-        [joinedRoom]
+        [joinedRoom, forceTopicUpdate]
       )
     );
 

@@ -1,5 +1,5 @@
 import { MatrixEvent, Room } from 'matrix-js-sdk';
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useReducer } from 'react';
 import { produce } from 'immer';
 import { useStateEvent } from './useStateEvent';
 import { StateEvent } from '../../types/matrix/room';
@@ -81,20 +81,20 @@ export const usePowerLevelsContext = (): IPowerLevels => {
   return pl;
 };
 
+const getRoomsPowerLevelsMap = (rooms: Room[]): Map<string, IPowerLevels> => {
+  const rToPl = new Map<string, IPowerLevels>();
+
+  rooms.forEach((room) => {
+    const mEvent = getStateEvent(room, StateEvent.RoomPowerLevels, '');
+    rToPl.set(room.roomId, getPowersLevelFromMatrixEvent(mEvent));
+  });
+
+  return rToPl;
+};
+
 export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> => {
   const mx = useMatrixClient();
-  const getRoomsPowerLevels = useCallback(() => {
-    const rToPl = new Map<string, IPowerLevels>();
-
-    rooms.forEach((room) => {
-      const mEvent = getStateEvent(room, StateEvent.RoomPowerLevels, '');
-      rToPl.set(room.roomId, getPowersLevelFromMatrixEvent(mEvent));
-    });
-
-    return rToPl;
-  }, [rooms]);
-
-  const [roomToPowerLevels, setRoomToPowerLevels] = useState(() => getRoomsPowerLevels());
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
 
   useStateEventCallback(
     mx,
@@ -107,14 +107,15 @@ export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> =>
           event.getStateKey() === '' &&
           rooms.find((r) => r.roomId === roomId)
         ) {
-          setRoomToPowerLevels(getRoomsPowerLevels());
+          rerender();
         }
       },
-      [rooms, getRoomsPowerLevels]
+      [rooms]
     )
   );
 
-  return roomToPowerLevels;
+  // Read on every render: rooms can join the list without a power level event (a sub-space just created).
+  return getRoomsPowerLevelsMap(rooms);
 };
 
 export type ReadPowerLevelAPI = {

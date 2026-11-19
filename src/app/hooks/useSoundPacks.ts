@@ -9,6 +9,7 @@ import { getAllParents } from '../utils/room';
 import { useAccountDataCallback } from './useAccountDataCallback';
 import { useMatrixClient } from './useMatrixClient';
 import { useStateEventCallback } from './useStateEventCallback';
+import { useForceUpdate } from './useForceUpdate';
 
 export const useUserSoundPack = (): SoundPack => {
   const mx = useMatrixClient();
@@ -29,7 +30,7 @@ export const useUserSoundPack = (): SoundPack => {
 
 export const useRoomSoundPack = (room: Room): SoundPack => {
   const mx = useMatrixClient();
-  const [pack, setPack] = useState(() => getRoomSoundPack(room));
+  const [updateCount, forceUpdate] = useForceUpdate();
 
   useStateEventCallback(
     mx,
@@ -39,14 +40,18 @@ export const useRoomSoundPack = (room: Room): SoundPack => {
           mEvent.getRoomId() === room.roomId &&
           mEvent.getType() === StateEvent.PinnipedRoomSounds
         ) {
-          setPack(getRoomSoundPack(room));
+          forceUpdate();
         }
       },
-      [room]
+      [room, forceUpdate]
     )
   );
 
-  return pack;
+  return useMemo(
+    () => getRoomSoundPack(room),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [room, updateCount]
+  );
 };
 
 /** The packs usable in a call in this room: the user's own, then the room's and its spaces'. */

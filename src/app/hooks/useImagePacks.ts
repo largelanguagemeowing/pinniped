@@ -15,6 +15,7 @@ import {
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountDataCallback } from './useAccountDataCallback';
 import { useStateEventCallback } from './useStateEventCallback';
+import { useForceUpdate } from './useForceUpdate';
 
 export const useUserImagePack = (): ImagePack | undefined => {
   const mx = useMatrixClient();
@@ -80,7 +81,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
 
 export const useRoomImagePack = (room: Room, address: PackAddress): ImagePack | undefined => {
   const mx = useMatrixClient();
-  const [roomPack, setRoomPack] = useState(() => getRoomImagePack(room, address));
+  const [updateCount, forceUpdate] = useForceUpdate();
 
   useStateEventCallback(
     mx,
@@ -91,38 +92,46 @@ export const useRoomImagePack = (room: Room, address: PackAddress): ImagePack | 
           mEvent.getType() === address.format.stateEvent &&
           mEvent.getStateKey() === address.stateKey
         ) {
-          setRoomPack(getRoomImagePack(room, address));
+          forceUpdate();
         }
       },
-      [room, address]
+      [room, address, forceUpdate]
     )
   );
 
-  return roomPack;
+  return useMemo(
+    () => getRoomImagePack(room, address),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [room, address, updateCount]
+  );
 };
 
 export const useRoomImagePacks = (room: Room): ImagePack[] => {
   const mx = useMatrixClient();
-  const [roomPacks, setRoomPacks] = useState(() => getRoomImagePacks(room));
+  const [updateCount, forceUpdate] = useForceUpdate();
 
   useStateEventCallback(
     mx,
     useCallback(
       (mEvent) => {
         if (mEvent.getRoomId() === room.roomId && roomPackFormatOf(mEvent.getType())) {
-          setRoomPacks(getRoomImagePacks(room));
+          forceUpdate();
         }
       },
-      [room]
+      [room, forceUpdate]
     )
   );
 
-  return roomPacks;
+  return useMemo(
+    () => getRoomImagePacks(room),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [room, updateCount]
+  );
 };
 
 export const useRoomsImagePacks = (rooms: Room[]) => {
   const mx = useMatrixClient();
-  const [roomPacks, setRoomPacks] = useState(() => rooms.flatMap(getRoomImagePacks));
+  const [updateCount, forceUpdate] = useForceUpdate();
 
   useStateEventCallback(
     mx,
@@ -132,14 +141,18 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
           rooms.find((room) => room.roomId === mEvent.getRoomId()) &&
           roomPackFormatOf(mEvent.getType())
         ) {
-          setRoomPacks(rooms.flatMap(getRoomImagePacks));
+          forceUpdate();
         }
       },
-      [rooms]
+      [rooms, forceUpdate]
     )
   );
 
-  return roomPacks;
+  return useMemo(
+    () => rooms.flatMap(getRoomImagePacks),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rooms, updateCount]
+  );
 };
 
 export const useRelevantImagePacks = (usage: ImageUsage, rooms: Room[]): ImagePack[] => {
