@@ -51,7 +51,15 @@ const createWindow = () => {
  * Runs electron/main.cjs against a mocked Electron, as the desktop app does at startup, and
  * returns the mocks: the IPC listeners and handlers it registered and the window it created.
  */
-export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
+type LoadOptions = {
+  /** stands in for `session.defaultSession.clearStorageData` */
+  clearStorageData: () => Promise<void>;
+};
+
+export const loadElectronMain = async (
+  platform: NodeJS.Platform = 'linux',
+  { clearStorageData }: LoadOptions = { clearStorageData: () => Promise.resolve() }
+) => {
   const ipcMain = emitter();
   const handlers = new Map<string, Listener>();
   const windows: FakeWindow[] = [];
@@ -98,6 +106,7 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
           permissions.check = handler;
         },
         webRequest: { onBeforeSendHeaders: vi.fn() },
+        clearStorageData: vi.fn(clearStorageData),
       },
     },
     nativeImage: {
@@ -138,9 +147,10 @@ export const loadElectronMain = async (platform: NodeJS.Platform = 'linux') => {
       return {};
     },
   });
-  // Let app.whenReady() run and create the window.
-  await Promise.resolve();
-  await Promise.resolve();
+  // Let app.whenReady() run its startup, awaits included, and create the window.
+  await new Promise((resolve) => {
+    setImmediate(resolve);
+  });
 
   /** An IPC event as the app's own page in `window` sends it. */
   const fromPage = (window: FakeWindow, url = 'app://cinny/home') => ({

@@ -1,7 +1,7 @@
 // Serves the built Pinniped SPA over a custom privileged scheme (app://cinny/).
 // A standard+secure scheme gives a stable origin (session persists), a secure
-// context (service worker works), and no open TCP port. SPA fallback mirrors
-// docker-nginx.conf.
+// context, and no open TCP port. No service workers: the main process
+// authenticates media itself. SPA fallback mirrors docker-nginx.conf.
 
 const { protocol } = require('electron');
 const fs = require('fs');
@@ -61,7 +61,6 @@ function registerAppScheme() {
         supportFetchAPI: true,
         corsEnabled: true,
         stream: true,
-        allowServiceWorkers: true,
       },
     },
   ]);

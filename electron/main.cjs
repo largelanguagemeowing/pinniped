@@ -356,6 +356,18 @@ function enableMediaAuth() {
   );
 }
 
+// The app uses no service worker (media auth is above), but builds before that registered one,
+// and a registration outlives app updates: it would keep controlling the page and taking the
+// token. Removed before the window loads, so no page starts out controlled.
+async function removeServiceWorkers() {
+  try {
+    await session.defaultSession.clearStorageData({ storages: ['serviceworkers'] });
+  } catch (err) {
+    // the app works with or without it; never block startup on this
+    log(`Removing service workers failed: ${err}`);
+  }
+}
+
 // Seconds since the last keyboard/mouse input anywhere on the system; the
 // renderer uses it for idle detection.
 handleFromApp('system:idle-time', () => powerMonitor.getSystemIdleTime());
@@ -625,8 +637,6 @@ function watchDistForReload() {
   const reloadAfterLeavingCall = async () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     await leaveCall();
-    // Plain reload: reloadIgnoringCache bypasses the service worker, which then can't add
-    // the access token to authenticated media requests.
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
   };
   // Without a build there is nothing to watch (the dev server serves the app); watching a
@@ -703,7 +713,7 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', showMainWindow);
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     log('App ready');
     mark('app-ready');
     log(
@@ -722,7 +732,8 @@ if (!app.requestSingleInstanceLock()) {
     restrictPermissions();
     enableScreenShare();
     enableMediaAuth();
-    log('Permissions, screen share and media auth set up');
+    await removeServiceWorkers();
+    log('Permissions, screen share and media auth set up; service workers removed');
     mark('handlers-ready');
     createWindow();
     if (CLOSE_TO_TRAY) {
