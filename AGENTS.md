@@ -263,7 +263,7 @@ A successful deploy: the live hash changed from the previous deploy, and live ==
 
 ## Desktop builds
 
-`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak), Windows (NSIS exe) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags. The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
+`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak; in a privileged Fedora 45 container, so its build tools come from dnf rather than the runner's slow apt mirrors), Windows (NSIS exe) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags. The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
 
 ### Windows auto-update
 
