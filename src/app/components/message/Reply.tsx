@@ -13,6 +13,8 @@ import { scaleSystemEmoji } from '../../plugins/react-custom-html-parser';
 import { useRoomEvent } from '../../hooks/useRoomEvent';
 import colorMXID from '../../../util/colorMXID';
 import { GetMemberPowerTag } from '../../hooks/useMemberPowerTag';
+import { mDirectAtom } from '../../state/mDirectList';
+import { useAtomValue } from 'jotai';
 
 type ReplyLayoutProps = {
   userColor?: string;
@@ -84,6 +86,7 @@ export const Reply = as<'div', ReplyProps>(
       [timelineSet, replyEventId]
     );
     const replyEvent = useRoomEvent(room, replyEventId, getFromLocalTimeline);
+    const directRoom = useAtomValue(mDirectAtom).has(room.roomId);
 
     const replyContent = replyEvent?.getContent() ?? {};
     const body: string | undefined =
@@ -92,7 +95,11 @@ export const Reply = as<'div', ReplyProps>(
     const powerTag = sender ? getMemberPowerTag?.(sender) : undefined;
     const tagColor = powerTag?.color ? accessibleTagColors?.get(powerTag.color) : undefined;
 
-    const usernameColor = legacyUsernameColor ? colorMXID(sender ?? replyEventId) : tagColor;
+    const usernameColor = directRoom
+      ? undefined
+      : legacyUsernameColor
+        ? colorMXID(sender ?? replyEventId)
+        : tagColor;
 
     const fallbackBody = replyEvent?.isRedacted() ? (
       <MessageDeletedContent />

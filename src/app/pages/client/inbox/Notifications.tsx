@@ -224,6 +224,7 @@ function RoomNotificationsGroupComp({
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
+  const directRoom = useAtomValue(mDirectAtom).has(room.roomId);
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -464,7 +465,11 @@ function RoomNotificationsGroupComp({
             ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
             : undefined;
 
-          const usernameColor = legacyUsernameColor ? colorMXID(event.sender) : tagColor;
+          const usernameColor = directRoom
+            ? undefined
+            : legacyUsernameColor
+              ? colorMXID(event.sender)
+              : tagColor;
 
           return (
             <SequenceCard
@@ -567,7 +572,6 @@ export function Notifications() {
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const screenSize = useScreenSizeContext();
-  const mDirects = useAtomValue(mDirectAtom);
 
   const { navigateRoom } = useRoomNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -727,9 +731,7 @@ export function Notifications() {
                           urlPreview={urlPreviewFor(groupRoom)}
                           hideActivity={hideActivity}
                           onOpen={navigateRoom}
-                          legacyUsernameColor={
-                            legacyUsernameColor || mDirects.has(groupRoom.roomId)
-                          }
+                          legacyUsernameColor={legacyUsernameColor}
                           hour24Clock={hour24Clock}
                           dateFormatString={dateFormatString}
                         />

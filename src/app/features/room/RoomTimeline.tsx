@@ -126,7 +126,6 @@ import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { useIgnoredUsers } from '../../hooks/useIgnoredUsers';
 import { useImagePackRooms } from '../../hooks/useImagePackRooms';
-import { useIsDirectRoom } from '../../hooks/useRoom';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '../../hooks/useSpace';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
@@ -448,7 +447,6 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [messageSpacing] = useSetting(settingsAtom, 'messageSpacing');
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
-  const direct = useIsDirectRoom();
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
@@ -1133,7 +1131,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
               onClick={handleOpenReply}
               getMemberPowerTag={getMemberPowerTag}
               accessibleTagColors={accessiblePowerTagColors}
-              legacyUsernameColor={legacyUsernameColor || direct}
+              legacyUsernameColor={legacyUsernameColor}
             />
           )
         }
@@ -1141,7 +1139,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         showDeveloperTools={showDeveloperTools}
         memberPowerTag={getMemberPowerTag(mEvent.getSender() ?? '')}
         accessibleTagColors={accessiblePowerTagColors}
-        legacyUsernameColor={legacyUsernameColor || direct}
+        legacyUsernameColor={legacyUsernameColor}
         hour24Clock={hour24Clock}
         dateFormatString={dateFormatString}
       >
@@ -1315,7 +1313,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
                   onClick={handleOpenReply}
                   getMemberPowerTag={getMemberPowerTag}
                   accessibleTagColors={accessiblePowerTagColors}
-                  legacyUsernameColor={legacyUsernameColor || direct}
+                  legacyUsernameColor={legacyUsernameColor}
                 />
               )
             }
@@ -1335,7 +1333,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             showDeveloperTools={showDeveloperTools}
             memberPowerTag={getMemberPowerTag(senderId)}
             accessibleTagColors={accessiblePowerTagColors}
-            legacyUsernameColor={legacyUsernameColor || direct}
+            legacyUsernameColor={legacyUsernameColor}
             hour24Clock={hour24Clock}
             dateFormatString={dateFormatString}
           >
@@ -1443,7 +1441,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
                   onClick={handleOpenReply}
                   getMemberPowerTag={getMemberPowerTag}
                   accessibleTagColors={accessiblePowerTagColors}
-                  legacyUsernameColor={legacyUsernameColor || direct}
+                  legacyUsernameColor={legacyUsernameColor}
                 />
               )
             }
@@ -1463,7 +1461,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             showDeveloperTools={showDeveloperTools}
             memberPowerTag={getMemberPowerTag(mEvent.getSender() ?? '')}
             accessibleTagColors={accessiblePowerTagColors}
-            legacyUsernameColor={legacyUsernameColor || direct}
+            legacyUsernameColor={legacyUsernameColor}
             hour24Clock={hour24Clock}
             dateFormatString={dateFormatString}
           >
@@ -1574,7 +1572,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
                   onClick={handleOpenReply}
                   getMemberPowerTag={getMemberPowerTag}
                   accessibleTagColors={accessiblePowerTagColors}
-                  legacyUsernameColor={legacyUsernameColor || direct}
+                  legacyUsernameColor={legacyUsernameColor}
                 />
               )
             }
@@ -1582,7 +1580,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             showDeveloperTools={showDeveloperTools}
             memberPowerTag={getMemberPowerTag(mEvent.getSender() ?? '')}
             accessibleTagColors={accessiblePowerTagColors}
-            legacyUsernameColor={legacyUsernameColor || direct}
+            legacyUsernameColor={legacyUsernameColor}
             hour24Clock={hour24Clock}
             dateFormatString={dateFormatString}
           >

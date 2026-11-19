@@ -68,7 +68,7 @@ import { ContainerColor } from '../../../styles/ContainerColor.css';
 import { usePowerLevelTags } from '../../../hooks/usePowerLevelTags';
 import { PowerIcon } from '../../../components/power';
 import colorMXID from '../../../../util/colorMXID';
-import { useIsDirectRoom } from '../../../hooks/useRoom';
+import { useAtomValue } from 'jotai';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import {
   GetMemberPowerTag,
@@ -77,6 +77,7 @@ import {
   useGetMemberPowerTag,
 } from '../../../hooks/useMemberPowerTag';
 import { useUrlPreviewSetting } from '../../../hooks/useUrlPreview';
+import { mDirectAtom } from '../../../state/mDirectList';
 
 type ListedMessageProps = {
   room: Room;
@@ -105,6 +106,7 @@ function ListedMessage({
   dateFormatString,
 }: ListedMessageProps) {
   const listedEvent = useRoomEvent(room, eventId);
+  const directRoom = useAtomValue(mDirectAtom).has(room.roomId);
   const useAuthentication = useMediaAuthentication();
   const mx = useMatrixClient();
 
@@ -174,7 +176,7 @@ function ListedMessage({
     ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
     : undefined;
 
-  const usernameColor = legacyUsernameColor ? colorMXID(sender) : tagColor;
+  const usernameColor = directRoom ? undefined : legacyUsernameColor ? colorMXID(sender) : tagColor;
 
   return (
     <ModernLayout
@@ -272,7 +274,6 @@ export const MessageListMenu = forwardRef<HTMLDivElement, MessageListMenuProps>(
     const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
     const showUrlPreview = useUrlPreviewSetting()(room);
 
-    const direct = useIsDirectRoom();
     const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
 
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
@@ -495,7 +496,7 @@ export const MessageListMenu = forwardRef<HTMLDivElement, MessageListMenuProps>(
                               removeLabel={removeLabel}
                               getMemberPowerTag={getMemberPowerTag}
                               accessibleTagColors={accessibleTagColors}
-                              legacyUsernameColor={legacyUsernameColor || direct}
+                              legacyUsernameColor={legacyUsernameColor}
                               hour24Clock={hour24Clock}
                               dateFormatString={dateFormatString}
                             />

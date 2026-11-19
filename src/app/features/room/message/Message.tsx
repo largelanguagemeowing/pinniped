@@ -96,6 +96,8 @@ import { useExportAnchor } from '../export/ExportAnchorProvider';
 import * as exportCss from '../export/styles.css';
 import { settingsAtom } from '../../../state/settings';
 import { useSetting } from '../../../state/hooks/settings';
+import { mDirectAtom } from '../../../state/mDirectList';
+import { useAtomValue } from 'jotai';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -822,7 +824,12 @@ export const Message = as<'div', MessageProps>(
       ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
       : undefined;
 
-    const usernameColor = legacyUsernameColor ? colorMXID(senderId) : tagColor;
+    const directRoom = useAtomValue(mDirectAtom).has(room.roomId);
+    const usernameColor = directRoom
+      ? undefined
+      : legacyUsernameColor
+        ? colorMXID(senderId)
+        : tagColor;
 
     // A warned message always gets its header, so it cannot hide inside a run from one sender.
     const shield = useMessageShield(mEvent);

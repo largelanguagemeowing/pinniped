@@ -50,6 +50,8 @@ import {
   useGetMemberPowerTag,
 } from '../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
+import { mDirectAtom } from '../../state/mDirectList';
+import { useAtomValue } from 'jotai';
 
 type SearchResultGroupProps = {
   room: Room;
@@ -78,6 +80,7 @@ export function SearchResultGroup({
   const highlightRegex = useMemo(() => makeHighlightRegex(highlights), [highlights]);
 
   const powerLevels = usePowerLevels(room);
+  const directRoom = useAtomValue(mDirectAtom).has(room.roomId);
   const creators = useRoomCreators(room);
 
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
@@ -241,7 +244,11 @@ export function SearchResultGroup({
             ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
             : undefined;
 
-          const usernameColor = legacyUsernameColor ? colorMXID(event.sender) : tagColor;
+          const usernameColor = directRoom
+            ? undefined
+            : legacyUsernameColor
+              ? colorMXID(event.sender)
+              : tagColor;
 
           return (
             <SequenceCard

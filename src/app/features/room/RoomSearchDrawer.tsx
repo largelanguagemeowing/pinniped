@@ -149,7 +149,6 @@ type SearchResultsProps = {
 };
 function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
   const mx = useMatrixClient();
-  const mDirects = useAtomValue(mDirectAtom);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTopAnchorRef = useRef<HTMLDivElement>(null);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
@@ -368,7 +367,7 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
                       mediaAutoLoad={mediaAutoLoad}
                       urlPreview={urlPreviewFor(groupRoom)}
                       onOpen={onOpen}
-                      legacyUsernameColor={legacyUsernameColor || mDirects.has(groupRoom.roomId)}
+                      legacyUsernameColor={legacyUsernameColor}
                       hour24Clock={hour24Clock}
                       dateFormatString={dateFormatString}
                     />

@@ -341,7 +341,7 @@ export function MessageSearch({
                     mediaAutoLoad={mediaAutoLoad}
                     urlPreview={urlPreviewFor(groupRoom)}
                     onOpen={navigateRoom}
-                    legacyUsernameColor={legacyUsernameColor || mDirects.has(groupRoom.roomId)}
+                    legacyUsernameColor={legacyUsernameColor}
                     hour24Clock={hour24Clock}
                     dateFormatString={dateFormatString}
                   />
