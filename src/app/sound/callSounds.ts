@@ -22,55 +22,61 @@ const callSoundKind = (sound: string): EventSoundKind | undefined =>
     ? CALL_SOUND_KINDS[sound]
     : undefined;
 
-/** Looping sounds that are playing, by the id the widget gave them. */
-const loops = new Map<number, HTMLAudioElement>();
-/** Loops stopped before they began (while their intro plays). */
-const stopped = new Set<number>();
-
-const loopUrl = (sound: string, settings: Settings): string | undefined => {
-  const kind = callSoundKind(sound);
-  if (!kind || !settings.isNotificationSounds || !isSoundEnabled(settings, kind)) return undefined;
+const loopUrl = (kind: EventSoundKind, settings: Settings): string | undefined => {
+  if (!settings.isNotificationSounds || !isSoundEnabled(settings, kind)) return undefined;
   return getSoundUrl(settings.notificationSoundBundle, kind);
 };
 
-const startLoop = async (id: number, sound: string, intro?: string): Promise<void> => {
-  const intro$ = intro !== undefined ? callSoundKind(intro) : undefined;
-  if (intro$) await playEventSound(intro$);
-  if (stopped.delete(id)) return;
-
-  const settings = getSettings();
-  const url = loopUrl(sound, settings);
-  if (!url) return;
-  const audio = new Audio(url);
-  audio.loop = true;
-  audio.volume = settings.soundVolume;
-  loops.set(id, audio);
-  audio.play().catch(() => undefined);
+/** Plays a call sound with the selected bundle, toggles and volume. */
+export const playCallSound = (kind: EventSoundKind): void => {
+  void playEventSound(kind);
 };
 
-const stopLoop = (id: number): void => {
-  const audio = loops.get(id);
-  if (audio) {
-    audio.pause();
-    loops.delete(id);
-  } else {
-    stopped.add(id);
-  }
+/**
+ * Repeats a call sound (after `intro`, if given) until the returned function is called; stopping
+ * during the intro means the loop never starts.
+ */
+export const loopCallSound = (kind: EventSoundKind, intro?: EventSoundKind): (() => void) => {
+  let stopped = false;
+  let audio: HTMLAudioElement | undefined;
+  const start = async () => {
+    if (intro) await playEventSound(intro);
+    if (stopped) return;
+    const settings = getSettings();
+    const url = loopUrl(kind, settings);
+    if (!url) return;
+    audio = new Audio(url);
+    audio.loop = true;
+    audio.volume = settings.soundVolume;
+    audio.play().catch(() => undefined);
+  };
+  void start();
+  return () => {
+    stopped = true;
+    audio?.pause();
+  };
 };
+
+/** Loops the call widget started, by the id it gave them. */
+const widgetLoops = new Map<number, () => void>();
 
 /** Plays a sound the call widget asked for, with the selected bundle and toggles. */
 export const handleCallSound = (command: CallSoundCommand): void => {
   switch (command.op) {
     case 'play': {
       const kind = callSoundKind(command.sound);
-      if (kind) void playEventSound(kind);
+      if (kind) playCallSound(kind);
       return;
     }
-    case 'loop':
-      void startLoop(command.id, command.sound, command.intro);
+    case 'loop': {
+      const kind = callSoundKind(command.sound);
+      const intro = command.intro !== undefined ? callSoundKind(command.intro) : undefined;
+      if (kind) widgetLoops.set(command.id, loopCallSound(kind, intro));
       return;
+    }
     case 'stop':
-      stopLoop(command.id);
+      widgetLoops.get(command.id)?.();
+      widgetLoops.delete(command.id);
       return;
   }
 };
