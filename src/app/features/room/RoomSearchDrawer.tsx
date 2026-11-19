@@ -399,6 +399,8 @@ export function RoomSearchDrawer({ room, members }: RoomSearchDrawerProps) {
   const mx = useMatrixClient();
   const space = useSpaceOptionally();
   const direct = useIsDirectRoom();
+  // Group DMs list their members like a room; only 1:1 DMs show the partner's profile.
+  const profileDm = direct && room.getJoinedMemberCount() <= 2;
   const { navigateRoom } = useRoomNavigate();
 
   const [searchTerm, setSearchTerm] = useAtom(roomSearchTermAtom);
@@ -481,7 +483,7 @@ export function RoomSearchDrawer({ room, members }: RoomSearchDrawerProps) {
     drawerContent = (
       <SearchResults query={searchTerm} search={search} order={order} onOpen={handleOpen} />
     );
-  } else if (direct) {
+  } else if (profileDm) {
     drawerContent = (
       <Box grow="Yes">
         <DmProfileDrawer room={room} />
@@ -501,7 +503,7 @@ export function RoomSearchDrawer({ room, members }: RoomSearchDrawerProps) {
         css.RoomSearchDrawer,
         ContainerColor({ variant: 'Background' }),
         searchTerm && css.RoomSearchDrawerWide,
-        direct && !searchTerm && css.RoomSearchDrawerDirect
+        profileDm && !searchTerm && css.RoomSearchDrawerDirect
       )}
       shrink="No"
       direction="Column"
