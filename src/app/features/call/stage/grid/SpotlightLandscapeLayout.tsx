@@ -21,6 +21,7 @@ import { useUpdateLayout, useVisibleTiles } from './Grid';
 import { ScreenSharePreview } from './ScreenSharePreview';
 import { StageContext, useStageScreenShares$ } from '../StageContext';
 import { stripVars } from './vars';
+import { useRenderTrail } from '../renderTrail';
 
 /**
  * The screen shares previewed in the strip: every share in the call, so a stream stays
@@ -63,10 +64,19 @@ export const makeSpotlightLandscapeLayout: CallLayout<SpotlightLandscapeLayoutMo
 
     fixed: function SpotlightLandscapeLayoutFixed({ ref, model, Slot }): ReactNode {
       useUpdateLayout();
-      const { width } = useLayoutBounds();
+      const bounds = useLayoutBounds();
+      const { width } = bounds;
       const hidden = useStripHidden(stripHidden$);
       const spotlightMedia = useBehavior(model.spotlight.media$);
-      const plan = planStrip(width, useStripScreenShares(spotlightMedia).length, model.grid.length);
+      const stripScreenShares = useStripScreenShares(spotlightMedia);
+      const plan = planStrip(width, stripScreenShares.length, model.grid.length);
+      useRenderTrail('spotlight-landscape/fixed', {
+        model,
+        bounds,
+        hidden,
+        spotlightMedia,
+        stripScreenShares,
+      });
 
       return (
         <div
@@ -91,11 +101,19 @@ export const makeSpotlightLandscapeLayout: CallLayout<SpotlightLandscapeLayoutMo
     scrolling: function SpotlightLandscapeLayoutScrolling({ ref, model, Slot }): ReactNode {
       useUpdateLayout();
       useVisibleTiles(model.setVisibleTiles);
-      const { width } = useLayoutBounds();
+      const bounds = useLayoutBounds();
+      const { width } = bounds;
       const spotlightMedia = useBehavior(model.spotlight.media$);
       const withIndicators = spotlightMedia.length > 1;
       const stripScreenShares = useStripScreenShares(spotlightMedia);
       const hidden = useStripHidden(stripHidden$);
+      useRenderTrail('spotlight-landscape/scrolling', {
+        model,
+        bounds,
+        hidden,
+        spotlightMedia,
+        stripScreenShares,
+      });
       const plan = planStrip(width, stripScreenShares.length, model.grid.length);
       const toggleLabel = hidden ? 'Show Members' : 'Hide Members';
 

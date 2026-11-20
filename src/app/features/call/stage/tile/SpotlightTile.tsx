@@ -33,6 +33,7 @@ import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import { VolumeSlider } from '../../../../components/slider';
 import { useInitial, useLatest, useMergedRefs, useReactiveState } from '../hooks';
 import { StageContext } from '../StageContext';
+import { recordStage, useRenderTrail } from '../renderTrail';
 import { MediaView, type MediaViewProps } from './MediaView';
 import * as mediaCss from './MediaView.css';
 import * as css from './SpotlightTile.css';
@@ -76,7 +77,9 @@ function SpotlightUserMediaItem({
 
   // Whenever target bounds change, inform the view model
   useEffect(() => {
-    if (targetWidth > 0 && targetHeight > 0) vm.setTargetDimensions(targetWidth, targetHeight);
+    if (targetWidth <= 0 || targetHeight <= 0) return;
+    recordStage('setTargetDimensions', `${vm.id} ${targetWidth}x${targetHeight}`);
+    vm.setTargetDimensions(targetWidth, targetHeight);
   }, [targetWidth, targetHeight, vm]);
 
   return (
@@ -116,7 +119,11 @@ function useReportStreamHeight(
   const report = use(StageContext)?.reportStreamHeight;
   useEffect(() => {
     if (report === undefined || tile === null || !visible) return undefined;
-    const update = (): void => report(tile.querySelector('video')?.videoHeight || null);
+    const update = (): void => {
+      const height = tile.querySelector('video')?.videoHeight || null;
+      recordStage('reportStreamHeight', String(height));
+      report(height);
+    };
     // Neither event bubbles, so they are caught on their way down to the video.
     tile.addEventListener('resize', update, true);
     tile.addEventListener('loadedmetadata', update, true);
@@ -330,6 +337,7 @@ export function SpotlightTile({
   const maximised = useBehavior(vm.maximised$);
   const media = useBehavior(vm.media$);
   const [visibleId, setVisibleId] = useState<string | undefined>(media[0]?.id);
+  useRenderTrail('spotlight tile', { vm, media, visibleId, targetWidth, targetHeight, root });
   const latestMedia = useLatest(media);
   const latestVisibleId = useLatest(visibleId);
   const visibleIndex = media.findIndex((m) => m.id === visibleId);

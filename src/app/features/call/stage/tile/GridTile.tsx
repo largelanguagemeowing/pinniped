@@ -24,6 +24,7 @@ import { type RingingMediaViewModel } from '../../../../plugins/call/engine/stat
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import { getMouseEventCords } from '../../../../utils/dom';
 import { StageContext } from '../StageContext';
+import { recordStage, useRenderTrail } from '../renderTrail';
 import { MediaView, type MediaViewProps } from './MediaView';
 import * as mediaCss from './MediaView.css';
 import * as css from './GridTile.css';
@@ -119,8 +120,20 @@ function UserMediaTile({
 
   // Whenever bounds change, inform the view model
   useEffect(() => {
-    if (targetWidth > 0 && targetHeight > 0) vm.setTargetDimensions(targetWidth, targetHeight);
+    if (targetWidth <= 0 || targetHeight <= 0) return;
+    recordStage('setTargetDimensions', `${vm.id} ${targetWidth}x${targetHeight}`);
+    vm.setTargetDimensions(targetWidth, targetHeight);
   }, [targetWidth, targetHeight, vm]);
+  useRenderTrail(`grid tile ${vm.id}`, {
+    targetWidth,
+    targetHeight,
+    video,
+    videoFit,
+    audioEnabled,
+    videoEnabled,
+    speaking,
+    deafened,
+  });
 
   let audioIcon = Icons.MicMute;
   let audioLabel = 'Microphone off';

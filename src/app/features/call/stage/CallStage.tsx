@@ -34,6 +34,7 @@ import { type Stage, StageContext } from './StageContext';
 import { StageTile, TileContext } from './StageTile';
 import { useLatest } from './hooks';
 import { useScrollerSize } from './measure';
+import { recordStage, useRenderTrail } from './renderTrail';
 import { useStageShortcuts } from './useStageShortcuts';
 import * as css from './CallStage.css';
 
@@ -85,8 +86,18 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
   // effect: an update there re-renders within the same commit, once more for every resize.
   useEffect(() => {
     if (gridBounds.width <= 0 || gridBounds.height <= 0) return;
+    recordStage('setViewSize', `${gridBounds.width}x${gridBounds.height}`);
     call.setViewSize(gridBounds.width, gridBounds.height);
   }, [call, gridBounds]);
+  useRenderTrail('CallStage', {
+    layout,
+    edgeToEdge,
+    showNameTags,
+    reconnecting,
+    gridBounds,
+    scroller,
+    idle,
+  });
 
   const stripHidden$ = stripHiddenOf(call);
   const layouts = useMemo(() => {
@@ -159,6 +170,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
     const fixedGrid = (
       <Grid
         key="fixed"
+        name={`${layout.type}/fixed`}
         className={css.fixedGrid}
         style={{
           insetBlockStart: 0,
@@ -174,6 +186,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
     const scrollingGrid = (
       <Grid
         key="scrolling"
+        name={`${layout.type}/scrolling`}
         className={css.scrollingGrid}
         model={layout}
         Layout={layers.scrolling}

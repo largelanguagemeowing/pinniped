@@ -15,6 +15,7 @@ import { arrangeBelowSpotlight } from './arrangeGrid';
 import * as css from './SpotlightPortraitLayout.css';
 import { useUpdateLayout, useVisibleTiles } from './Grid';
 import { gridVars } from './vars';
+import { useRenderTrail } from '../renderTrail';
 
 /**
  * An implementation of the "spotlight portrait" layout, in which the spotlight
@@ -39,8 +40,11 @@ export const makeSpotlightPortraitLayout: CallLayout<SpotlightPortraitLayoutMode
   scrolling: function SpotlightPortraitLayoutScrolling({ ref, model, Slot }): ReactNode {
     useUpdateLayout();
     useVisibleTiles(model.setVisibleTiles);
-    const { width, height } = useLayoutBounds();
-    const withIndicators = useBehavior(model.spotlight.media$).length > 1;
+    const bounds = useLayoutBounds();
+    const { width, height } = bounds;
+    const spotlightMedia = useBehavior(model.spotlight.media$);
+    const withIndicators = spotlightMedia.length > 1;
+    useRenderTrail('spotlight-portrait/scrolling', { model, bounds, spotlightMedia });
     // The grid gets whatever height the 16:9 spotlight leaves, so that the
     // participants fit under it instead of scrolling behind it.
     const { gap, tileWidth, tileHeight } = arrangeBelowSpotlight(

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import { useLowAnimationMode } from '../../../hooks/useLowAnimationMode';
+import { recordStage } from './renderTrail';
 
 export interface ElementRect {
   x: number;
@@ -31,6 +32,7 @@ export function useElementRect(element: Element | null): ElementRect {
   const update = useCallback(() => {
     if (!element) return;
     const next = rectOf(element);
+    recordStage('measure rect', `${next.width}x${next.height}@${next.x},${next.y}`);
     setRect((prev) => (sameRect(prev, next) ? prev : next));
   }, [element]);
 
@@ -60,6 +62,7 @@ export function useScrollerSize(scroller: HTMLElement | null): Size {
     const { width, height } = scroller.getBoundingClientRect();
     const scrollbar = scroller.offsetWidth - scroller.clientWidth;
     const next = { width: Math.max(0, width - scrollbar), height };
+    recordStage('measure scroller', `${next.width}x${next.height} scrollbar ${scrollbar}`);
     setSize((prev) => (prev.width === next.width && prev.height === next.height ? prev : next));
   }, [scroller]);
 

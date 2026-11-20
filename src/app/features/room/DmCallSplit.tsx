@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { Box, color, config, toRem } from 'folds';
+import { recordStage } from '../call/stage/renderTrail';
 
 const STORAGE_KEY = 'pinniped.dmCallPaneHeight';
 const MIN_CALL_HEIGHT = 200;
@@ -49,6 +50,7 @@ export function DmCallSplit({ call, chat }: DmCallSplitProps) {
   const handlePointerMove: PointerEventHandler<HTMLDivElement> = (evt) => {
     const next = dragging ? heightAt(evt.clientY) : undefined;
     if (next === undefined) return;
+    recordStage('drag split', String(Math.round(next)));
     // A transition: every new size re-renders the call view in several commits, and with an
     // urgent drag update queued at the end of each, React took the drag for an endless update
     // loop (error #185).

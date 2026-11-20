@@ -16,6 +16,7 @@ import { type DragCallback, useUpdateLayout, useVisibleTiles } from './Grid';
 import { useStageScreenShares$ } from '../StageContext';
 import { ScreenSharePreview } from './ScreenSharePreview';
 import { gridVars } from './vars';
+import { useRenderTrail } from '../renderTrail';
 
 /**
  * An implementation of the "grid" layout, in which all participants are shown
@@ -29,6 +30,7 @@ export const makeGridLayout: CallLayout<GridLayoutModel> = () => ({
   fixed: function GridLayoutFixed({ ref, model, Slot }): ReactNode {
     useUpdateLayout();
     const alignment = useBehavior(model.spotlightAlignment$);
+    useRenderTrail('grid/fixed', { model, alignment });
 
     const onDragSpotlight: DragCallback = useCallback(
       ({ xRatio, yRatio }) =>
@@ -59,9 +61,11 @@ export const makeGridLayout: CallLayout<GridLayoutModel> = () => ({
   scrolling: function GridLayoutScrolling({ ref, model, Slot }): ReactNode {
     useUpdateLayout();
     useVisibleTiles(model.setVisibleTiles);
-    const { width, height: minHeight } = useLayoutBounds();
+    const bounds = useLayoutBounds();
+    const { width, height: minHeight } = bounds;
     // Screen shares are tiles in the grid too.
     const screenShares = useBehavior(useStageScreenShares$());
+    useRenderTrail('grid/scrolling', { model, bounds, screenShares });
     const tileCount = model.grid.length + screenShares.length;
     const { gap, tileWidth, tileHeight } = useMemo(
       () => arrangeGrid(width, minHeight, tileCount),

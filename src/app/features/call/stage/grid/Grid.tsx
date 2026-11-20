@@ -31,6 +31,7 @@ import * as css from './Grid.css';
 import { TileWrapper } from './TileWrapper';
 import { useInitial } from '../hooks';
 import { useElementRect, useReducedMotion } from '../measure';
+import { recordStage, useRenderTrail } from '../renderTrail';
 
 interface Rect {
   x: number;
@@ -115,6 +116,8 @@ function visibleHeight(grid: HTMLElement): number {
 export type VisibleTilesCallback = (visibleTiles: number) => void;
 
 interface LayoutContextValue {
+  /** Which grid this is, in the debug trail. */
+  name: string;
   setGeneration: Dispatch<SetStateAction<number | null>>;
   setVisibleTilesCallback: Dispatch<SetStateAction<VisibleTilesCallback | null>>;
 }
@@ -132,9 +135,12 @@ function useLayoutContext(): LayoutContextValue {
  * component or else Grid will not be reactive.
  */
 export function useUpdateLayout(): void {
-  const { setGeneration } = useLayoutContext();
+  const { name, setGeneration } = useLayoutContext();
   // On every render, tell Grid that the layout may have changed
-  useEffect(() => setGeneration((prev) => (prev === null ? 0 : prev + 1)));
+  useEffect(() => {
+    recordStage(`bump ${name}`);
+    setGeneration((prev) => (prev === null ? 0 : prev + 1));
+  });
 }
 
 /**
@@ -220,6 +226,7 @@ function LayoutRenderer<LayoutModel, TileModel, R extends HTMLElement>({
   Layout,
   ...props
 }: LayoutMemoProps<LayoutModel, TileModel, R>): ReactNode {
+  useRenderTrail(`layout ${useLayoutContext().name}`, { model: props.model, Layout });
   return <Layout {...props} ref={ref} />;
 }
 
@@ -249,6 +256,8 @@ interface Props<
   className?: string;
   style?: CSSProperties;
   'aria-hidden'?: boolean;
+  /** Which grid this is, in the debug trail. */
+  name: string;
 }
 
 /**
@@ -266,6 +275,7 @@ export function Grid<
   className,
   style,
   'aria-hidden': ariaHidden,
+  name,
 }: Props<LayoutModel, TileModel, LayoutRef, TileRef>): ReactNode {
   // Overview: This component places tiles by rendering an invisible layout grid
   // of "slots" for tiles to go in. Once rendered, it uses the DOM API to get
@@ -287,8 +297,8 @@ export function Grid<
   const prefersReducedMotion = useReducedMotion();
 
   const context: LayoutContextValue = useMemo(
-    () => ({ setGeneration, setVisibleTilesCallback }),
-    [setVisibleTilesCallback]
+    () => ({ name, setGeneration, setVisibleTilesCallback }),
+    [name, setVisibleTilesCallback]
   );
 
   // Combine the tile definitions and slots together to create placed tiles
@@ -319,8 +329,21 @@ export function Grid<
   useEffect(() => {
     if (visibleTilesCallback === null || gridRoot === null) return;
     const height = visibleHeight(gridRoot);
-    visibleTilesCallback(placedTiles.filter((tile) => tile.y + tile.height <= height).length);
-  }, [placedTiles, visibleTilesCallback, gridRoot]);
+    const visible = placedTiles.filter((tile) => tile.y + tile.height <= height).length;
+    recordStage(`visibleTiles ${name}`, `${visible} of ${placedTiles.length}`);
+    visibleTilesCallback(visible);
+  }, [placedTiles, visibleTilesCallback, gridRoot, name]);
+
+  useRenderTrail(`Grid ${name}`, {
+    model,
+    Layout,
+    generation,
+    gridBounds,
+    gridRoot,
+    layoutRoot,
+    visibleTilesCallback,
+    placedTiles,
+  });
 
   // Drag state is stored in a ref rather than component state, because we use
   // react-spring's imperative API during gestures to improve responsiveness

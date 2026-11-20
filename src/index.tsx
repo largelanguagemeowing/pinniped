@@ -13,6 +13,7 @@ import './app/styles/FocusRing.css';
 import { trimTrailingSlash } from './app/utils/common';
 import { trackInputMode } from './app/utils/inputMode';
 import App from './app/pages/App';
+import { dumpStageTrail } from './app/features/call/stage/renderTrail';
 
 // import i18n (needs to be bundled ;))
 import './app/i18n';
@@ -33,7 +34,17 @@ const mountApp = () => {
     return;
   }
 
-  const root = createRoot(rootContainer);
+  const root = createRoot(rootContainer, {
+    // Errors with React's component stack, and the call view's debug trail (renderTrail.ts).
+    onCaughtError: (error, errorInfo) => {
+      console.error('React caught an error', error, errorInfo.componentStack);
+      dumpStageTrail(`React caught: ${String(error)}`);
+    },
+    onUncaughtError: (error, errorInfo) => {
+      console.error('React error', error, errorInfo.componentStack);
+      dumpStageTrail(`React error: ${String(error)}`);
+    },
+  });
   root.render(<App />);
 };
 
