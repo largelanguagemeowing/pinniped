@@ -9,6 +9,7 @@ on:
       - src/**
       - tests/**
       - scripts/**
+      - patches/**
       - package.json
       - package-lock.json
       - eslint.config.js

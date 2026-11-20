@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "vite",
-    "build": "vite build",
+    "build": "npm run patch:deps && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:unit": "vitest run",
@@ -26,7 +26,9 @@
     "electron:start": "electron electron/main.cjs",
     "electron:dist": "npm run build && electron-builder --config electron/electron-builder.yml --linux",
     "electron:dist:win": "npm run build && electron-builder --config electron/electron-builder.yml --win",
-    "electron:dist:mac": "npm run build && electron-builder --config electron/electron-builder.yml --mac"
+    "electron:dist:mac": "npm run build && electron-builder --config electron/electron-builder.yml --mac",
+    "patch:deps": "patch-package --error-on-fail --error-on-warn",
+    "postinstall": "npm run patch:deps"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx,js,jsx}": "eslint",
@@ -128,6 +130,7 @@
     "husky": "9.1.7",
     "jsdom": "26.1.0",
     "lint-staged": "17.6.0",
+    "patch-package": "8.0.1",
     "prettier": "3.9.10",
     "react-test-renderer": "19.3.1",
     "typescript": "6.0.3",

@@ -16,7 +16,7 @@ import { getSettings } from '../app/state/settings';
 import { playEventSound } from '../app/sound/play';
 import { pushSessionToSW } from '../sw-session';
 import { compactServerAcls } from './compactServerAcl';
-import { USER_PROFILE_FIELDS } from '../types/matrix/profile';
+import { createSyncOptions } from './syncOptions';
 import { reportClientStorageError, resetClientStorageError } from './storageStatus';
 
 type Session = {
@@ -147,10 +147,7 @@ export const startClient = async (mx: MatrixClient) => {
   pushSessionToSW(mx.baseUrl, mx.getAccessToken() ?? undefined);
   refreshWellKnownCache(mx);
   compactServerAcls(mx);
-  await mx.startClient({
-    lazyLoadMembers: true,
-    unstableMSC4429SyncUserProfileFields: USER_PROFILE_FIELDS,
-  });
+  await mx.startClient(createSyncOptions());
 };
 
 const clearPendingEvents = () => {

@@ -4,6 +4,7 @@ FROM node:24.22.2-alpine AS builder
 WORKDIR /src
 
 COPY .npmrc package.json package-lock.json /src/
+COPY patches /src/patches/
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY . /src/
 ARG APP_COMMIT=unknown

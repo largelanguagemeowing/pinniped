@@ -28,6 +28,12 @@ Porting an upstream change is a deliberate act, not a sync: read the diff, re-im
 
 We own our dependency versions. Upgrade majors when it helps us, one concern per commit, and verify with `npm run typecheck`, `npm run test:unit` and `npm run build` before committing. There is no upstream lockfile to stay close to.
 
+### Patched dependencies
+
+`patches/` holds our fixes to dependencies. patch-package applies them on `npm install` and again in `npm run build` (the Nix build skips install scripts), and fails if one does not apply. Upgrading a patched package fails both until the patch is re-checked: if the new release fixes the bug, delete the patch; otherwise make the change in `node_modules` again, run `npx patch-package <package>` and delete the old patch file. Every patch has a regression test that fails without it.
+
+- `matrix-js-sdk+45.0.0.patch`: the sync startup retries the MSC4429 profile-field check (`/versions`) the way it retries push rules and the filter. Without it, a `/versions` error at startup stopped the sync until a reload (`tests/unit/syncStartupRecovery.test.ts`).
+
 ## Calls
 
 Calls run in Pinniped's own document; there is no widget and no iframe. The call core in

@@ -1,0 +1,73 @@
+diff --git a/node_modules/matrix-js-sdk/lib/sync.js b/node_modules/matrix-js-sdk/lib/sync.js
+index 554d5b2..13ab28a 100644
+--- a/node_modules/matrix-js-sdk/lib/sync.js
++++ b/node_modules/matrix-js-sdk/lib/sync.js
+@@ -180,13 +180,24 @@ export class SyncApi {
+      * Preare sync filter options for the unstable MSC4429 user profile fields if enabled.
+      */
+     _defineProperty(this, "prepareSyncFilterUserProfiles", async () => {
+-      if (this.opts.unstableMSC4429SyncUserProfileFields?.length) {
+-        this.syncOpts.logger.debug("Enabling EXPERIMENTAL user profiles on sync filter...");
+-        if (!this.opts.filter) {
+-          this.opts.filter = this.buildDefaultFilter();
+-        }
+-        this.opts.filter.setUnstableMSC4429SyncUserProfiles(this.opts.unstableMSC4429SyncUserProfileFields, await this.client.doesServerSupportUnstableFeature("org.matrix.msc4429.stable"));
++      if (!this.opts.unstableMSC4429SyncUserProfileFields?.length) return;
++      let stable;
++      try {
++        stable = await this.client.doesServerSupportUnstableFeature("org.matrix.msc4429.stable");
++      } catch (err) {
++        this.syncOpts.logger.error("Checking for stable user profiles failed", err);
++        if (this.shouldAbortSync(err)) return;
++        // wait for saved sync to complete before doing anything else,
++        // otherwise the sync state will end up being incorrect
++        this.syncOpts.logger.debug("Waiting for saved sync before retrying the user profiles check...");
++        await this.recoverFromSyncStartupError(this.savedSyncPromise, err);
++        return this.prepareSyncFilterUserProfiles(); // try again
++      }
++      this.syncOpts.logger.debug("Enabling EXPERIMENTAL user profiles on sync filter...");
++      if (!this.opts.filter) {
++        this.opts.filter = this.buildDefaultFilter();
+       }
++      this.opts.filter.setUnstableMSC4429SyncUserProfiles(this.opts.unstableMSC4429SyncUserProfileFields, stable);
+     });
+     _defineProperty(this, "storeClientOptions", async () => {
+       try {
+diff --git a/node_modules/matrix-js-sdk/src/sync.ts b/node_modules/matrix-js-sdk/src/sync.ts
+index 2dfda23..5e00b97 100644
+--- a/node_modules/matrix-js-sdk/src/sync.ts
++++ b/node_modules/matrix-js-sdk/src/sync.ts
+@@ -650,16 +650,24 @@ export class SyncApi {
+      * Preare sync filter options for the unstable MSC4429 user profile fields if enabled.
+      */
+     private prepareSyncFilterUserProfiles = async (): Promise<void> => {
+-        if (this.opts.unstableMSC4429SyncUserProfileFields?.length) {
+-            this.syncOpts.logger.debug("Enabling EXPERIMENTAL user profiles on sync filter...");
+-            if (!this.opts.filter) {
+-                this.opts.filter = this.buildDefaultFilter();
+-            }
+-            this.opts.filter.setUnstableMSC4429SyncUserProfiles(
+-                this.opts.unstableMSC4429SyncUserProfileFields,
+-                await this.client.doesServerSupportUnstableFeature("org.matrix.msc4429.stable"),
+-            );
++        if (!this.opts.unstableMSC4429SyncUserProfileFields?.length) return;
++        let stable: boolean;
++        try {
++            stable = await this.client.doesServerSupportUnstableFeature("org.matrix.msc4429.stable");
++        } catch (err) {
++            this.syncOpts.logger.error("Checking for stable user profiles failed", err);
++            if (this.shouldAbortSync(<MatrixError>err)) return;
++            // wait for saved sync to complete before doing anything else,
++            // otherwise the sync state will end up being incorrect
++            this.syncOpts.logger.debug("Waiting for saved sync before retrying the user profiles check...");
++            await this.recoverFromSyncStartupError(this.savedSyncPromise, <Error>err);
++            return this.prepareSyncFilterUserProfiles(); // try again
++        }
++        this.syncOpts.logger.debug("Enabling EXPERIMENTAL user profiles on sync filter...");
++        if (!this.opts.filter) {
++            this.opts.filter = this.buildDefaultFilter();
+         }
++        this.opts.filter.setUnstableMSC4429SyncUserProfiles(this.opts.unstableMSC4429SyncUserProfileFields, stable);
+     };
+ 
+     private storeClientOptions = async (): Promise<void> => {

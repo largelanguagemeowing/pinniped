@@ -34,6 +34,7 @@ buildNpmPackage {
 
   # No dependency needs its lifecycle scripts for the vite build; skipping
   # them also stops husky's `prepare` from failing (no .git in the sandbox).
+  # Our own postinstall is skipped too; `npm run build` applies patches/ itself.
   npmFlags = [ "--ignore-scripts" ];
 
   nativeBuildInputs = [
