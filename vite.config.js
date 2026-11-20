@@ -171,9 +171,6 @@ export default defineConfig({
     // Overridable because 8080 is a common port for other local servers.
     port: Number(process.env.PINNIPED_DEV_PORT) || 5173,
     host: true,
-    watch: {
-      ignored: ['**/.pnpm-store/**'],
-    },
     fs: {
       // Allow serving files from one level up to the project root
       allow: ['..'],

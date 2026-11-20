@@ -30,8 +30,6 @@ AGENTS.md
 # Playwright browsers (sandboxed download)
 .pw-browsers/
 
-.pnpm-store/
-
 # Rust build output of the desktop helper (electron/helper)
 electron/helper/target/
 

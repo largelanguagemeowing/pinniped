@@ -1,6 +1,5 @@
-# Fork-only: lint, typecheck and unit tests on every push to fork/dev (and PRs).
-# None of these need the Element Call widget build, so they run without it —
-# a red suite shows up here instead of sitting unnoticed.
+# Fork-only: lint, typecheck and unit tests on every push to fork/dev (and PRs),
+# so a red suite shows up here instead of sitting unnoticed.
 name: checks
 on:
   push:
