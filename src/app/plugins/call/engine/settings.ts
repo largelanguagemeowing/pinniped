@@ -1,13 +1,11 @@
-import { getDefaultStore } from 'jotai';
 import { BehaviorSubject, distinctUntilChanged, map, Observable } from 'rxjs';
 
+import { appStore as store } from '../../../state/appStore';
 import { type Settings, settingsAtom } from '../../../state/settings';
 import { getCallUserVolumes, type ScreenShareQuality } from '../types';
 import { normalizeVoiceTuning, type VoiceTuning } from '../voiceTuning';
 import { type Behavior } from './state/Behavior';
 import { type ScreenShareAudioSource, screenShareAudioSource } from './livekit/screenShareAudio';
-
-const store = getDefaultStore();
 
 const settings$ = new Observable<Settings>((subscriber) => {
   subscriber.next(store.get(settingsAtom));

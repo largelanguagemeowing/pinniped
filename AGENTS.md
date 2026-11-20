@@ -40,7 +40,10 @@ Calls run in Pinniped's own document; there is no widget and no iframe. The call
 `src/app/plugins/call/engine/` (view models, LiveKit and MatrixRTC handling, media e2ee; rxjs)
 is derived from Element Call `v0.20.1` plus the fork changes below. It runs on Pinniped's own
 `MatrixClient` and reads the call settings straight from Pinniped's settings atom
-(`engine/settings.ts`), so nothing is synced. Like Cinny, upstream Element Call is history: port a
+(`engine/settings.ts`), so nothing is synced. It reads them from `appStore`
+(`src/app/state/appStore.tsx`), outside React; the React tree must use that same store
+(`AppStoreProvider`), or the call keeps the settings it saw at load
+(`tests/unit/call-engine/callSettings.test.tsx`). Like Cinny, upstream Element Call is history: port a
 change deliberately, and keep the original copyright headers on derived files.
 
 - `src/app/plugins/call/Call.ts` is one call: it builds the core for a room and joins, plays the

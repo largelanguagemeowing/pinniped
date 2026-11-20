@@ -1,5 +1,4 @@
 import React from 'react';
-import { Provider as JotaiProvider } from 'jotai';
 import { OverlayContainerProvider, PopOutContainerProvider, TooltipContainerProvider } from 'folds';
 import { RouterProvider } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -13,6 +12,7 @@ import { FeatureCheck } from './FeatureCheck';
 import { createRouter } from './Router';
 import { ScreenSizeProvider, useScreenSize } from '../hooks/useScreenSize';
 import { useCompositionEndTracking } from '../hooks/useComposingCheck';
+import { AppStoreProvider } from '../state/appStore';
 
 const queryClient = createQueryClient();
 
@@ -37,9 +37,9 @@ function App() {
                 {(clientConfig) => (
                   <ClientConfigProvider value={clientConfig}>
                     <QueryClientProvider client={queryClient}>
-                      <JotaiProvider>
+                      <AppStoreProvider>
                         <RouterProvider router={createRouter(clientConfig, screenSize)} />
-                      </JotaiProvider>
+                      </AppStoreProvider>
                       <ReactQueryDevtools initialIsOpen={false} />
                     </QueryClientProvider>
                   </ClientConfigProvider>
