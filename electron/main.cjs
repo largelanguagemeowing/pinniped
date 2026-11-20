@@ -286,7 +286,7 @@ const setStartup = async (enabled, minimized) => {
         'Type=Application',
         'Name=Pinniped',
         `Exec=${autostartCommand(minimized).map(quoteDesktopArg).join(' ')}`,
-        'Icon=pinniped',
+        'Icon=club.stablecat.pinniped',
         'X-GNOME-Autostart-enabled=true',
         '',
       ].join('\n')

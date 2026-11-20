@@ -290,7 +290,9 @@ A successful deploy: the live hash changed from the previous deploy, and live ==
 
 ## Desktop builds
 
-`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak; in a privileged Fedora 45 container, so its build tools come from dnf rather than the runner's slow apt mirrors), Windows (NSIS exe) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags. The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
+`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak; in a privileged Fedora 45 container, so its build tools come from dnf rather than the runner's slow apt mirrors), Windows (NSIS exe) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags (the rpm is packaged with nfpm from electron-builder's unpacked build: `electron/linux/nfpm.yaml`). The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
+
+On Linux everything is named after the app ID: the desktop entry (`club.stablecat.pinniped.desktop`), the icon (`hicolor/512x512/apps/club.stablecat.pinniped.png`), its `Icon=` and `StartupWMClass=`, in the rpm (`electron/linux/`), the Nix package and the autostart entry `main.cjs` writes. `app.setDesktopName` makes it the window's Wayland app ID and X11 `WM_CLASS`, and Electron names the audio streams' icon after it (`application.icon_name`, which pavucontrol shows). The AppImage keeps electron-builder's naming (`pinniped`), which AppImage tooling expects.
 
 ### Windows auto-update
 

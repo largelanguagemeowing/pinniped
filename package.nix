@@ -55,8 +55,10 @@ buildNpmPackage {
     cp -r electron $out/lib/pinniped/electron
     cp package.json $out/lib/pinniped/package.json
 
+    # Named after the app ID, like the desktop entry: main.cjs makes it the window's app ID, and
+    # the audio streams name that icon too.
     install -Dm644 electron/build/icon.png \
-      $out/share/icons/hicolor/512x512/apps/pinniped.png
+      $out/share/icons/hicolor/512x512/apps/club.stablecat.pinniped.png
 
     makeWrapper ${lib.getExe electron} $out/bin/pinniped \
       --add-flags "$out/lib/pinniped/electron/main.cjs" \
@@ -68,12 +70,12 @@ buildNpmPackage {
 
   desktopItems = [
     (makeDesktopItem {
-      name = "pinniped";
+      name = "club.stablecat.pinniped";
       desktopName = "Pinniped";
       genericName = "Matrix client";
       comment = "Yet another Matrix client";
       exec = "pinniped";
-      icon = "pinniped";
+      icon = "club.stablecat.pinniped";
       categories = [
         "Network"
         "InstantMessaging"
@@ -84,7 +86,7 @@ buildNpmPackage {
         "Chat"
         "Messenger"
       ];
-      startupWMClass = "pinniped";
+      startupWMClass = "club.stablecat.pinniped";
       terminal = false;
     })
   ];

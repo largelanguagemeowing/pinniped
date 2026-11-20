@@ -42,8 +42,9 @@ contents:
   - src: electron/out/linux-unpacked/
     dst: /opt/Pinniped/
     type: tree
+  # Named after the app ID, like the desktop entry: windows and audio streams name that icon.
   - src: electron/build/icon.png
-    dst: /usr/share/icons/hicolor/512x512/apps/pinniped.png
+    dst: /usr/share/icons/hicolor/512x512/apps/club.stablecat.pinniped.png
   - src: electron/linux/club.stablecat.pinniped.desktop
     dst: /usr/share/applications/club.stablecat.pinniped.desktop
 
