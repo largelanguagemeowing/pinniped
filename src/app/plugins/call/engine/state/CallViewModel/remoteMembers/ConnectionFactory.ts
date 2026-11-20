@@ -44,7 +44,7 @@ export class ECConnectionFactory implements ConnectionFactory {
    *
    * @param client - The OpenID client parts for authentication, needed to get openID and JWT tokens.
    * @param roomId - The current room ID.
-   * @param devices - Used for video/audio out/in capture options.
+   * @param devices - Used for the video and audio capture options.
    * @param livekitKeyProvider - Optional key provider for end-to-end encryption.
    * @param livekitRoomFactory - Optional factory function (for testing) to create LivekitRoom instances. If not provided, a default factory is used.
    */
@@ -130,9 +130,6 @@ function generateRoomOption({
       echoCancellation: true,
       autoGainControl: false,
       noiseSuppression: false,
-    },
-    audioOutput: {
-      deviceId: devices.audioOutput.selected$.value?.id,
     },
     e2ee: e2eeLivekitOptions,
     // TODO test and consider this:

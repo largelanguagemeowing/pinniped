@@ -9,6 +9,7 @@ import { Observable, combineLatest, distinctUntilChanged, map, of, switchMap } f
 
 import { callSettings } from '../settings';
 import { type BroadcastTrack } from './broadcastTracks';
+import { processingAudioContext } from './processingAudioContext';
 
 /** Level (RMS, 0..1) above which someone starts being heard as speaking. */
 export const VOICE_OPEN_LEVEL = 0.008;
@@ -140,7 +141,7 @@ const POLL_MS = 40;
 let sharedContext: AudioContext | undefined;
 const context = (): AudioContext | undefined => {
   if (typeof AudioContext === 'undefined') return undefined;
-  sharedContext ??= new AudioContext();
+  sharedContext ??= processingAudioContext();
   if (sharedContext.state === 'suspended') sharedContext.resume().catch(() => {});
   return sharedContext;
 };

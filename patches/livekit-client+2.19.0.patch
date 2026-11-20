@@ -1,0 +1,57 @@
+diff --git a/node_modules/livekit-client/dist/livekit-client.esm.mjs b/node_modules/livekit-client/dist/livekit-client.esm.mjs
+index a401b99..cf17d53 100644
+--- a/node_modules/livekit-client/dist/livekit-client.esm.mjs
++++ b/node_modules/livekit-client/dist/livekit-client.esm.mjs
+@@ -12862,7 +12862,7 @@ function detectSilence(track_1) {
+   return __awaiter(this, arguments, void 0, function (track) {
+     let timeOffset = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 200;
+     return function* () {
+-      const ctx = getNewAudioContext();
++      const ctx = getNewAudioContext(false);
+       if (ctx) {
+         const analyser = ctx.createAnalyser();
+         analyser.fftSize = 2048;
+@@ -12882,15 +12882,22 @@ function detectSilence(track_1) {
+ }
+ /**
+  * @internal
++ * A context that does not play (`playback` false) only processes audio, so it gets no output
++ * stream (`sinkId: { type: 'none' }`, ignored where unsupported).
+  */
+-function getNewAudioContext() {
++function getNewAudioContext(playback) {
+   var _a;
+   const AudioContext =
+   // @ts-ignore
+   typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+   if (AudioContext) {
+-    const audioContext = new AudioContext({
++    const audioContext = new AudioContext(playback ? {
+       latencyHint: 'interactive'
++    } : {
++      latencyHint: 'interactive',
++      sinkId: {
++        type: 'none'
++      }
+     });
+     // If the audio context is suspended, we need to resume it when the user clicks on the page
+     if (audioContext.state === 'suspended' && typeof window !== 'undefined' && ((_a = window.document) === null || _a === void 0 ? void 0 : _a.body)) {
+@@ -13833,7 +13840,7 @@ function createAudioAnalyser(track, options) {
+     minDecibels: -100,
+     maxDecibels: -80
+   }, options);
+-  const audioContext = getNewAudioContext();
++  const audioContext = getNewAudioContext(false);
+   if (!audioContext) {
+     throw new Error('Audio Context not supported on this browser');
+   }
+@@ -31258,7 +31265,8 @@ class Room extends eventsExports.EventEmitter {
+       } else if (!this.audioContext || this.audioContext.state === 'closed') {
+         // by using an AudioContext, it reduces lag on audio elements
+         // https://stackoverflow.com/questions/9811429/html5-audio-tag-on-safari-has-a-delay/54119854#54119854
+-        this.audioContext = (_a = getNewAudioContext()) !== null && _a !== void 0 ? _a : undefined;
++        // Without webAudioMix it only hosts the local tracks' processors and never plays.
++        this.audioContext = (_a = getNewAudioContext(Boolean(this.options.webAudioMix))) !== null && _a !== void 0 ? _a : undefined;
+       }
+       if (this.options.webAudioMix) {
+         this.remoteParticipants.forEach(participant => participant.setAudioContext(this.audioContext));

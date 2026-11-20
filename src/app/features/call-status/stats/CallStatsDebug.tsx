@@ -16,6 +16,7 @@ import {
   OverlayCenter,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import { useAtomValue } from 'jotai';
 import type { Call } from '../../../plugins/call/Call';
 import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/callStats';
 import { useBehavior } from '../../../plugins/call/engine/useBehavior';
@@ -25,6 +26,7 @@ import { StatChartTile } from './StatChart';
 import { StatRow, StreamStats } from './StreamStats';
 import { streamsOf, streamTitle } from './streams';
 import { buildCallReport } from './report';
+import { callPlaybackAtom } from '../../../state/call';
 import { copyToClipboard } from '../../../utils/dom';
 
 type Direction = 'outbound' | 'inbound';
@@ -53,6 +55,14 @@ type CallStatsDebugProps = {
 /** Full WebRTC stats, one section per media server connection. */
 export function CallStatsDebug({ call, requestClose }: CallStatsDebugProps) {
   const samples = useBehavior(call.stats$);
+  const playback = useAtomValue(callPlaybackAtom);
+  const outputs = useBehavior(call.mediaDevices.audioOutput.available$);
+  const outputName = (sinkId: string): string => {
+    const label = outputs.get(sinkId);
+    if (sinkId === '' || label?.type === 'default') return 'the system default output';
+    if (label?.type === 'name') return `"${label.name}"`;
+    return `output ${sinkId.slice(0, 8)}`;
+  };
   const { room } = call;
   const who = (userId: string) => room.getMember(userId)?.name ?? userId;
   const [selected, setSelected] = useState<{ conn: number; page: Page }>({
@@ -73,6 +83,8 @@ export function CallStatsDebug({ call, requestClose }: CallStatsDebugProps) {
         roomName: room.name,
         roomId: call.roomId,
         encrypted: room.hasEncryptionStateEvent(),
+        playback,
+        outputName,
       })
     );
     setCopied(true);

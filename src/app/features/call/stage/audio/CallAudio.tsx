@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { logger } from 'matrix-js-sdk/lib/logger';
+import React, { useEffect, useMemo } from 'react';
 
 import { type Call } from '../../../../plugins/call/Call';
 import { callSettings } from '../../../../plugins/call/engine/settings';
@@ -7,46 +6,34 @@ import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import { RoomAudio } from './RoomAudio';
 import { ReactionAudio } from './ReactionAudio';
 import { type ListenerAudio } from './trackPlayback';
+import { contextFollowsOutput, useCallAudioContext } from './callAudioContext';
 
-/**
- * Voices play through an audio context where it can follow the chosen output device, so a
- * participant's level can go past 100% (an element's volume stops at 1). Elsewhere (Firefox,
- * Safari) they play through plain audio elements, which follow the device themselves.
- */
-const contextFollowsOutput =
-  typeof AudioContext !== 'undefined' && 'setSinkId' in AudioContext.prototype;
-
-/** The audio context the call plays through, on the chosen output device. */
-function useCallAudioContext(call: Call): AudioContext | undefined {
-  const [ctx, setCtx] = useState<AudioContext>();
+/** Plays a local stream through the call's context. */
+function StreamAudio({
+  stream,
+  audioContext,
+}: {
+  stream: MediaStream;
+  audioContext: AudioContext;
+}) {
   useEffect(() => {
-    const created = new AudioContext({ latencyHint: 'interactive' });
-    setCtx(created);
-    return () => {
-      setCtx(undefined);
-      created.close().catch(() => undefined);
-    };
-  }, []);
-
-  const outputId = useBehavior(call.mediaDevices.audioOutput.selected$)?.id;
-  useEffect(() => {
-    if (ctx === undefined || !contextFollowsOutput) return;
-    // setSinkId is not in every DOM typing yet; '' is the system default.
-    (ctx as AudioContext & { setSinkId(id: string): Promise<void> })
-      .setSinkId(outputId ?? '')
-      .catch((e) => logger.warn('Unable to change sink for audio context', e));
-  }, [ctx, outputId]);
-
-  return ctx;
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(audioContext.destination);
+    return () => source.disconnect();
+  }, [stream, audioContext]);
+  return null;
 }
 
 /**
- * Everything the call plays: participants' voices, soundboard sounds and shared-screen audio,
- * and reaction sounds. Mount it for as long as the call runs, whether or not its view shows.
+ * Everything the call plays: participants' voices, soundboard sounds (the user's own copy
+ * included) and shared-screen audio, and reaction sounds, all on the call's output. Mount it for
+ * as long as the call runs, whether or not its view shows.
  */
 export function CallAudio({ call }: { call: Call }) {
-  const audioContext = useCallAudioContext(call);
+  const outputId = useBehavior(call.mediaDevices.audioOutput.selected$)?.id ?? '';
+  const audioContext = useCallAudioContext(outputId);
   const rooms = useBehavior(call.vm.livekitRoomItems$);
+  const soundboardMonitor = useBehavior(call.vm.soundboardMonitor$);
   const deafened = useBehavior(call.muteStates.deafened$);
   const userVolumes = useBehavior(callSettings.userVolumes$);
   const soundboardVolume = useBehavior(callSettings.soundboardVolume$);
@@ -71,8 +58,10 @@ export function CallAudio({ call }: { call: Call }) {
           userIds={userIds}
           listener={listener}
           audioContext={contextFollowsOutput ? audioContext : undefined}
+          outputId={outputId}
         />
       ))}
+      {soundboardMonitor && <StreamAudio stream={soundboardMonitor} audioContext={audioContext} />}
       <ReactionAudio
         vm={call.vm}
         audioContext={audioContext}

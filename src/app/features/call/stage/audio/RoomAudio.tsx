@@ -62,9 +62,18 @@ interface TrackAudioProps {
   muted: boolean;
   /** Plays through this context when given (gain past 100%), else through the audio element. */
   audioContext: AudioContext | undefined;
+  /** The call's output device; '' is the system default. */
+  outputId: string;
 }
 
-function TrackAudio({ publication, kind, level, muted, audioContext }: TrackAudioProps): ReactNode {
+export function TrackAudio({
+  publication,
+  kind,
+  level,
+  muted,
+  audioContext,
+  outputId,
+}: TrackAudioProps): ReactNode {
   const track = publication.track as RemoteAudioTrack | undefined;
   const [element, setElement] = useState<HTMLAudioElement | null>(null);
 
@@ -88,6 +97,15 @@ function TrackAudio({ publication, kind, level, muted, audioContext }: TrackAudi
     },
     [nodes]
   );
+
+  // Chromium plays a remote track out only through a media element, so even through the context
+  // the voice depends on the (muted) element playing: it goes on the call's output too, before it
+  // is attached (LiveKit applies the track's sink on attach).
+  useEffect(() => {
+    track
+      ?.setSinkId(outputId)
+      .catch((e: unknown) => log.warn(`Unable to play a track on output ${outputId}`, e));
+  }, [track, outputId]);
 
   // The context and plugins go in before the element is attached: LiveKit routes the element
   // through them on attach.
@@ -137,6 +155,8 @@ export interface RoomAudioProps {
   userIds: Record<string, string>;
   listener: ListenerAudio;
   audioContext: AudioContext | undefined;
+  /** The call's output device; '' is the system default. */
+  outputId: string;
 }
 
 /** Plays the voices, soundboard sounds and shared-screen audio of one LiveKit room. */
@@ -147,6 +167,7 @@ export function RoomAudio({
   userIds,
   listener,
   audioContext,
+  outputId,
 }: RoomAudioProps): ReactNode {
   const tracks = useRemoteAudioTracks(livekitRoom);
   const valid = useMemo(
@@ -178,6 +199,7 @@ export function RoomAudio({
             level={level}
             muted={muted}
             audioContext={audioContext}
+            outputId={outputId}
           />
         );
       })}

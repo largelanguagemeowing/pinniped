@@ -181,7 +181,13 @@ describe('Publisher', () => {
   let publisher: Publisher;
 
   beforeEach(() => {
-    publisher = new Publisher(connection, mockMediaDevices({}), muteStates, NEVER, logger);
+    publisher = new Publisher(
+      connection,
+      mockMediaDevices({}),
+      muteStates,
+      { commands$: NEVER, monitor$: new BehaviorSubject<MediaStream | null>(null) },
+      logger
+    );
   });
 
   afterEach(async () => {
@@ -282,7 +288,13 @@ describe('Publisher', () => {
   describe('Mute states', () => {
     let publisher: Publisher;
     beforeEach(() => {
-      publisher = new Publisher(connection, mockMediaDevices({}), muteStates, NEVER, logger);
+      publisher = new Publisher(
+        connection,
+        mockMediaDevices({}),
+        muteStates,
+        { commands$: NEVER, monitor$: new BehaviorSubject<MediaStream | null>(null) },
+        logger
+      );
     });
     afterEach(async () => {
       await publisher.destroy();
@@ -327,7 +339,13 @@ describe('Bug fix', () => {
   //  - If start publication is requested it will publish the track even though there was a mute request.
   it('wrongly publish tracks while muted', async () => {
     // setLogLevel(`debug`);
-    const publisher = new Publisher(connection, mockMediaDevices({}), muteStates, NEVER, logger);
+    const publisher = new Publisher(
+      connection,
+      mockMediaDevices({}),
+      muteStates,
+      { commands$: NEVER, monitor$: new BehaviorSubject<MediaStream | null>(null) },
+      logger
+    );
     audioEnabled$.next(true);
 
     const resolvers = Promise.withResolvers<void>();

@@ -33,6 +33,7 @@ We own our dependency versions. Upgrade majors when it helps us, one concern per
 `patches/` holds our fixes to dependencies. patch-package applies them on `npm install` and again in `npm run build` (the Nix build skips install scripts), and fails if one does not apply. Upgrading a patched package fails both until the patch is re-checked: if the new release fixes the bug, delete the patch; otherwise make the change in `node_modules` again, run `npx patch-package <package>` and delete the old patch file. Every patch has a regression test that fails without it.
 
 - `matrix-js-sdk+45.0.0.patch`: the sync startup retries the MSC4429 profile-field check (`/versions`) the way it retries push rules and the filter. Without it, a `/versions` error at startup stopped the sync until a reload (`tests/unit/syncStartupRecovery.test.ts`).
+- `livekit-client+2.19.0.patch` (the ESM build the app bundles): the audio contexts LiveKit makes without playing through them (the room's own when `webAudioMix` is off, silence checks, track analysers) get no output stream (`sinkId: { type: 'none' }`). Without it, every connection held an output stream that only ever played silence (`tests/unit/call-engine/livekit/processingAudio.test.ts`).
 
 ## Calls
 
@@ -122,6 +123,24 @@ Fork changes on top of upstream Element Call:
 - **Participant activity** (speaking, muted, deafened, sharing a screen):
   `CallViewModel.participantActivity$` (`state/CallViewModel/participantActivity.ts`) gives Matrix
   user IDs and does not depend on which tiles are mounted; `useCallParticipantActivity` reads it.
+- **Call audio context** (`stage/audio/callAudioContext.ts`): voices play through one AudioContext
+  on the chosen output. When that output fails (an error from the audio device, or the device
+  missing from a new device list), Chromium fires `error` on the context: it stops a context on a
+  chosen device, and moves one on the default to the new default itself ("Fallback to the default
+  device due to an invalid audio device change"). Either way a new context replaces it; device
+  changes that leave the output working need nothing. Its state, output and output failures are in
+  the call report (`callPlaybackAtom`).
+- **Call output**: a call holds two output streams, the call audio context and Chromium's player
+  of the remote tracks. Chromium plays a remote WebRTC track out only through a media element: a
+  remote track routed into an AudioContext with no element playing it is digital silence. So each
+  track keeps its (muted) element, and the element plays on the call's output too, set by
+  `TrackAudio` from before it is attached, on every connection. The output is not LiveKit's (no
+  `audioOutput` room option, no `switchActiveDevice('audiooutput')`): LiveKit only switched the
+  publishing connection's elements, and only once it was connected, so at join they stayed on the
+  system default while the context went to the chosen device. Every other context only processes
+  audio and opens no output (`engine/livekit/processingAudioContext.ts`: speaking detection, the
+  denoiser, the soundboard, Windows share audio, the settings mic meter; LiveKit's own through
+  the patch above).
 - **Decryption warning**: a remote participant whose media we cannot decrypt gets a "Can't decrypt"
   pill on their tile (`Call.undecryptable$`, by LiveKit identity; `engine/livekit/decryptionHealth.ts`).
   LiveKit reports failures (`RoomEvent.EncryptionError`) but no recovery, and once it gives up on a
@@ -140,7 +159,8 @@ Fork changes on top of upstream Element Call:
   `club.stablecat.pinniped.sound_favorites` for favourites; `src/app/plugins/sound-pack/`).
   Pinniped downloads a sound and passes a `blob:` URL to `call.vm.soundboard(...)`;
   `engine/livekit/soundboard.ts` (owned by `Publisher`) decodes it and publishes it on an audio
-  track of its own (source `unknown`) while also playing it locally. The mic track is untouched.
+  track of its own (source `unknown`); the user's own copy goes to `call.vm.soundboardMonitor$`,
+  which `CallAudio` plays on the call's output. The mic track is untouched.
   Sounds go out at full level; the volume is each listener's own (`soundboardVolume`): it scales
   the local copy and the remote `soundboard` tracks. The picker is `src/app/features/soundboard/`.
 - **Screen share audio** (Settings → Calls, `callScreenShareAudio`; the source follows the platform,

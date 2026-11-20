@@ -13,6 +13,7 @@ import type { DeepFilterNoiseFilterProcessor } from 'deepfilternet3-noise-filter
 import { trimTrailingSlash } from '../../../../utils/common';
 import { callSettings } from '../settings';
 import { VoiceGateProcessor } from './voiceGate';
+import { processingAudioContext } from './processingAudioContext';
 import { type Behavior } from '../state/Behavior';
 import { type ObservableScope } from '../state/ObservableScope';
 
@@ -76,19 +77,26 @@ async function applyProcessing(
       noiseReductionLevel: DenoiseAttenuationLimitDb,
       assetConfig: { cdnUrl: DF3_ASSETS_URL },
     });
+    // The processor only makes a context of its own (with an output stream) when it has none.
+    denoiser.audioContext = processingAudioContext({ sampleRate: 48000 });
   }
-  if (gate) {
-    await track.setProcessor(
-      new VoiceGateProcessor(denoiser, () => ({
+  const processor = gate
+    ? new VoiceGateProcessor(denoiser, () => ({
         auto: callSettings.voiceGateAuto$.value,
         threshold: callSettings.voiceGateThreshold$.value,
         tuning: callSettings.voiceTuning$.value,
       }))
-    );
-  } else if (denoiser) {
-    await track.setProcessor(denoiser);
-  } else {
+    : denoiser;
+  if (processor === undefined) {
     await track.stopProcessor();
+    return;
+  }
+  try {
+    await track.setProcessor(processor);
+  } catch (e) {
+    // A processor the track did not take is still ours to free (its audio context included).
+    if (track.getProcessor() !== processor) await processor.destroy().catch(() => undefined);
+    throw e;
   }
 }
 

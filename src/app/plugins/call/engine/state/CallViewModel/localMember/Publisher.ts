@@ -21,7 +21,7 @@ import type { MediaDevices, SelectedDevice } from '../../MediaDevices';
 import type { MuteStates } from '../../MuteStates';
 import { autoGainSync, denoiseSync } from '../../../livekit/denoise';
 import { callSettings } from '../../../settings';
-import { Soundboard, type SoundboardCommand } from '../../../livekit/soundboard';
+import { Soundboard, type SoundboardLink } from '../../../livekit/soundboard';
 import { applyScreenShareQuality } from '../../../livekit/screenShareLive';
 import { observeTrackReference$ } from '../../observeTrackReference';
 import { type Connection } from '../remoteMembers/Connection';
@@ -47,13 +47,14 @@ export class Publisher {
    * @param connection - The connection to use for publishing.
    * @param devices - The media devices to use for audio and video input.
    * @param muteStates - The mute states for audio and video.
+   * @param soundboard - The call's soundboard commands, and where the user's copy of the sounds goes.
    * @param logger - The logger to use for logging :D.
    */
   public constructor(
     private connection: Pick<Connection, 'livekitRoom' | 'state$'>, //setE2EEEnabled,
     devices: MediaDevices,
     private readonly muteStates: MuteStates,
-    soundboardCommands$: Observable<SoundboardCommand>,
+    soundboard: SoundboardLink,
     private logger: Logger
   ) {
     const room = connection.livekitRoom;
@@ -65,15 +66,15 @@ export class Publisher {
     // Setup neural noise suppression syncing
     this.observeDenoise(this.scope, room);
     // Soundboard sounds go out on a track of their own.
-    const soundboard = new Soundboard(room, muteStates.deafened$, this.logger);
-    soundboardCommands$.pipe(this.scope.bind()).subscribe((command) => {
-      if (command.op === 'stop') soundboard.stop();
+    const sounds = new Soundboard(room, muteStates.deafened$, soundboard.monitor$, this.logger);
+    soundboard.commands$.pipe(this.scope.bind()).subscribe((command) => {
+      if (command.op === 'stop') sounds.stop();
       else
-        soundboard
+        sounds
           .play(command.url, command.mode)
           .catch((e) => this.logger.error('Failed to play a soundboard sound', e));
     });
-    this.scope.onEnd(() => void soundboard.dispose());
+    this.scope.onEnd(() => void sounds.dispose());
     // A quality change during a share applies to the running share.
     callSettings.screenShareQuality$.pipe(this.scope.bind()).subscribe((quality) => {
       applyScreenShareQuality(room, quality).catch((e) =>
@@ -401,8 +402,8 @@ export class Publisher {
         }
       });
 
+    // The output is not LiveKit's: the call's playback routes every track (CallAudio).
     syncDevice('audioinput', devices.audioInput.selected$);
-    syncDevice('audiooutput', devices.audioOutput.selected$);
     syncDevice('videoinput', devices.videoInput.selected$);
   }
 

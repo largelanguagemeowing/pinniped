@@ -12,16 +12,24 @@ import {
   Track,
 } from 'livekit-client';
 import { type Logger } from 'matrix-js-sdk/lib/logger';
-import { combineLatest, type Subscription } from 'rxjs';
+import { type BehaviorSubject, combineLatest, type Observable, type Subscription } from 'rxjs';
 
 import { callSettings } from '../settings';
 import { type Behavior } from '../state/Behavior';
+import { processingAudioContext } from './processingAudioContext';
 
 /**
  * Play a sound into the call, or stop every sound playing. `url` is a blob: URL of an audio file
  * Pinniped has already downloaded; `cut` restarts the sound if it is still playing.
  */
 export type SoundboardCommand = { op: 'play'; url: string; mode?: 'cut' | 'add' } | { op: 'stop' };
+
+/** How the call reaches the soundboard of whichever publisher is current. */
+export interface SoundboardLink {
+  commands$: Observable<SoundboardCommand>;
+  /** The user's own copy of the sounds, for the call's playback to play; null before the first. */
+  monitor$: BehaviorSubject<MediaStream | null>;
+}
 
 /**
  * How loud the user hears their own soundboard sounds: their soundboard volume,
@@ -41,15 +49,23 @@ function createMonoDestination(ctx: AudioContext): MediaStreamAudioDestinationNo
 
 /**
  * Plays client-supplied sounds to the call: mixed into an audio track of its
- * own that every participant hears (and that the local user hears too).
- * The microphone track, and whatever processing it has, is not touched.
+ * own that every participant hears. The user's own copy goes to `monitor$`, which the call
+ * plays on its output. The microphone track, and whatever processing it has, is not touched.
  *
  * The track is published on the first sound and stays up, silent in between
  * (DTX keeps that nearly free), until the room is left.
  */
+interface SoundboardAudio {
+  ctx: AudioContext;
+  /** Feeds the published track; replaced when a disconnect ended that track. */
+  destination: MediaStreamAudioDestinationNode;
+  /** The user's own copy, announced on `monitor$`. */
+  monitor: MediaStreamAudioDestinationNode;
+}
+
 export class Soundboard {
-  // Created on the first sound: most calls never use the soundboard.
-  private audio: { ctx: AudioContext; destination: MediaStreamAudioDestinationNode } | undefined;
+  // Made on the first sound: most calls never use the soundboard.
+  private audio: SoundboardAudio | undefined;
   private readonly buffers = new Map<string, Promise<AudioBuffer>>();
   private readonly playing = new Map<AudioBufferSourceNode, string>();
   // Per URL, bumped when a "cut" play restarts that sound, so an earlier click still
@@ -66,6 +82,7 @@ export class Soundboard {
   public constructor(
     private readonly room: LivekitRoom,
     private readonly deafened$: Behavior<boolean>,
+    private readonly monitor$: BehaviorSubject<MediaStream | null>,
     private readonly logger: Logger
   ) {
     this.volumeSub = combineLatest([callSettings.soundboardVolume$, deafened$]).subscribe(
@@ -78,17 +95,16 @@ export class Soundboard {
     );
   }
 
-  private get ctx(): AudioContext {
-    return this.output.ctx;
-  }
-
-  private get output(): {
-    ctx: AudioContext;
-    destination: MediaStreamAudioDestinationNode;
-  } {
+  /** The soundboard's audio, made (and its monitor announced) on first use. */
+  private ensureAudio(): SoundboardAudio {
     if (!this.audio) {
-      const ctx = new AudioContext({ latencyHint: 'interactive' });
-      this.audio = { ctx, destination: createMonoDestination(ctx) };
+      const ctx = processingAudioContext({ latencyHint: 'interactive' });
+      this.audio = {
+        ctx,
+        destination: createMonoDestination(ctx),
+        monitor: ctx.createMediaStreamDestination(),
+      };
+      this.monitor$.next(this.audio.monitor.stream);
     }
     return this.audio;
   }
@@ -98,7 +114,7 @@ export class Soundboard {
     if (!buffer) {
       buffer = fetch(url)
         .then(async (r) => r.arrayBuffer())
-        .then(async (data) => this.ctx.decodeAudioData(data));
+        .then(async (data) => this.ensureAudio().ctx.decodeAudioData(data));
       // A failed decode must not poison later attempts at the same URL.
       buffer.catch(() => this.buffers.delete(url));
       this.buffers.set(url, buffer);
@@ -110,13 +126,14 @@ export class Soundboard {
     // A disconnect unpublishes and (stopLocalTrackOnUnpublish) stops the track,
     // so a cached publication may point at an ended track. Start over with a
     // fresh destination in that case.
+    const audio = this.ensureAudio();
     const cached = await this.publication;
     if (cached && cached.track?.mediaStreamTrack.readyState === 'ended') {
       this.publication = undefined;
-      this.output.destination = createMonoDestination(this.output.ctx);
+      audio.destination = createMonoDestination(audio.ctx);
     }
     this.publication ??= this.room.localParticipant
-      .publishTrack(this.output.destination.stream.getAudioTracks()[0], {
+      .publishTrack(audio.destination.stream.getAudioTracks()[0], {
         source: Track.Source.Unknown,
         name: 'soundboard',
         // Mono, DTX off: the microphone's Opus parameters. Chrome refuses a call when the two
@@ -149,27 +166,28 @@ export class Soundboard {
     }
     const generation = this.stopGeneration;
     const restart = this.restartGeneration.get(url);
-    await this.ctx.resume();
+    await this.ensureAudio().ctx.resume();
     const [buffer] = await Promise.all([this.decode(url), this.publish()]);
     // stop() was called while this sound was still loading.
     if (generation !== this.stopGeneration) return;
     // A later "cut" click on this sound took over while it was loading.
     if (restart !== this.restartGeneration.get(url)) return;
 
-    const source = this.ctx.createBufferSource();
+    const { ctx, destination, monitor: copy } = this.ensureAudio();
+    const source = ctx.createBufferSource();
     source.buffer = buffer;
     // The call gets the sound at full level: each listener scales what they hear with their own
     // soundboard volume. The local copy for the user is scaled the same way.
-    const gain = this.ctx.createGain();
-    const monitor = this.ctx.createGain();
+    const gain = ctx.createGain();
+    const monitor = ctx.createGain();
     monitor.gain.value = soundboardMonitorLevel(
       callSettings.soundboardVolume$.value,
       this.deafened$.value
     );
     source.connect(gain);
-    gain.connect(this.output.destination);
+    gain.connect(destination);
     gain.connect(monitor);
-    monitor.connect(this.ctx.destination);
+    monitor.connect(copy);
     this.playing.set(source, url);
     this.monitors.add(monitor);
     source.addEventListener('ended', () => {
@@ -195,6 +213,8 @@ export class Soundboard {
     if (publication?.track) {
       await this.room.localParticipant.unpublishTrack(publication.track).catch(() => undefined);
     }
+    // A newer publisher's soundboard may already have taken over.
+    if (this.audio && this.monitor$.value === this.audio.monitor.stream) this.monitor$.next(null);
     await this.audio?.ctx.close().catch(() => undefined);
   }
 }

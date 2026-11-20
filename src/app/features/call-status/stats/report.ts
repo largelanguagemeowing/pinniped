@@ -1,5 +1,6 @@
 import type { CallStatsSample } from '../../../plugins/call/Call';
 import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/callStats';
+import type { CallPlayback } from '../../../state/call';
 import { formatBitrate, formatBytes, StatPoint, valueSeries } from '../../../plugins/call/stats';
 import { APP_VERSION, isDesktop } from '../../../utils/device';
 import {
@@ -19,6 +20,23 @@ type ReportContext = {
   roomName: string;
   roomId: string;
   encrypted: boolean;
+  playback: CallPlayback | undefined;
+  /** The name of an output device, by ID ('' is the system default). */
+  outputName: (sinkId: string) => string;
+};
+
+/** How the call plays its audio: the audio context's state, its output, and its output failures. */
+const playbackLine = ({ playback, outputName }: ReportContext): string => {
+  if (playback === undefined) return '- Playback: no audio context';
+  const { failures } = playback;
+  const failed =
+    failures.length === 0
+      ? 'no output failures'
+      : `output failed ${failures.length}× (last at ${failures
+          .slice(-5)
+          .map((time) => new Date(time).toISOString().slice(11, 19))
+          .join(', ')}; audio context replaced each time)`;
+  return `- Playback: ${playback.state}, on ${outputName(playback.sinkId)}, ${failed}`;
 };
 
 /** Markdown table cells cannot contain pipes or newlines. */
@@ -124,6 +142,7 @@ export const buildCallReport = (ctx: ReportContext): string => {
     `- Browser: ${navigator.userAgent}`,
     `- Room: ${ctx.roomName} (${ctx.roomId})`,
     `- End-to-end encrypted: ${ctx.encrypted ? 'yes' : 'no'}`,
+    playbackLine(ctx),
     `- History: ${samples.length} samples${
       first && latest ? ` over ${duration(latest.time - first.time)}` : ''
     }`,

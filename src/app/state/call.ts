@@ -42,5 +42,17 @@ export const callIdleAtom = atom<boolean>(false);
 /** True while the call view is fullscreened, so the app chrome (sidebars, top bar) can hide. */
 export const callFullscreenAtom = atom<boolean>(false);
 
+/** How the running call plays its audio, for the call report. */
+export type CallPlayback = {
+  state: AudioContextState;
+  /** The output device's ID; '' is the system default. */
+  sinkId: string;
+  /** When the output failed, each time replacing the call's audio context (ms since epoch). */
+  failures: number[];
+};
+
+/** The running call's playback; undefined while no call plays. */
+export const callPlaybackAtom = atom<CallPlayback | undefined>(undefined);
+
 /** Height in pixels of the screen share the call view shows, or null when it shows none. */
 export const callStreamHeightAtom = atom<number | null>(null);

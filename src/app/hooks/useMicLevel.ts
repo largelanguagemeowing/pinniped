@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import { processingAudioContext } from '../plugins/call/engine/livekit/processingAudioContext';
+
 /** The voice gate's 0-1 scale covers -70 dBFS to -20 dBFS, as the call's threshold does. */
 export const GATE_DB_MIN = -70;
 export const GATE_DB_SPAN = 50;
@@ -40,7 +42,7 @@ export const useMicLevel = (deviceId: string, active: boolean): number => {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
-        const ctx = new AudioContext();
+        const ctx = processingAudioContext();
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 1024;
         ctx.createMediaStreamSource(stream).connect(analyser);

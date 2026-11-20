@@ -253,6 +253,8 @@ export interface CallViewModel {
   pushShareAudio: (chunk: Uint8Array) => void;
   /** Plays a sound into the call (or stops them all), on a track of its own. */
   soundboard: (command: SoundboardCommand) => void;
+  /** The user's own copy of the soundboard sounds, for the call's playback; null before the first. */
+  soundboardMonitor$: Behavior<MediaStream | null>;
   /**
    * Whether we are sharing our screen.
    */
@@ -543,6 +545,7 @@ export function createCallViewModel$(
 
   // Pinniped's soundboard reaches whichever publisher is current, across reconnects.
   const soundboardCommands$ = new Subject<SoundboardCommand>();
+  const soundboardMonitor$ = new BehaviorSubject<MediaStream | null>(null);
 
   const localMembership = createLocalMembership$({
     scope,
@@ -561,7 +564,7 @@ export function createCallViewModel$(
         connection,
         mediaDevices,
         muteStates,
-        soundboardCommands$,
+        { commands$: soundboardCommands$, monitor$: soundboardMonitor$ },
         logger.getChild('[Publisher ' + connection.transport.livekit_service_url + ']')
       );
     },
@@ -1617,6 +1620,7 @@ export function createCallViewModel$(
     stopScreenShare: localMembership.stopScreenShare,
     pushShareAudio: localMembership.pushShareAudio,
     soundboard: (command: SoundboardCommand): void => soundboardCommands$.next(command),
+    soundboardMonitor$,
     sharingScreen$: sharingScreen$,
 
     tapScreen: (): void => screenTap$.next(),
