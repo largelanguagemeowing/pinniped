@@ -9,7 +9,7 @@ import React, {
   type PointerEvent,
   type ReactNode,
   useCallback,
-  useLayoutEffect,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -21,7 +21,7 @@ import { type Call } from '../../../plugins/call/Call';
 import { type Layout } from '../../../plugins/call/engine/state/layout-types';
 import { useBehavior } from '../../../plugins/call/engine/useBehavior';
 import { Grid } from './grid/Grid';
-import { type Bounds, type CallLayoutOutputs } from './grid/CallLayout';
+import { type CallLayoutOutputs, LayoutBoundsProvider } from './grid/CallLayout';
 import { makeGridLayout } from './grid/GridLayout';
 import { makeOneOnOneLandscapeLayout } from './grid/OneOnOneLandscapeLayout';
 import { makeOneOnOnePortraitLayout } from './grid/OneOnOnePortraitLayout';
@@ -32,7 +32,7 @@ import { ReactionsOverlay } from './reactions/ReactionsOverlay';
 import { SpotlightTile } from './tile/SpotlightTile';
 import { type Stage, StageContext } from './StageContext';
 import { StageTile, TileContext } from './StageTile';
-import { useInitial, useLatest } from './hooks';
+import { useLatest } from './hooks';
 import { useScrollerSize } from './measure';
 import { useStageShortcuts } from './useStageShortcuts';
 import * as css from './CallStage.css';
@@ -81,19 +81,16 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
 
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const gridBounds = useScrollerSize(scroller);
-  const minBounds$ = useInitial(() => new BehaviorSubject<Bounds>(gridBounds));
-  useLayoutEffect(() => {
-    if (minBounds$.value !== gridBounds) minBounds$.next(gridBounds);
-  }, [minBounds$, gridBounds]);
-  // The call chooses between its narrow and normal layouts by the stage's shape.
-  useLayoutEffect(() => {
-    if (gridBounds.width > 0 && gridBounds.height > 0)
-      call.setViewSize(gridBounds.width, gridBounds.height);
+  // The call chooses between its narrow and normal layouts by the stage's shape. Not from a layout
+  // effect: an update there re-renders within the same commit, once more for every resize.
+  useEffect(() => {
+    if (gridBounds.width <= 0 || gridBounds.height <= 0) return;
+    call.setViewSize(gridBounds.width, gridBounds.height);
   }, [call, gridBounds]);
 
   const stripHidden$ = stripHiddenOf(call);
   const layouts = useMemo(() => {
-    const inputs = { minBounds$, stripHidden$ };
+    const inputs = { stripHidden$ };
     return {
       grid: makeGridLayout(inputs),
       'spotlight-landscape': makeSpotlightLandscapeLayout(inputs),
@@ -102,7 +99,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
       'one-on-one-landscape': makeOneOnOneLandscapeLayout(inputs),
       'one-on-one-portrait': makeOneOnOnePortraitLayout(inputs),
     };
-  }, [minBounds$, stripHidden$]);
+  }, [stripHidden$]);
 
   const latestOnMemberMenu = useLatest(onMemberMenu);
   const latestOnStreamHeightChange = useLatest(onStreamHeightChange);
@@ -201,36 +198,38 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
 
   return (
     <StageContext value={stage}>
-      <TileContext value={tileContext}>
-        {/* The pointer handlers only notice activity, and the shortcuts only apply while focus
+      <LayoutBoundsProvider value={gridBounds}>
+        <TileContext value={tileContext}>
+          {/* The pointer handlers only notice activity, and the shortcuts only apply while focus
             is inside the call view; each has a control of its own in the call bar. */}
-        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-        <div
-          className={css.stage}
-          data-call-stage
-          data-idle={idle}
-          tabIndex={-1}
-          onPointerUp={onPointerUp}
-          onPointerMove={onPointerMove}
-          onPointerOut={onPointerOut}
-          onKeyDown={shortcuts.onKeyDown}
-          onKeyUp={shortcuts.onKeyUp}
-          onBlur={shortcuts.onBlur}
-        >
-          <Scroll
-            ref={setScroller}
-            className={css.scroller}
-            variant="Background"
-            direction="Vertical"
-            size="300"
-            visibility="Hover"
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+          <div
+            className={css.stage}
+            data-call-stage
+            data-idle={idle}
+            tabIndex={-1}
+            onPointerUp={onPointerUp}
+            onPointerMove={onPointerMove}
+            onPointerOut={onPointerOut}
+            onKeyDown={shortcuts.onKeyDown}
+            onKeyUp={shortcuts.onKeyUp}
+            onBlur={shortcuts.onBlur}
           >
-            {renderContent()}
-          </Scroll>
-          <ReactionsOverlay vm={vm} />
-          {reconnecting && <ReconnectingIndicator />}
-        </div>
-      </TileContext>
+            <Scroll
+              ref={setScroller}
+              className={css.scroller}
+              variant="Background"
+              direction="Vertical"
+              size="300"
+              visibility="Hover"
+            >
+              {renderContent()}
+            </Scroll>
+            <ReactionsOverlay vm={vm} />
+            {reconnecting && <ReconnectingIndicator />}
+          </div>
+        </TileContext>
+      </LayoutBoundsProvider>
     </StageContext>
   );
 }

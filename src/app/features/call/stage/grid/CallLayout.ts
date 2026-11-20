@@ -5,10 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type ComponentType } from 'react';
+import { type ComponentType, createContext, use } from 'react';
 import { type BehaviorSubject } from 'rxjs';
 
-import { type Behavior } from '../../../../plugins/call/engine/state/Behavior';
 import { type TileViewModel } from '../../../../plugins/call/engine/state/TileViewModel';
 import { type LayoutProps } from './Grid';
 
@@ -17,11 +16,15 @@ export interface Bounds {
   height: number;
 }
 
+/**
+ * The minimum bounds of the layout area. A context rather than a store, so a resize re-renders
+ * the layouts in the same render as the stage instead of in a second one.
+ */
+const LayoutBoundsContext = createContext<Bounds>({ width: 0, height: 0 });
+export const LayoutBoundsProvider = LayoutBoundsContext;
+export const useLayoutBounds = (): Bounds => use(LayoutBoundsContext);
+
 export interface CallLayoutInputs {
-  /**
-   * The minimum bounds of the layout area.
-   */
-  minBounds$: Behavior<Bounds>;
   /** Whether the participant strip under a focused stream is hidden; kept for the whole call. */
   stripHidden$: BehaviorSubject<boolean>;
 }

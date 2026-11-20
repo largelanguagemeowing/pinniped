@@ -10,7 +10,7 @@ import React, { type CSSProperties, type ReactNode, useCallback, useMemo } from 
 import { type GridLayout as GridLayoutModel } from '../../../../plugins/call/engine/state/layout-types';
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import * as css from './GridLayout.css';
-import { type CallLayout } from './CallLayout';
+import { type CallLayout, useLayoutBounds } from './CallLayout';
 import { arrangeGrid } from './arrangeGrid';
 import { type DragCallback, useUpdateLayout, useVisibleTiles } from './Grid';
 import { useStageScreenShares$ } from '../StageContext';
@@ -21,7 +21,7 @@ import { gridVars } from './vars';
  * An implementation of the "grid" layout, in which all participants are shown
  * together in a scrolling grid.
  */
-export const makeGridLayout: CallLayout<GridLayoutModel> = ({ minBounds$ }) => ({
+export const makeGridLayout: CallLayout<GridLayoutModel> = () => ({
   foreground: 'fixed',
 
   // The "fixed" (non-scrolling) part of the layout is where the spotlight tile
@@ -59,7 +59,7 @@ export const makeGridLayout: CallLayout<GridLayoutModel> = ({ minBounds$ }) => (
   scrolling: function GridLayoutScrolling({ ref, model, Slot }): ReactNode {
     useUpdateLayout();
     useVisibleTiles(model.setVisibleTiles);
-    const { width, height: minHeight } = useBehavior(minBounds$);
+    const { width, height: minHeight } = useLayoutBounds();
     // Screen shares are tiles in the grid too.
     const screenShares = useBehavior(useStageScreenShares$());
     const tileCount = model.grid.length + screenShares.length;

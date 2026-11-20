@@ -14,7 +14,7 @@ import { type SpotlightLandscapeLayout as SpotlightLandscapeLayoutModel } from '
 import { type MediaViewModel } from '../../../../plugins/call/engine/state/media/MediaViewModel';
 import { type ScreenShareViewModel } from '../../../../plugins/call/engine/state/media/ScreenShareViewModel';
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
-import { type CallLayout } from './CallLayout';
+import { type CallLayout, useLayoutBounds } from './CallLayout';
 import { planStrip, type StripPlan } from './arrangeGrid';
 import * as css from './SpotlightLandscapeLayout.css';
 import { useUpdateLayout, useVisibleTiles } from './Grid';
@@ -56,7 +56,6 @@ const useStripHidden = (hidden$: BehaviorSubject<boolean>): boolean =>
  * tile takes up most of the space, and the participants are shown in a strip below it.
  */
 export const makeSpotlightLandscapeLayout: CallLayout<SpotlightLandscapeLayoutModel> = ({
-  minBounds$,
   stripHidden$,
 }) => {
   return {
@@ -64,7 +63,7 @@ export const makeSpotlightLandscapeLayout: CallLayout<SpotlightLandscapeLayoutMo
 
     fixed: function SpotlightLandscapeLayoutFixed({ ref, model, Slot }): ReactNode {
       useUpdateLayout();
-      const { width } = useBehavior(minBounds$);
+      const { width } = useLayoutBounds();
       const hidden = useStripHidden(stripHidden$);
       const spotlightMedia = useBehavior(model.spotlight.media$);
       const plan = planStrip(width, useStripScreenShares(spotlightMedia).length, model.grid.length);
@@ -92,7 +91,7 @@ export const makeSpotlightLandscapeLayout: CallLayout<SpotlightLandscapeLayoutMo
     scrolling: function SpotlightLandscapeLayoutScrolling({ ref, model, Slot }): ReactNode {
       useUpdateLayout();
       useVisibleTiles(model.setVisibleTiles);
-      const { width } = useBehavior(minBounds$);
+      const { width } = useLayoutBounds();
       const spotlightMedia = useBehavior(model.spotlight.media$);
       const withIndicators = spotlightMedia.length > 1;
       const stripScreenShares = useStripScreenShares(spotlightMedia);

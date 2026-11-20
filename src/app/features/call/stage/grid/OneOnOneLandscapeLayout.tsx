@@ -10,7 +10,7 @@ import React, { type ReactNode, useCallback, useMemo } from 'react';
 
 import { type OneOnOneLandscapeLayout as OneOnOneLandscapeLayoutModel } from '../../../../plugins/call/engine/state/layout-types';
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
-import { type CallLayout, arrangeTiles } from './CallLayout';
+import { type CallLayout, arrangeTiles, useLayoutBounds } from './CallLayout';
 import * as css from './OneOnOneLandscapeLayout.css';
 import { type DragCallback, useUpdateLayout } from './Grid';
 
@@ -19,9 +19,7 @@ import { type DragCallback, useUpdateLayout } from './Grid';
  * the remote participant is shown at maximum size, overlaid by a small view of
  * the local participant.
  */
-export const makeOneOnOneLandscapeLayout: CallLayout<OneOnOneLandscapeLayoutModel> = ({
-  minBounds$,
-}) => ({
+export const makeOneOnOneLandscapeLayout: CallLayout<OneOnOneLandscapeLayoutModel> = () => ({
   foreground: 'fixed',
 
   fixed: function OneOnOneLandscapeLayoutFixed({ ref }): ReactNode {
@@ -31,7 +29,7 @@ export const makeOneOnOneLandscapeLayout: CallLayout<OneOnOneLandscapeLayoutMode
 
   scrolling: function OneOnOneLandscapeLayoutScrolling({ ref, model, Slot }): ReactNode {
     useUpdateLayout();
-    const { width, height } = useBehavior(minBounds$);
+    const { width, height } = useLayoutBounds();
     const pipAlignment = useBehavior(model.pipAlignment$);
     const { tileWidth, tileHeight } = useMemo(
       () => arrangeTiles(width, height, 1),

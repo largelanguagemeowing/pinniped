@@ -10,7 +10,7 @@ import classNames from 'classnames';
 
 import { type SpotlightPortraitLayout as SpotlightPortraitLayoutModel } from '../../../../plugins/call/engine/state/layout-types';
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
-import { type CallLayout } from './CallLayout';
+import { type CallLayout, useLayoutBounds } from './CallLayout';
 import { arrangeBelowSpotlight } from './arrangeGrid';
 import * as css from './SpotlightPortraitLayout.css';
 import { useUpdateLayout, useVisibleTiles } from './Grid';
@@ -21,9 +21,7 @@ import { gridVars } from './vars';
  * tile is shown across the top of the screen, and the grid of participants
  * below it.
  */
-export const makeSpotlightPortraitLayout: CallLayout<SpotlightPortraitLayoutModel> = ({
-  minBounds$,
-}) => ({
+export const makeSpotlightPortraitLayout: CallLayout<SpotlightPortraitLayoutModel> = () => ({
   foreground: 'fixed',
 
   fixed: function SpotlightPortraitLayoutFixed({ ref, model, Slot }): ReactNode {
@@ -41,7 +39,7 @@ export const makeSpotlightPortraitLayout: CallLayout<SpotlightPortraitLayoutMode
   scrolling: function SpotlightPortraitLayoutScrolling({ ref, model, Slot }): ReactNode {
     useUpdateLayout();
     useVisibleTiles(model.setVisibleTiles);
-    const { width, height } = useBehavior(minBounds$);
+    const { width, height } = useLayoutBounds();
     const withIndicators = useBehavior(model.spotlight.media$).length > 1;
     // The grid gets whatever height the 16:9 spotlight leaves, so that the
     // participants fit under it instead of scrolling behind it.
