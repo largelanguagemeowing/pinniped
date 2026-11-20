@@ -99,32 +99,27 @@ export const useScreenShareAudioBridge = (call: Call) => {
   const sharing = useBehavior(call.vm.sharingScreen$);
   const bridge = window.pinnipedDesktop?.screenShareAudio;
 
-  // The device stays for the whole call: if it vanished while the call still captures it, the
-  // capture can silently move to the real microphone and send it a second time.
+  // The device is made once share audio is on, and then stays for the whole call: if it vanished
+  // while the call still captures it, the capture can silently move to the real microphone and
+  // send it a second time. Making it changes the system's audio devices mid-call, so calls
+  // without share audio leave them alone.
+  const [prepared, setPrepared] = useState(enabled);
+  if (enabled && !prepared) setPrepared(true);
+
   useEffect(() => {
-    if (!bridge) return undefined;
-    // Before the helper's first command, which is what starts it.
-    bridge.setConsole?.(helperConsole);
-    bridge.prepare();
+    if (!bridge || !prepared) return undefined;
     return () => {
       bridge.release();
     };
-    // The console option only applies to a helper that starts afterwards; changing it restarts
-    // the helper (see below), so it is not a reason to prepare again here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bridge]);
+  }, [bridge, prepared]);
 
-  // Changing the option restarts the helper, so the call has to ask for its device again.
-  const firstConsole = useRef(true);
+  // The console option goes in before the helper's first command, which is what starts it.
+  // Changing it restarts the helper, so the call asks for its device again.
   useEffect(() => {
-    if (!bridge) return;
-    if (firstConsole.current) {
-      firstConsole.current = false;
-      return;
-    }
+    if (!bridge || !prepared) return;
     bridge.setConsole?.(helperConsole);
     bridge.prepare();
-  }, [bridge, helperConsole]);
+  }, [bridge, prepared, helperConsole]);
 
   // Only audio played to the output device the call uses is shared, see electron/screenshare-audio.cjs.
   const [audioOutput] = useSetting(settingsAtom, 'callAudioOutput');

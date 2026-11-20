@@ -146,7 +146,7 @@ Fork changes on top of upstream Element Call:
 - **Screen share audio** (Settings → Calls, `callScreenShareAudio`; the source follows the platform,
   `engine/livekit/screenShareAudio.ts`): `off`, `display` (what the browser offers with the
   capture), `device` (a microphone published as the share's audio; Linux, a PipeWire virtual mic
-  made by the helper's `screenshare.rs`) or `pcm` (Windows).
+  made by the helper's `screenshare.rs` once share audio is on during a call, kept until it ends) or `pcm` (Windows).
   Either desktop path shares only what plays on the output device the call uses
   (`callAudioOutput`) from other applications, never Pinniped's own process tree (call voices,
   soundboard, notifications), so nothing echoes back. Windows has no virtual mic without a driver,
