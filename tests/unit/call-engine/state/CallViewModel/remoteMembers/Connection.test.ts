@@ -94,6 +94,7 @@ function setupTest(): void {
 
   const fakeRoomEventEmitter = new EventEmitter();
   fakeLivekitRoom = vi.mocked<LivekitRoom>({
+    options: {},
     connect: vi.fn(),
     disconnect: vi.fn(),
     remoteParticipants: new Map(),
@@ -109,6 +110,13 @@ function setupTest(): void {
       fakeRoomEventEmitter.emit(eventName, ...args);
     },
   } as unknown as LivekitRoom);
+}
+
+/** Gives the room an E2EE worker, as the connection factory does for encrypted calls. */
+function giveE2EEWorker(): { terminate: ReturnType<typeof vi.fn> } {
+  const worker = { terminate: vi.fn() };
+  Object.assign(fakeLivekitRoom, { options: { e2ee: { keyProvider: {}, worker } } });
+  return worker;
 }
 
 function setupRemoteConnection(): Connection {
@@ -381,6 +389,27 @@ describe('Start connection states', () => {
     expect(stopSpy).toHaveBeenCalled();
     expect(fakeLivekitRoom.disconnect).toHaveBeenCalled();
   });
+
+  it("terminates its room's E2EE worker once stopped", async () => {
+    setupTest();
+    const worker = giveE2EEWorker();
+    const connection = setupRemoteConnection();
+    await connection.start();
+    expect(worker.terminate).not.toHaveBeenCalled();
+
+    await connection.stop();
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+    await connection.stop();
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("terminates its room's E2EE worker when stopped before it connected", async () => {
+    setupTest();
+    const worker = giveE2EEWorker();
+    const connection = setupRemoteConnection();
+    await connection.stop();
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('remote participants', () => {
@@ -645,6 +674,18 @@ describe('Rejoining after the SFU drops us', () => {
 
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(fakeLivekitRoom.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the E2EE worker for the rejoined room', async () => {
+    vi.useFakeTimers();
+    const connection = setupLocalConnection(vi.fn().mockResolvedValue(refreshedConfig));
+    const worker = giveE2EEWorker();
+    await connection.start();
+
+    drop(DisconnectReason.UNKNOWN_REASON);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fakeLivekitRoom.connect).toHaveBeenCalledTimes(2);
+    expect(worker.terminate).not.toHaveBeenCalled();
   });
 
   it('advertises rejoin support after connecting and again after each rejoin', async () => {

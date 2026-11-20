@@ -63,6 +63,7 @@ export class ECConnectionFactory implements ConnectionFactory {
             keyProvider: livekitKeyProvider,
             // It's important that every room use a separate E2EE worker.
             // They get confused if given streams from multiple rooms.
+            // The room's Connection terminates it once it stops (LiveKit never does).
             worker: new E2EEWorker(),
           },
         })

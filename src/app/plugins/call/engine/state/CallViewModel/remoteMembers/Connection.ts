@@ -379,7 +379,13 @@ export class Connection {
   public async stop(): Promise<void> {
     this.logger.debug(`stop: disconnecing from lk room ${this.transport.livekit_service_url}`);
     if (this.stopped) return;
-    await this.livekitRoom.disconnect();
+    try {
+      await this.livekitRoom.disconnect();
+    } finally {
+      // LiveKit never terminates the E2EE worker a room was given; each room has its own.
+      const e2ee = this.livekitRoom.options.e2ee;
+      if (e2ee !== undefined && 'worker' in e2ee) e2ee.worker.terminate();
+    }
     this._state$.next(ConnectionState.Stopped);
     this.stopped = true;
     this.logger.debug(`stop: DONE disconnecing from lk room ${this.transport.livekit_service_url}`);
