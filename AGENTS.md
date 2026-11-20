@@ -122,6 +122,14 @@ Fork changes on top of upstream Element Call:
 - **Participant activity** (speaking, muted, deafened, sharing a screen):
   `CallViewModel.participantActivity$` (`state/CallViewModel/participantActivity.ts`) gives Matrix
   user IDs and does not depend on which tiles are mounted; `useCallParticipantActivity` reads it.
+- **Decryption warning**: a remote participant whose media we cannot decrypt gets a "Can't decrypt"
+  pill on their tile (`Call.undecryptable$`, by LiveKit identity; `engine/livekit/decryptionHealth.ts`).
+  LiveKit reports failures (`RoomEvent.EncryptionError`) but no recovery, and once it gives up on a
+  key it drops that participant's frames silently until a working key arrives. So recovery is
+  read from the call stats instead: a decoded video frame or non-concealed audio sample from them
+  in an interval that started at least one sampling interval after the failure (audio already in
+  the jitter buffer plays out for tens of milliseconds after frames stop decrypting). Stats
+  samples are timed when requested, for this.
 - **Publish errors**: when the media server's JWT service lets us join without the `canPublish`
   grant (it only trusts certain homeservers), `LocalMember` raises `PublishNotAllowedError` on
   `publishError$`; `CallStatus` shows it under "Voice Connected". The call uses

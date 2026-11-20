@@ -155,6 +155,22 @@ async function screenshots(dir) {
     ],
     [`grid-5-idle-desktop`, { layout: 'grid', tiles: 5, rich: 1, idle: 1 }, desktop],
     [
+      `grid-5-undecryptable-desktop`,
+      { layout: 'grid', tiles: 5, rich: 1, undecryptable: '1,2' },
+      desktop,
+    ],
+    [
+      `grid-9-undecryptable-narrow`,
+      { layout: 'grid', tiles: 9, rich: 1, undecryptable: '1,5' },
+      narrow,
+    ],
+    [
+      `spotlight-undecryptable-desktop`,
+      // The spotlight shows the first tile; the look is what is checked here.
+      { layout: 'spotlight-landscape', tiles: 5, shares: 0, rich: 1, undecryptable: '0' },
+      desktop,
+    ],
+    [
       `grid-5-reconnecting-desktop`,
       { layout: 'grid', tiles: 5, rich: 1, reconnecting: 1 },
       desktop,

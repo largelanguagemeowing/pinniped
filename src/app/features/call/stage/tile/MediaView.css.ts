@@ -203,6 +203,18 @@ export const status = style({
   marginInlineStart: `calc(16px - ${fgInset})`,
 });
 
+/** The status of a participant whose media cannot be decrypted: a warning pill. */
+export const undecryptable = style({
+  placeSelf: 'start',
+  maxInlineSize: '100%',
+  boxSizing: 'border-box',
+  padding: `${config.space.S100} ${config.space.S200}`,
+  borderRadius: config.radii.Pill,
+  color: color.Critical.OnMain,
+  backgroundColor: color.Critical.Main,
+  boxShadow: '0px 1.2px 2.4px 0px rgba(0, 0, 0, 0.15)',
+});
+
 export const reactions = style({
   gridArea: 'reactions',
   placeSelf: 'start end',

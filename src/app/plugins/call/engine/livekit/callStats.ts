@@ -37,6 +37,8 @@ export interface CallStatsStream {
    * outbound streams, which are always ours.
    */
   participant?: string;
+  /** LiveKit identity of the participant an inbound stream comes from. */
+  identity?: string;
   /** What the track carries: "Microphone", "Camera", "Screen share", "Soundboard"... */
   track?: string;
 }
@@ -62,6 +64,7 @@ type Stat = Record<string, unknown>;
 
 interface StreamLabel {
   participant?: string;
+  identity?: string;
   track: string;
 }
 
@@ -99,7 +102,12 @@ function labelTracks(room: LivekitRoom, userIds: Record<string, string>): Map<st
     const from = userIds[participant.identity] ?? participant.identity;
     participant.trackPublications.forEach((pub) => {
       const id = pub.track?.receiver?.track.id;
-      if (id) labels.set(id, { participant: from, track: trackLabel(pub) });
+      if (id)
+        labels.set(id, {
+          participant: from,
+          identity: participant.identity,
+          track: trackLabel(pub),
+        });
     });
   });
 
@@ -179,6 +187,7 @@ export async function sampleConnection(
       remote: plain(remoteInbound.get(s.ssrc as number)),
       source: plain(source),
       participant: label?.participant,
+      identity: label?.identity,
       track: label?.track,
     };
   };

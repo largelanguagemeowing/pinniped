@@ -23,7 +23,7 @@ import { type UserMediaViewModel } from '../../../../plugins/call/engine/state/m
 import { type RingingMediaViewModel } from '../../../../plugins/call/engine/state/media/RingingMediaViewModel';
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import { getMouseEventCords } from '../../../../utils/dom';
-import { StageContext } from '../StageContext';
+import { StageContext, useUndecryptable } from '../StageContext';
 import { recordStage, useRenderTrail } from '../renderTrail';
 import { MediaView, type MediaViewProps } from './MediaView';
 import * as mediaCss from './MediaView.css';
@@ -58,6 +58,7 @@ function RingingMediaTile({
       video={undefined}
       userId={vm.userId}
       unencryptedWarning={false}
+      undecryptable={false}
       status={
         pickupState === 'ringing'
           ? { text: 'Calling…', icon: videoEnabled ? Icons.VideoCamera : Icons.Phone }
@@ -117,6 +118,7 @@ function UserMediaTile({
   const handRaised = useBehavior(vm.handRaised$);
   const reaction = useBehavior(vm.reaction$);
   const deafened = useBehavior(vm.deafened$);
+  const undecryptable = useUndecryptable(vm.rtcBackendIdentity);
 
   // Whenever bounds change, inform the view model
   useEffect(() => {
@@ -158,6 +160,7 @@ function UserMediaTile({
       video={video}
       userId={vm.userId}
       unencryptedWarning={unencryptedWarning}
+      undecryptable={undecryptable}
       videoEnabled={videoEnabled}
       videoFit={videoFit}
       className={classNames(className, css.tile, {

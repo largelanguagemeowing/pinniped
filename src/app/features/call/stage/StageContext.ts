@@ -9,6 +9,7 @@ import { createContext, type MouseEvent, use } from 'react';
 import { type RectCords } from 'folds';
 
 import { constant, type Behavior } from '../../../plugins/call/engine/state/Behavior';
+import { useBehavior } from '../../../plugins/call/engine/useBehavior';
 import { type ScreenShareViewModel } from '../../../plugins/call/engine/state/media/ScreenShareViewModel';
 
 /** What tiles and layouts can do in the call view, provided by CallStage. */
@@ -23,6 +24,8 @@ export interface Stage {
   openMemberMenu: (userId: string, anchor: RectCords) => void;
   /** Reports the height of the screen share shown in the spotlight, or null when there is none. */
   reportStreamHeight: (height: number | null) => void;
+  /** Remote participants, by LiveKit identity, whose media cannot be decrypted. */
+  undecryptable$: Behavior<ReadonlySet<string>>;
 }
 
 export const StageContext = createContext<Stage | null>(null);
@@ -32,6 +35,12 @@ const noScreenShares = constant<ScreenShareViewModel[]>([]);
 /** Every screen share in the call; none outside a stage. */
 export const useStageScreenShares$ = (): Behavior<ScreenShareViewModel[]> =>
   use(StageContext)?.screenShares$ ?? noScreenShares;
+
+const noneUndecryptable = constant<ReadonlySet<string>>(new Set());
+
+/** Whether the media of the participant with this LiveKit identity cannot be decrypted. */
+export const useUndecryptable = (identity: string): boolean =>
+  useBehavior(use(StageContext)?.undecryptable$ ?? noneUndecryptable).has(identity);
 
 /** Clicks on a tile's own controls (menus, buttons) shouldn't change focus. */
 export const isTileBodyClick = (e: MouseEvent): boolean =>

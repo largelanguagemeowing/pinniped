@@ -121,6 +121,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
       focusMedia: vm.focusMedia,
       showGrid: vm.showGrid,
       screenShares$: vm.screenShares$,
+      undecryptable$: call.undecryptable$,
       openMemberMenu: (userId, anchor) => latestOnMemberMenu.current(userId, anchor),
       reportStreamHeight: (height) => {
         if (height === streamHeight) return;
@@ -128,7 +129,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
         latestOnStreamHeightChange.current(height);
       },
     };
-  }, [vm, latestOnMemberMenu, latestOnStreamHeightChange]);
+  }, [call, vm, latestOnMemberMenu, latestOnStreamHeightChange]);
   const tileContext = useMemo(() => ({ vm, focusable: !contentObscured }), [vm, contentObscured]);
 
   // Taps on touch screens arrive as pointerup: iOS Safari doesn't reliably fire click on plain

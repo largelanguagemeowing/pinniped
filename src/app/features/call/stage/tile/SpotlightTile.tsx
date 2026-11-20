@@ -32,7 +32,7 @@ import { type Behavior } from '../../../../plugins/call/engine/state/Behavior';
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import { VolumeSlider } from '../../../../components/slider';
 import { useInitial, useLatest, useMergedRefs, useReactiveState } from '../hooks';
-import { StageContext } from '../StageContext';
+import { StageContext, useUndecryptable } from '../StageContext';
 import { recordStage, useRenderTrail } from '../renderTrail';
 import { MediaView, type MediaViewProps } from './MediaView';
 import * as mediaCss from './MediaView.css';
@@ -74,6 +74,7 @@ function SpotlightUserMediaItem({
   const deafened = useBehavior(vm.deafened$);
   const mirror = useBehavior(vm.local ? vm.mirror$ : notMirrored);
   const waitingForMedia = useBehavior(vm.local ? notWaiting : vm.waitingForMedia$);
+  const undecryptable = useUndecryptable(vm.rtcBackendIdentity);
 
   // Whenever target bounds change, inform the view model
   useEffect(() => {
@@ -88,6 +89,7 @@ function SpotlightUserMediaItem({
       videoEnabled={videoEnabled}
       mirror={mirror}
       waitingForMedia={waitingForMedia}
+      undecryptable={undecryptable}
       nameTagLeadingIcon={
         deafened || !audioEnabled ? (
           <Icon
@@ -151,6 +153,8 @@ function SpotlightScreenShareItem({
       videoFit="contain"
       mirror={false}
       videoEnabled={videoEnabled}
+      // The sharer's own tile says so.
+      undecryptable={false}
       data-pinniped-live
       nameTagLeadingIcon={
         <Icon className={mediaCss.leadingIcon} size="Inherit" src={Icons.ScreenShare} aria-hidden />
@@ -183,6 +187,7 @@ function SpotlightRingingMediaItem({
     <MediaView
       video={undefined}
       unencryptedWarning={false}
+      undecryptable={false}
       status={
         pickupState === 'ringing'
           ? { text: 'Calling…', icon: videoEnabled ? Icons.VideoCamera : Icons.Phone }

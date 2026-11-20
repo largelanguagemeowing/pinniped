@@ -24,6 +24,7 @@ import { type CallPreferences } from '../../state/callPreferences';
 import { roomEncryptionSystem } from './engine/e2ee/encryptionSystem';
 import { installBitrateHints } from './engine/livekit/bitrateHints';
 import { type CallStatsConnection, sampleConnection } from './engine/livekit/callStats';
+import { undecryptableParticipants$ } from './engine/livekit/decryptionHealth';
 import { ReactionsReader } from './engine/reactions/ReactionsReader';
 import { type AutoLeaveReason } from './engine/state/CallViewModel/CallNotificationLifecycle';
 import {
@@ -104,6 +105,9 @@ export class Call {
 
   public readonly controlState$: Behavior<CallControlState>;
 
+  /** Remote participants, by LiveKit identity, whose media we cannot decrypt at the moment. */
+  public readonly undecryptable$: Behavior<ReadonlySet<string>>;
+
   /** Microphone and sound toggles the user made (not ones the call made itself). */
   public readonly userToggles$ = new Subject<CallUserToggle>();
 
@@ -158,6 +162,14 @@ export class Call {
 
     this.playCallSounds();
     this.sampleStats();
+    this.undecryptable$ = this.scope.behavior(
+      undecryptableParticipants$(
+        this.vm.livekitRoomItems$.pipe(map((items) => items.map((item) => item.livekitRoom))),
+        this.stats$,
+        STATS_INTERVAL_MS
+      ),
+      new Set()
+    );
 
     this.controlState$ = this.scope.behavior(
       combineLatest(
@@ -275,6 +287,8 @@ export class Call {
     interval(STATS_INTERVAL_MS)
       .pipe(this.scope.bind())
       .subscribe(() => {
+        // When the counters were asked for, not when they arrived.
+        const time = Date.now();
         const items = this.vm.livekitRoomItems$.value;
         const samples = this.vm.allConnections$.value.getConnections().map(async (c) => {
           const url = c.transport.livekit_service_url;
@@ -284,7 +298,6 @@ export class Call {
         void Promise.all(samples).then((sampled) => {
           const connections = sampled.filter((c): c is CallStatsConnection => c !== null);
           if (connections.length === 0 || this.ended) return;
-          const time = Date.now();
           this.stats$.next([
             ...this.stats$.value.filter((s) => s.time > time - STATS_WINDOW_MS),
             { time, connections },

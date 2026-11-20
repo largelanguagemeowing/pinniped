@@ -91,7 +91,7 @@ function userMedia(i: number, p: Participant): UserMediaViewModel {
     videoEnabled$: b(p.camera ?? false),
     videoFit$: b('cover'),
     toggleCropVideo: () => undefined,
-    rtcBackendIdentity: '',
+    rtcBackendIdentity: `identity-${i}`,
     handRaised$: b(p.handRaised ? new Date() : null),
     reaction$: b(null),
     setTargetDimensions: () => undefined,
@@ -135,6 +135,8 @@ export interface Scenario {
   /** Give participants states and cameras, for screenshots. */
   rich: boolean;
   reconnecting: boolean;
+  /** Tile indices whose media cannot be decrypted. */
+  undecryptable: number[];
 }
 
 const richStates: Participant[] = [
@@ -220,6 +222,7 @@ export function fakeCall(s: Scenario): Call {
   };
   return {
     vm,
+    undecryptable$: b(new Set(s.undecryptable.map((i) => `identity-${i}`))),
     muteStates: { audio: { setEnabled$: b(null) } },
     toggleMicrophone: () => undefined,
     toggleVideo: () => undefined,

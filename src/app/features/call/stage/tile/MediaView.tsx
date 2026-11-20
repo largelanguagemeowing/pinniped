@@ -39,6 +39,8 @@ export interface MediaViewProps extends Omit<AnimatedDivProps, 'ref' | 'style' |
   userId: string;
   videoEnabled: boolean;
   unencryptedWarning: boolean;
+  /** Their media arrives but cannot be decrypted, so they are not heard or seen. */
+  undecryptable: boolean;
   status?: { text: string; icon: IconSrc };
   showNameTags: boolean;
   nameTagLeadingIcon?: ReactNode;
@@ -110,6 +112,7 @@ export function MediaView({
   userId,
   videoEnabled,
   unencryptedWarning,
+  undecryptable,
   showNameTags,
   nameTagLeadingIcon,
   displayName,
@@ -175,7 +178,7 @@ export function MediaView({
           mxcUrl={mxcAvatarUrl}
           className={classNames(css.avatar, {
             // Over a status, the avatar is translucent so the status reads.
-            [css.translucent]: status,
+            [css.translucent]: status || undecryptable,
           })}
           style={{ display: showVideo ? 'none' : undefined }}
         />
@@ -194,7 +197,34 @@ export function MediaView({
             <ReactionIndicator miniature={miniature} emoji={currentReaction.emoji} />
           )}
         </div>
-        {waitingForMedia && <div className={css.status}>Waiting for media...</div>}
+        {undecryptable ? (
+          <TooltipProvider
+            position="Bottom"
+            tooltip={
+              <Tooltip style={{ maxWidth: '18rem' }}>
+                <Text size="T200">
+                  Their audio and video arrive but can&apos;t be decrypted, so you don&apos;t hear
+                  or see them. Their encryption key is missing or doesn&apos;t match.
+                </Text>
+              </Tooltip>
+            }
+          >
+            {(anchorRef) => (
+              <div
+                ref={anchorRef}
+                className={classNames(css.status, css.undecryptable)}
+                data-pinniped-undecryptable
+              >
+                <Icon size="100" src={Icons.Warning} filled aria-hidden />
+                <Text as="span" size="T200" truncate>
+                  Can&apos;t decrypt
+                </Text>
+              </div>
+            )}
+          </TooltipProvider>
+        ) : (
+          waitingForMedia && <div className={css.status}>Waiting for media...</div>
+        )}
         {status && (
           <div className={css.status}>
             <Icon size="100" src={status.icon} aria-hidden />
