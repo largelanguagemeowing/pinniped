@@ -1,5 +1,6 @@
 // Usage: node tests/call-stage-harness/run.mjs [scenarios-json]   (prints a JSON report)
 //        node tests/call-stage-harness/run.mjs --screenshots [dir]   (default: out/screenshots)
+//        node tests/call-stage-harness/run.mjs --drag [scenarios-json]  (drags the DM call divider)
 // Mounts the real CallStage around a fake call in real Chromium windows and checks the tile
 // layout while resizing, including shrinking to tiny sizes. Ported from Element Call's layout
 // harness with the same scenarios, sizes and report, so reports before and after a layout change
@@ -82,8 +83,8 @@ async function open(scenario, viewport) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.message).slice(0, 300)));
   page.on('console', (m) => {
-    if (m.type() === 'error' || /Maximum update depth/.test(m.text()))
-      errors.push(m.text().slice(0, 400));
+    if (m.type() === 'error' || /Maximum update depth|render storm/.test(m.text()))
+      errors.push(m.text().slice(0, 1500));
   });
   const qs = new URLSearchParams(Object.entries(scenario).map(([k, v]) => [k, String(v)]));
   await page.goto(`http://localhost:${port}/index.html?${qs}`);
@@ -174,9 +175,82 @@ async function screenshots(dir) {
   return { dir, shots: shots.map(([name]) => name), errors, streamHeights };
 }
 
+/**
+ * Mounts the stage in the DM call split and drags its divider up and down in small steps, as a
+ * hand does, reporting errors and where the tiles ended up after each sweep.
+ */
+async function dragReport(scenarios) {
+  const report = [];
+  for (const { viewport, cpuSlowdown, ...sc } of scenarios) {
+    const { page, errors } = await open(
+      { ...sc, split: 1 },
+      viewport ?? { width: 1280, height: 800 }
+    );
+    // A slower machine: frames take longer than the pointer moves that arrive meanwhile.
+    if (cpuSlowdown)
+      await (
+        await page.context().newCDPSession(page)
+      ).send('Emulation.setCPUThrottlingRate', {
+        rate: cpuSlowdown,
+      });
+    const handle = page.getByRole('separator', { name: 'Resize call' });
+    const box = await handle.boundingBox();
+    const x = box.x + box.width / 2;
+    const { height } = page.viewportSize();
+    await page.mouse.move(x, box.y + box.height / 2);
+    await page.mouse.down();
+    const sweeps = [height - 20, 20, height / 2, height - 20, 150];
+    const steps = [];
+    // `fast`: the moves go out without waiting for each, as from a real mouse, so they can
+    // arrive faster than the stage renders.
+    const cdp = sc.fast ? await page.context().newCDPSession(page) : null;
+    let y0 = box.y + box.height / 2;
+    for (const y of sweeps) {
+      if (cdp) {
+        const moves = Array.from({ length: 120 }, (_, i) =>
+          cdp.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved',
+            x,
+            y: y0 + ((y - y0) * (i + 1)) / 120,
+            button: 'left',
+            buttons: 1,
+          })
+        );
+        await Promise.all(moves);
+      } else {
+        await page.mouse.move(x, y, { steps: 60 });
+      }
+      y0 = y;
+      await page.waitForTimeout(sc.settle ?? 150);
+      steps.push({ to: Math.round(y), ...(await measure(page)) });
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    report.push({
+      scenario: sc,
+      viewport,
+      cpuSlowdown,
+      errors: [...new Set(errors)].slice(0, 5),
+      steps,
+    });
+    await page.close();
+  }
+  return report;
+}
+
 const args = process.argv.slice(2);
 let output;
-if (args[0] === '--screenshots') {
+if (args[0] === '--drag') {
+  output = await dragReport(
+    JSON.parse(args[1] ?? 'null') ?? [
+      { layout: 'auto', tiles: 4, shares: 1, rich: 1 },
+      { layout: 'auto', tiles: 4, shares: 1, rich: 1, viewport: { width: 560, height: 900 } },
+      { layout: 'auto', tiles: 4, shares: 0, rich: 1 },
+      { layout: 'auto', tiles: 4, shares: 0, rich: 1, viewport: { width: 560, height: 900 } },
+      { layout: 'auto', tiles: 9, shares: 2, rich: 1 },
+    ]
+  );
+} else if (args[0] === '--screenshots') {
   output = await screenshots(path.resolve(args[1] ?? path.join(root, 'out', 'screenshots')));
 } else {
   output = await layoutReport(
