@@ -1,6 +1,6 @@
 // Mounts the real CallStage (container, measuring, Grid, layouts and tiles) around a fake call.
 // Driven by run.mjs, which resizes a real Chromium window and measures the tiles.
-import React, { StrictMode } from 'react';
+import React, { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { type MatrixClient } from 'matrix-js-sdk';
 import '@fontsource/inter/variable.css';
@@ -39,18 +39,29 @@ const stage = (
   />
 );
 
+/** The call above the chat with the draggable divider between them, as in a DM. */
+function Split() {
+  const [callOnly, setCallOnly] = useState(params.get('callOnly') === '1');
+  // run.mjs switches to call-only (the call fullscreened) and back.
+  useEffect(() => {
+    (window as unknown as { __setCallOnly: typeof setCallOnly }).__setCallOnly = setCallOnly;
+  }, []);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <DmCallSplit
+        call={stage}
+        chat={<div data-harness-chat style={{ flexGrow: 1, background: '#222' }} />}
+        callOnly={callOnly}
+      />
+    </div>
+  );
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MatrixClientProvider value={{} as MatrixClient}>
       <SpecVersionsProvider value={{ versions: ['v1.11'] }}>
-        {params.get('split') === '1' ? (
-          // The call above the chat with the draggable divider between them, as in a DM.
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <DmCallSplit call={stage} chat={<div style={{ flexGrow: 1, background: '#222' }} />} />
-          </div>
-        ) : (
-          stage
-        )}
+        {params.get('split') === '1' ? <Split /> : stage}
       </SpecVersionsProvider>
     </MatrixClientProvider>
   </StrictMode>

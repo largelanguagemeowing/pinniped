@@ -26,10 +26,12 @@ const loadHeight = (): number => {
 type DmCallSplitProps = {
   call: ReactNode;
   chat: ReactNode;
+  /** The call takes the whole height; the chat is hidden but stays mounted, keeping its place. */
+  callOnly: boolean;
 };
 
 /** DM layout: call on top, chat below, draggable divider between them. */
-export function DmCallSplit({ call, chat }: DmCallSplitProps) {
+export function DmCallSplit({ call, chat, callOnly }: DmCallSplitProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(loadHeight);
   const [dragging, setDragging] = useState(false);
@@ -75,34 +77,44 @@ export function DmCallSplit({ call, chat }: DmCallSplitProps) {
       <Box
         shrink="No"
         direction="Column"
-        style={{ height: toRem(height), maxHeight: `calc(100% - ${toRem(MIN_CHAT_HEIGHT)})` }}
+        style={
+          callOnly
+            ? { flexGrow: 1, minHeight: 0 }
+            : { height: toRem(height), maxHeight: `calc(100% - ${toRem(MIN_CHAT_HEIGHT)})` }
+        }
       >
         <Box grow="Yes" style={{ minHeight: 0 }}>
           {call}
         </Box>
       </Box>
-      <div
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="Resize call"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => setDragging(false)}
-        onLostPointerCapture={() => setDragging(false)}
-        style={{
-          flexShrink: 0,
-          height: toRem(6),
-          marginBlock: toRem(-3),
-          position: 'relative',
-          zIndex: 1,
-          cursor: 'row-resize',
-          touchAction: 'none',
-          background: dragging ? color.Primary.Main : 'transparent',
-          borderRadius: config.radii.R300,
-        }}
-      />
-      <Box grow="Yes" direction="Column" style={{ minHeight: 0 }}>
+      {!callOnly && (
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize call"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={() => setDragging(false)}
+          onLostPointerCapture={() => setDragging(false)}
+          style={{
+            flexShrink: 0,
+            height: toRem(6),
+            marginBlock: toRem(-3),
+            position: 'relative',
+            zIndex: 1,
+            cursor: 'row-resize',
+            touchAction: 'none',
+            background: dragging ? color.Primary.Main : 'transparent',
+            borderRadius: config.radii.R300,
+          }}
+        />
+      )}
+      <Box
+        grow="Yes"
+        direction="Column"
+        style={{ minHeight: 0, display: callOnly ? 'none' : undefined }}
+      >
         {chat}
       </Box>
     </Box>

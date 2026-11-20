@@ -1,6 +1,8 @@
 // Usage: node tests/call-stage-harness/run.mjs [scenarios-json]   (prints a JSON report)
 //        node tests/call-stage-harness/run.mjs --screenshots [dir]   (default: out/screenshots)
 //        node tests/call-stage-harness/run.mjs --drag [scenarios-json]  (drags the DM call divider)
+//        node tests/call-stage-harness/run.mjs --call-only [scenarios-json] [dir]
+//          (switches the DM call split to call-only, as in fullscreen, and back; screenshots in dir)
 // Mounts the real CallStage around a fake call in real Chromium windows and checks the tile
 // layout while resizing, including shrinking to tiny sizes. Ported from Element Call's layout
 // harness with the same scenarios, sizes and report, so reports before and after a layout change
@@ -238,6 +240,55 @@ async function dragReport(scenarios) {
   return report;
 }
 
+/**
+ * Mounts the stage in the DM call split, switches it to call-only (the call fullscreened) and
+ * back, and reports where the stage and chat are, and whether the stage survived (was not
+ * remounted). Screenshots of both states go to `dir`.
+ */
+async function callOnlyReport(scenarios, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const report = [];
+  for (const [i, { viewport, ...sc }] of scenarios.entries()) {
+    const { page, errors } = await open(
+      { ...sc, split: 1 },
+      viewport ?? { width: 1280, height: 800 }
+    );
+    await page.evaluate(() => {
+      document.querySelector('[data-call-stage]')?.setAttribute('data-harness-mark', '');
+    });
+    const state = () =>
+      page.evaluate(() => {
+        const rect = (e) => {
+          const r = e?.getBoundingClientRect();
+          return r && r.width > 0 && r.height > 0
+            ? [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]
+            : null;
+        };
+        return {
+          stage: rect(document.querySelector('[data-call-stage]')),
+          chat: rect(document.querySelector('[data-harness-chat]')),
+          chatMounted: !!document.querySelector('[data-harness-chat]'),
+          separator: !!document.querySelector('[role="separator"]'),
+          stageKept: !!document.querySelector('[data-call-stage][data-harness-mark]'),
+        };
+      });
+    const steps = [];
+    for (const [name, callOnly] of [
+      ['split', false],
+      ['call-only', true],
+      ['split-again', false],
+    ]) {
+      await page.evaluate((v) => window.__setCallOnly(v), callOnly);
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: path.join(dir, `${i}-${name}.png`) });
+      steps.push({ name, ...(await state()), tiles: await measure(page) });
+    }
+    report.push({ scenario: sc, viewport, errors: [...new Set(errors)].slice(0, 5), steps });
+    await page.close();
+  }
+  return report;
+}
+
 const args = process.argv.slice(2);
 let output;
 if (args[0] === '--drag') {
@@ -249,6 +300,14 @@ if (args[0] === '--drag') {
       { layout: 'auto', tiles: 4, shares: 0, rich: 1, viewport: { width: 560, height: 900 } },
       { layout: 'auto', tiles: 9, shares: 2, rich: 1 },
     ]
+  );
+} else if (args[0] === '--call-only') {
+  output = await callOnlyReport(
+    JSON.parse(args[1] ?? 'null') ?? [
+      { layout: 'auto', tiles: 4, shares: 1, rich: 1 },
+      { layout: 'auto', tiles: 4, shares: 0, rich: 1, viewport: { width: 560, height: 900 } },
+    ],
+    path.resolve(args[2] ?? path.join(root, 'out', 'call-only'))
   );
 } else if (args[0] === '--screenshots') {
   output = await screenshots(path.resolve(args[1] ?? path.join(root, 'out', 'screenshots')));

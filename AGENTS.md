@@ -58,6 +58,10 @@ change deliberately, and keep the original copyright headers on derived files.
   and `CallAudio`, mounted app-wide by `CallFeatures` while the call runs so it stays audible when
   the call view is not on screen. The call picks its layouts for the stage's size
   (`Call.setViewSize`). Sending reactions is not offered; incoming ones are shown.
+- Full Screen (`useCallFullscreen`) fullscreens the document, not the call element (folds portals
+  popouts, tooltips and modals to the body, which element fullscreen would hide), and while it is,
+  the app layout leaves only the call view (`callFullscreenAtom`: `ClientLayout`, `PageRoot`,
+  `Room`, `DmCallSplit`'s `callOnly`), hiding the rest without unmounting it.
 - Resizing the stage (dragging the DM call divider) re-renders it in several commits per size,
   and React 19 throws error #185 when commit after commit ends with urgent work queued (the
   iframe used to escape this: the stage was a React root of its own). So the drag is a
@@ -70,7 +74,8 @@ change deliberately, and keep the original copyright headers on derived files.
   drags the divider.
 - Tests: the core in `tests/unit/call-engine/` (the jsdom `call-engine` vitest project), the views
   in `tests/unit/call-stage/`. `node tests/call-stage-harness/run.mjs` (`--screenshots`) mounts
-  the real `CallStage` around a fake call in Chromium and reports the tile layout while resizing.
+  the real `CallStage` around a fake call in Chromium and reports the tile layout while resizing;
+  `--call-only` switches the DM split to call-only (fullscreen) and back.
 - Transports come from the homeserver's MSC4143 `rtc_transports` endpoint, then `.well-known`
   (`org.matrix.msc4143.rtc_foci`); there is no app-config fallback.
 

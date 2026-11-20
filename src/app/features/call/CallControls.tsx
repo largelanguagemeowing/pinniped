@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react';
+import React, { MouseEventHandler, useCallback, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -15,9 +15,10 @@ import {
   Tooltip,
   TooltipProvider,
 } from 'folds';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import FocusTrap from 'focus-trap-react';
-import { callFullscreenAtom, callIdleAtom } from '../../state/call';
+import { callIdleAtom } from '../../state/call';
+import { useCallFullscreen } from './useCallFullscreen';
 import { settingsModalAtom } from '../../state/settingsModal';
 import { SettingsPages } from '../settings';
 import * as css from './styles.css';
@@ -38,23 +39,7 @@ export function CallControls({ call }: CallControlsProps) {
   const idle = useAtomValue(callIdleAtom);
   const [invitePrompt, setInvitePrompt] = useState(false);
   const [pickingShare, setPickingShare] = useState(false);
-  const [fullscreen, setFullscreen] = useAtom(callFullscreenAtom);
-
-  useEffect(() => {
-    const onChange = () => setFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', onChange);
-      setFullscreen(false);
-    };
-  }, [setFullscreen]);
-
-  // Fullscreens the app window and hides the app chrome (see ClientLayout / PageRoot), so
-  // only the call view is left.
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen();
-  };
+  const [fullscreen, toggleFullscreen] = useCallFullscreen();
   const { microphone, video, sound, screenshare, spotlight } = useBehavior(call.controlState$);
   // Screen share and soundboard need the media connection.
   const connected = useBehavior(call.vm.connected$);
