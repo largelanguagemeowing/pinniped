@@ -58,11 +58,13 @@ change deliberately, and keep the original copyright headers on derived files.
   and `CallAudio`, mounted app-wide by `CallFeatures` while the call runs so it stays audible when
   the call view is not on screen. The call picks its layouts for the stage's size
   (`Call.setViewSize`). Sending reactions is not offered; incoming ones are shown.
-- Resizing the stage (dragging the DM call divider) re-renders it continuously, and React 19
-  throws error #185 when commit after commit ends with urgent work queued. So nothing the stage
-  does after every render or resize may queue urgent work: the stage size reaches the layouts by
-  context (`useLayoutBounds`), the layout bump (`useUpdateLayout`) is a transition, and
-  `setViewSize` runs from a passive effect.
+- Resizing the stage (dragging the DM call divider) re-renders it in several commits per size,
+  and React 19 throws error #185 when commit after commit ends with urgent work queued (the
+  iframe used to escape this: the stage was a React root of its own). So the drag is a
+  transition (`DmCallSplit`), the stage size reaches the layouts by context
+  (`useLayoutBounds`), and `setViewSize` runs from a passive effect. The grid itself must stay
+  urgent: react-spring keeps its animation state across renders, and a tile whose interrupted
+  transition render was dropped stays where it was.
 - Tests: the core in `tests/unit/call-engine/` (the jsdom `call-engine` vitest project), the views
   in `tests/unit/call-stage/`. `node tests/call-stage-harness/run.mjs` (`--screenshots`) mounts
   the real `CallStage` around a fake call in Chromium and reports the tile layout while resizing.

@@ -1,4 +1,11 @@
-import React, { PointerEventHandler, ReactNode, useCallback, useRef, useState } from 'react';
+import React, {
+  PointerEventHandler,
+  ReactNode,
+  startTransition,
+  useCallback,
+  useRef,
+  useState,
+} from 'react';
 import { Box, color, config, toRem } from 'folds';
 
 const STORAGE_KEY = 'pinniped.dmCallPaneHeight';
@@ -26,9 +33,12 @@ export function DmCallSplit({ call, chat }: DmCallSplitProps) {
   const [height, setHeight] = useState(loadHeight);
   const [dragging, setDragging] = useState(false);
 
-  const clamp = useCallback((value: number) => {
-    const total = containerRef.current?.clientHeight ?? Infinity;
-    return Math.max(MIN_CALL_HEIGHT, Math.min(value, total - MIN_CHAT_HEIGHT));
+  /** The call height for a pointer at `clientY`, within the limits. */
+  const heightAt = useCallback((clientY: number): number | undefined => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+    const value = clientY - container.getBoundingClientRect().top;
+    return Math.max(MIN_CALL_HEIGHT, Math.min(value, container.clientHeight - MIN_CHAT_HEIGHT));
   }, []);
 
   const handlePointerDown: PointerEventHandler<HTMLDivElement> = (evt) => {
@@ -37,16 +47,22 @@ export function DmCallSplit({ call, chat }: DmCallSplitProps) {
   };
 
   const handlePointerMove: PointerEventHandler<HTMLDivElement> = (evt) => {
-    const container = containerRef.current;
-    if (!dragging || !container) return;
-    setHeight(clamp(evt.clientY - container.getBoundingClientRect().top));
+    const next = dragging ? heightAt(evt.clientY) : undefined;
+    if (next === undefined) return;
+    // A transition: every new size re-renders the call view in several commits, and with an
+    // urgent drag update queued at the end of each, React took the drag for an endless update
+    // loop (error #185).
+    startTransition(() => setHeight(next));
   };
 
   const handlePointerUp: PointerEventHandler<HTMLDivElement> = (evt) => {
     evt.currentTarget.releasePointerCapture(evt.pointerId);
     setDragging(false);
+    // The last move may still be pending; the release is where the divider ends up.
+    const final = heightAt(evt.clientY) ?? height;
+    setHeight(final);
     try {
-      localStorage.setItem(STORAGE_KEY, String(Math.round(height)));
+      localStorage.setItem(STORAGE_KEY, String(Math.round(final)));
     } catch {
       // persisting the split position is a convenience only
     }

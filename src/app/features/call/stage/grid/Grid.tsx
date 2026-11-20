@@ -14,7 +14,6 @@ import React, {
   type Ref,
   type SetStateAction,
   createContext,
-  startTransition,
   memo,
   use,
   useEffect,
@@ -134,13 +133,8 @@ function useLayoutContext(): LayoutContextValue {
  */
 export function useUpdateLayout(): void {
   const { setGeneration } = useLayoutContext();
-  // On every render, tell Grid that the layout may have changed. As a transition: an urgent
-  // update here follows every render of the layout, so while the stage is resized continuously
-  // (dragging the call divider) a commit never ends without urgent work left, and React takes
-  // that for an endless update loop (error #185).
-  useEffect(() => {
-    startTransition(() => setGeneration((prev) => (prev === null ? 0 : prev + 1)));
-  });
+  // On every render, tell Grid that the layout may have changed
+  useEffect(() => setGeneration((prev) => (prev === null ? 0 : prev + 1)));
 }
 
 /**
