@@ -33,6 +33,10 @@ vi.mock('@vanilla-extract/css', () => {
       counter += 1;
       return `ve-theme-${counter}`;
     },
+    style: () => {
+      counter += 1;
+      return `ve-style-${counter}`;
+    },
     globalStyle: () => {},
   };
 });

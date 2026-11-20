@@ -1,5 +1,7 @@
 import { globalStyle, style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
+import { inputModeSelector } from '../../utils/inputMode';
+import { FocusRingOffset, FocusRingOutline } from '../../styles/FocusRing.css';
 
 const TRACK = toRem(6);
 const THUMB = toRem(16);
@@ -55,11 +57,12 @@ globalStyle(`${Slider}:hover::-webkit-slider-thumb, ${Slider}:active::-webkit-sl
 globalStyle(`${Slider}:hover::-moz-range-thumb, ${Slider}:active::-moz-range-thumb`, {
   transform: 'scale(1.15)',
 });
-globalStyle(`${Slider}:focus-visible::-webkit-slider-thumb`, {
-  outline: `${toRem(2)} solid ${color.Primary.Main}`,
-  outlineOffset: toRem(2),
+const keyboard = inputModeSelector('keyboard');
+globalStyle(`${keyboard} ${Slider}:focus-visible::-webkit-slider-thumb`, {
+  outline: FocusRingOutline,
+  outlineOffset: FocusRingOffset,
 });
-globalStyle(`${Slider}:focus-visible::-moz-range-thumb`, {
-  outline: `${toRem(2)} solid ${color.Primary.Main}`,
-  outlineOffset: toRem(2),
+globalStyle(`${keyboard} ${Slider}:focus-visible::-moz-range-thumb`, {
+  outline: FocusRingOutline,
+  outlineOffset: FocusRingOffset,
 });

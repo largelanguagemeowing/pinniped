@@ -1,7 +1,7 @@
 import { lightTheme } from 'folds';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onDarkFontWeight, onLightFontWeight } from '../../config.css';
-import { butterTheme, darkTheme, silverTheme } from '../../colors.css';
+import { butterTheme, darkTheme, lightThemeFocusRing, silverTheme } from '../../colors.css';
 import { forkThemes, darkVariablesClass } from '../themes/fork';
 import { settingsAtom } from '../state/settings';
 import { useSetting } from '../state/hooks/settings';
@@ -20,7 +20,7 @@ export type Theme = {
 export const LightTheme: Theme = {
   id: 'light-theme',
   kind: ThemeKind.Light,
-  classNames: [lightTheme, onLightFontWeight, 'prism-light'],
+  classNames: [lightTheme, lightThemeFocusRing, onLightFontWeight, 'prism-light'],
 };
 
 export const SilverTheme: Theme = {

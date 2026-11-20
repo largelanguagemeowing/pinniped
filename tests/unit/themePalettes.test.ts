@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, deriveColorData } from '../../src/app/themes/fork/derive';
 import { forkThemeRegistry } from '../../src/app/themes/fork/registry';
+import { FocusRingColor } from '../../src/app/styles/focusRingColor';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const RGBA = /^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\)$/;
@@ -208,7 +209,7 @@ describe('fork theme palettes', () => {
   it('focus ring, shadow, and overlay match the built-in dark behavior', () => {
     forkThemeRegistry.forEach(({ id }) => {
       expect(colorGroups(id).Other).toEqual({
-        FocusRing: 'rgba(255, 255, 255, 0.5)',
+        FocusRing: FocusRingColor.OnDark,
         Shadow: 'rgba(0, 0, 0, 1)',
         Overlay: 'rgba(0, 0, 0, 0.8)',
       });

@@ -1,5 +1,6 @@
 import { globalStyle, style } from '@vanilla-extract/css';
 import { DefaultReset, color, config, toRem } from 'folds';
+import { inputModeSelector } from '../../utils/inputMode';
 
 export const ImageEditor = style([
   DefaultReset,
@@ -62,9 +63,9 @@ export const CropSelection = style({
   cursor: 'move',
   touchAction: 'none',
   selectors: {
-    '&:focus-visible': {
-      outline: `${config.borderWidth.B600} solid ${color.Primary.Main}`,
-      outlineOffset: toRem(2),
+    // inside the white frame; the stage clips anything outside
+    [`${inputModeSelector('keyboard')} &:focus-visible`]: {
+      outlineOffset: toRem(-6),
     },
     '&:active': {
       cursor: 'grabbing',

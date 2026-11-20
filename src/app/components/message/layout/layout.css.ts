@@ -1,6 +1,7 @@
 import { createVar, keyframes, style, styleVariants } from '@vanilla-extract/css';
 import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
+import { inputModeSelector } from '../../../utils/inputMode';
 
 export const StickySection = style({
   position: 'sticky',
@@ -89,6 +90,11 @@ export const MessageBase = recipe({
       selectors: {
         '&:hover': {
           backgroundColor: color.Surface.ContainerHover,
+        },
+        // inset; an outer ring would be clipped by the timeline's scroll edge
+        [`${inputModeSelector('keyboard')} &:focus-visible`]: {
+          backgroundColor: color.Surface.ContainerHover,
+          outlineOffset: toRem(-2),
         },
       },
     },

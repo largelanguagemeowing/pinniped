@@ -8,8 +8,10 @@ import { configClass, varsClass } from 'folds';
 enableMapSet();
 
 import './index.css';
+import './app/styles/FocusRing.css';
 
 import { trimTrailingSlash } from './app/utils/common';
+import { trackInputMode } from './app/utils/inputMode';
 import App from './app/pages/App';
 
 // import i18n (needs to be bundled ;))
@@ -19,6 +21,7 @@ import { getFallbackSession } from './app/state/sessions';
 import { APP_VERSION, isDesktop } from './app/utils/device';
 
 document.body.classList.add(configClass, varsClass);
+trackInputMode(document);
 
 console.info(`Pinniped ${APP_VERSION}`);
 

@@ -1,4 +1,5 @@
 import chroma from 'chroma-js';
+import { FocusRingColor } from '../../styles/focusRingColor';
 
 /**
  * Raw palette roles sourced from each upstream theme family. State colors
@@ -120,7 +121,7 @@ export const deriveColorData = (palette: ForkPalette) => {
     Warning: accentData(palette.orange ?? palette.yellow, bg0),
     Critical: accentData(palette.red, bg0),
     Other: {
-      FocusRing: 'rgba(255, 255, 255, 0.5)',
+      FocusRing: FocusRingColor.OnDark,
       Shadow: 'rgba(0, 0, 0, 1)',
       Overlay: 'rgba(0, 0, 0, 0.8)',
     },

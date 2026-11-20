@@ -1,5 +1,11 @@
-import { createTheme } from '@vanilla-extract/css';
+import { createTheme, style } from '@vanilla-extract/css';
 import { color } from 'folds';
+import { FocusRingColor } from './app/styles/focusRingColor';
+
+// folds' `lightTheme` with Pinniped's focus ring
+export const lightThemeFocusRing = style({
+  vars: { [color.Other.FocusRing]: FocusRingColor.OnLight },
+});
 
 export const silverTheme = createTheme(color, {
   Background: {
@@ -92,7 +98,7 @@ export const silverTheme = createTheme(color, {
   },
 
   Other: {
-    FocusRing: 'rgba(0 0 0 / 50%)',
+    FocusRing: FocusRingColor.OnLight,
     Shadow: 'rgba(0 0 0 / 20%)',
     Overlay: 'rgba(0 0 0 / 50%)',
   },
@@ -189,7 +195,7 @@ const darkThemeData = {
   },
 
   Other: {
-    FocusRing: 'rgba(255, 255, 255, 0.5)',
+    FocusRing: FocusRingColor.OnDark,
     Shadow: 'rgba(0, 0, 0, 1)',
     Overlay: 'rgba(0, 0, 0, 0.8)',
   },
