@@ -30,6 +30,9 @@ ENV JUSTSERVE_HEADER_REFERRER="Referrer-Policy: no-referrer"
 # Nothing may put Pinniped in a frame, so no site can overlay it to steal clicks.
 ENV JUSTSERVE_HEADER_CSP="Content-Security-Policy: frame-ancestors 'none'" \
     JUSTSERVE_HEADER_FRAME="X-Frame-Options: DENY"
+# A browser that reached Pinniped over HTTPS refuses plain HTTP to it for a year. TLS ends at the
+# gateway; browsers ignore the header on plain HTTP, such as the e2e stack's.
+ENV JUSTSERVE_HEADER_HSTS="Strict-Transport-Security: max-age=31536000"
 
 
 ## App
