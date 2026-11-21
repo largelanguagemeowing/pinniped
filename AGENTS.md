@@ -256,8 +256,6 @@ Pinniped ships as a container image to a Kubernetes cluster. The app is a static
 - Cluster: DUS, kubectl context `admin@alessandro-talos`
 - URL: `https://cinny.k8s.mreow.de/`
 
-Deploy only to DUS. The `cluster-gz6gk` context is the FRA cluster, which also runs a `cinny` deployment (served at `cinny.k8s-fra.mreow.de`); do not roll out there.
-
 The deployment uses `imagePullPolicy: Always` with the `:latest` tag, so a rollout restart pulls whatever `:latest` currently points to in the registry.
 
 ### Base images
