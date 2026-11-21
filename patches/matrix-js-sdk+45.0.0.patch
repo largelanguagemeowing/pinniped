@@ -1,3 +1,20 @@
+diff --git a/node_modules/matrix-js-sdk/lib/models/user.js b/node_modules/matrix-js-sdk/lib/models/user.js
+index 60b8aba..afbd4cd 100644
+--- a/node_modules/matrix-js-sdk/lib/models/user.js
++++ b/node_modules/matrix-js-sdk/lib/models/user.js
+@@ -141,9 +141,9 @@ export class User extends TypedEventEmitter {
+     }
+     this.presence = event.getContent().presence;
+     eventsToFire.push(UserEvent.LastPresenceTs);
+-    if (event.getContent().status_msg) {
+-      this.presenceStatusMsg = event.getContent().status_msg;
+-    }
++    // Every presence event carries the whole state, and servers leave out an empty status
++    // message, so its absence clears the one shown.
++    this.presenceStatusMsg = event.getContent().status_msg || undefined;
+     if (event.getContent().displayname) {
+       this.displayName = event.getContent().displayname;
+     }
 diff --git a/node_modules/matrix-js-sdk/lib/sync.js b/node_modules/matrix-js-sdk/lib/sync.js
 index 554d5b2..13ab28a 100644
 --- a/node_modules/matrix-js-sdk/lib/sync.js
@@ -33,6 +50,23 @@ index 554d5b2..13ab28a 100644
      });
      _defineProperty(this, "storeClientOptions", async () => {
        try {
+diff --git a/node_modules/matrix-js-sdk/src/models/user.ts b/node_modules/matrix-js-sdk/src/models/user.ts
+index 375d786..d303e41 100644
+--- a/node_modules/matrix-js-sdk/src/models/user.ts
++++ b/node_modules/matrix-js-sdk/src/models/user.ts
+@@ -225,9 +225,9 @@ export class User extends TypedEventEmitter<UserEvent, UserEventHandlerMap> {
+         this.presence = event.getContent().presence;
+         eventsToFire.push(UserEvent.LastPresenceTs);
+ 
+-        if (event.getContent().status_msg) {
+-            this.presenceStatusMsg = event.getContent().status_msg;
+-        }
++        // Every presence event carries the whole state, and servers leave out an empty status
++        // message, so its absence clears the one shown.
++        this.presenceStatusMsg = event.getContent().status_msg || undefined;
+         if (event.getContent().displayname) {
+             this.displayName = event.getContent().displayname;
+         }
 diff --git a/node_modules/matrix-js-sdk/src/sync.ts b/node_modules/matrix-js-sdk/src/sync.ts
 index 2dfda23..5e00b97 100644
 --- a/node_modules/matrix-js-sdk/src/sync.ts

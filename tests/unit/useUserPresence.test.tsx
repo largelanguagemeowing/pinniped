@@ -1,5 +1,5 @@
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
-import { MatrixClient, User } from 'matrix-js-sdk';
+import { MatrixClient, MatrixEvent, User } from 'matrix-js-sdk';
 import { describe, expect, it } from 'vitest';
 import { MatrixClientProvider } from '../../src/app/hooks/useMatrixClient';
 import { Presence, UserPresence, useUserPresence } from '../../src/app/hooks/useUserPresence';
@@ -94,5 +94,33 @@ describe('useUserPresence', () => {
       } as unknown as Parameters<User['setPresenceEvent']>[0]);
     });
     expect(result).toMatchObject({ presence: Presence.Online, status: 'at lunch' });
+  });
+
+  // patches/matrix-js-sdk: servers leave an empty status_msg out of the presence event
+  it('clears a status message once a presence event comes without one', () => {
+    const dave = new User('@dave:example.org');
+    users[dave.userId] = dave;
+    const presenceEvent = (content: Record<string, unknown>) =>
+      new MatrixEvent({ type: 'm.presence', sender: dave.userId, content });
+    let result: UserPresence | undefined;
+    function Harness() {
+      result = useUserPresence(dave.userId);
+      return null;
+    }
+
+    act(() => {
+      dave.setPresenceEvent(presenceEvent({ presence: Presence.Online, status_msg: 'at lunch' }));
+      create(
+        <MatrixClientProvider value={mx}>
+          <Harness />
+        </MatrixClientProvider>
+      );
+    });
+    expect(result).toMatchObject({ presence: Presence.Online, status: 'at lunch' });
+
+    act(() => {
+      dave.setPresenceEvent(presenceEvent({ presence: Presence.Online, last_active_ago: 10 }));
+    });
+    expect(result?.status).toBeUndefined();
   });
 });
