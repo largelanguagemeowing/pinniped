@@ -70,3 +70,18 @@ describe('presence badge colors', () => {
     renderer.unmount();
   });
 });
+
+describe('presence badge name', () => {
+  it('names each presence on the badge itself, since its tooltip exists only while hovered', async () => {
+    const names = new Set<unknown>();
+    for (const presence of [Presence.Online, Presence.Unavailable, Presence.Offline]) {
+      const renderer = await render(presence);
+      const badge = renderer.root.findByType(Badge);
+      expect(badge.props.role).toBe('img');
+      expect(badge.props['aria-label']).toEqual(expect.any(String));
+      names.add(badge.props['aria-label']);
+      renderer.unmount();
+    }
+    expect(names.size).toBe(3);
+  });
+});

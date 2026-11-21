@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   toRem,
 } from 'folds';
-import React, { ReactNode, useId } from 'react';
+import React, { ReactNode } from 'react';
 import * as css from './styles.css';
 import { Presence, usePresenceLabel } from '../../hooks/useUserPresence';
 import { useTheme } from '../../hooks/useTheme';
@@ -101,7 +101,6 @@ type PresenceBadgeProps = {
 };
 export function PresenceBadge({ presence, status, size }: PresenceBadgeProps) {
   const label = usePresenceLabel();
-  const badgeLabelId = useId();
   const colors = usePresenceColors();
 
   return (
@@ -111,7 +110,7 @@ export function PresenceBadge({ presence, status, size }: PresenceBadgeProps) {
       offset={4}
       delay={200}
       tooltip={
-        <Tooltip id={badgeLabelId}>
+        <Tooltip>
           <Box style={{ maxWidth: toRem(250) }} alignItems="Baseline" gap="100">
             <Text size="L400">{label[presence]}</Text>
             {status && <Text size="T200">•</Text>}
@@ -121,8 +120,10 @@ export function PresenceBadge({ presence, status, size }: PresenceBadgeProps) {
       }
     >
       {(triggerRef) => (
+        // The tooltip exists only while hovered, so it cannot name the badge.
         <Badge
-          aria-labelledby={badgeLabelId}
+          role="img"
+          aria-label={label[presence]}
           ref={triggerRef}
           size={size}
           variant={PresenceToColor[presence]}
