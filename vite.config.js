@@ -57,12 +57,6 @@ const copyFiles = {
       dest: 'public/',
       rename: { stripBase: 1 },
     },
-    {
-      // DeepFilterNet's runtime and model, fetched by the call's noise suppression.
-      src: 'public/df3',
-      dest: 'public/',
-      rename: { stripBase: 1 },
-    },
   ],
 };
 

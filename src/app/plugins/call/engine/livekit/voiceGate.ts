@@ -5,9 +5,19 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type AudioProcessorOptions, type Track, type TrackProcessor } from 'livekit-client';
+import {
+  type AudioProcessorOptions,
+  type LocalAudioTrack,
+  type Track,
+  type TrackProcessor,
+} from 'livekit-client';
+import { type Logger } from 'matrix-js-sdk/lib/logger';
+import { combineLatest } from 'rxjs';
 
 import { type VoiceTuning } from '../../voiceTuning';
+import { callSettings } from '../settings';
+import { type Behavior } from '../state/Behavior';
+import { type ObservableScope } from '../state/ObservableScope';
 import { AdaptiveVoiceGate, VoiceGate, measureLevel, voiceGateLevels } from './voiceActivity';
 
 type AudioProcessor = TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>;
@@ -17,10 +27,9 @@ const POLL_MS = 20;
 const MAX_LOOKAHEAD_S = 0.1;
 
 /**
- * Sends the microphone only while it is picking up speech. It wraps the
- * denoiser (if there is one) and sits after it: the denoiser keeps processing
- * everything, so its noise model keeps adapting while the gate is closed, and
- * the gate listens to the cleaned signal, so room noise does not open it.
+ * Sends the microphone only while it is picking up speech: the track plays through a gain that
+ * opens and closes on the level an analyser hears, behind a delay line so speech that opens the
+ * gate is not cut off.
  */
 export class VoiceGateProcessor implements AudioProcessor {
   public readonly name = 'voice-gate';
@@ -29,12 +38,10 @@ export class VoiceGateProcessor implements AudioProcessor {
   private teardown?: () => void;
 
   /**
-   * @param inner - the denoiser to run before the gate, if any
    * @param settings - the current gate settings, read as the gate runs:
    *   `auto` follows the noise floor, otherwise `threshold` (0-1) applies
    */
   public constructor(
-    private readonly inner: AudioProcessor | undefined,
     private readonly settings: () => {
       auto: boolean;
       threshold: number;
@@ -48,8 +55,7 @@ export class VoiceGateProcessor implements AudioProcessor {
 
   public async init(opts: AudioProcessorOptions): Promise<void> {
     this.audioContext = opts.audioContext;
-    await this.inner?.init(opts);
-    this.build(this.inner?.processedTrack ?? opts.track, opts.audioContext);
+    this.build(opts.track, opts.audioContext);
   }
 
   public async restart(opts: AudioProcessorOptions): Promise<void> {
@@ -57,15 +63,13 @@ export class VoiceGateProcessor implements AudioProcessor {
     if (!ctx) throw new Error('VoiceGate: no AudioContext to restart with');
     this.audioContext = ctx;
     this.teardown?.();
-    await this.inner?.restart({ ...opts, audioContext: ctx });
-    this.build(this.inner?.processedTrack ?? opts.track, ctx);
+    this.build(opts.track, ctx);
   }
 
   public async destroy(): Promise<void> {
     this.teardown?.();
     this.teardown = undefined;
     this.processedTrack = undefined;
-    await this.inner?.destroy();
   }
 
   private build(source: MediaStreamTrack, ctx: AudioContext): void {
@@ -115,4 +119,54 @@ export class VoiceGateProcessor implements AudioProcessor {
       this.processedTrack?.stop();
     };
   }
+}
+
+/** Whether a track has the gate, so repeat emissions stay no-ops. */
+const gated = new WeakMap<LocalAudioTrack, boolean>();
+
+async function applyGate(track: LocalAudioTrack, gate: boolean): Promise<void> {
+  if (!gate) {
+    await track.stopProcessor();
+    return;
+  }
+  const processor = new VoiceGateProcessor(() => ({
+    auto: callSettings.voiceGateAuto$.value,
+    threshold: callSettings.voiceGateThreshold$.value,
+    tuning: callSettings.voiceTuning$.value,
+  }));
+  try {
+    await track.setProcessor(processor);
+  } catch (e) {
+    // A processor the track did not take is still ours to free.
+    if (track.getProcessor() !== processor) await processor.destroy().catch(() => undefined);
+    throw e;
+  }
+}
+
+/** Keeps the microphone track of a room gated while the voice gate setting is on. */
+export function voiceGateSync(
+  scope: ObservableScope,
+  audioTrack$: Behavior<LocalAudioTrack | null>,
+  logger: Logger
+): void {
+  let previous: LocalAudioTrack | null = null;
+  combineLatest([audioTrack$, callSettings.voiceGate$])
+    .pipe(scope.bind())
+    .subscribe(([track, gate]) => {
+      // A replaced track is stopped by LiveKit without destroying a gate still attached to it,
+      // which would keep polling.
+      if (previous !== null && previous !== track && gated.get(previous) === true) {
+        void previous.stopProcessor().catch(() => {});
+      }
+      previous = track;
+      if (track === null) return;
+      if ((gated.get(track) ?? false) === gate) return;
+      // Claim the state while applying so concurrent emissions don't apply twice, but release it
+      // on failure so a later emission retries.
+      gated.set(track, gate);
+      applyGate(track, gate).catch((e) => {
+        if (gated.get(track) === gate) gated.delete(track);
+        logger.error('Failed to apply the voice gate', e);
+      });
+    });
 }

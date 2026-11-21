@@ -82,21 +82,18 @@ change deliberately, and keep the original copyright headers on derived files.
 
 Fork changes on top of upstream Element Call:
 
-- **Audio pipeline** (`engine/livekit/denoise.ts` and its callers): the mic is always captured raw
-  (browser noise suppression and AGC off; AEC stays with the browser), DeepFilterNet 3 denoising
-  via `deepfilternet3-noise-filter` as an opt-in toggle (Pinniped settings → Calls, off by
-  default), 96 kbps Opus, DTX off, in-band FEC off (`disableOpusFec` in
+- **Audio pipeline** (`engine/livekit/voiceGate.ts`, `engine/livekit/autoGain.ts` and their
+  caller, `Publisher`): the mic is always captured raw (browser noise suppression and AGC off; AEC
+  stays with the browser), 96 kbps Opus, DTX off, in-band FEC off (`disableOpusFec` in
   `engine/livekit/bitrateHints.ts` rewrites the Opus fmtp in the answer; `installBitrateHints`
   patches `RTCPeerConnection` once, before the first call). An opt-in automatic gain toggle
   (Settings → Calls → Call Audio, `callAutoGain`) re-constrains the live mic track with the
-  browser's AGC (`autoGainSync`), ahead of the denoiser and gate; off by default. The DF3 runtime
-  wasm + model (~24 MB) are vendored under `public/df3/` and fetched from `/public/df3`. A previous
-  `denoise-voice-clarity` attempt bundled an AGC/EQ/compressor "clarity chain" that sounded fried;
-  it was replaced by pure DF3.
+  browser's AGC (`autoGainSync`), ahead of the gate; off by default. There is no noise
+  suppression: DeepFilterNet 3 (`deepfilternet3-noise-filter`, an opt-in toggle) was removed, and
+  before it a `denoise-voice-clarity` AGC/EQ/compressor "clarity chain" that sounded fried.
 - **Voice activity gate** (Settings → Calls → Call Audio): only sends the mic while it hears speech
-  (`engine/livekit/voiceGate.ts`, a track processor in `denoise.ts`'s `applyProcessing`). It sits
-  after DeepFilterNet, which keeps processing everything while the gate is closed so its noise
-  model keeps adapting, and listens to the denoised signal. Automatic mode (`AdaptiveVoiceGate` in
+  (`engine/livekit/voiceGate.ts`: `VoiceGateProcessor`, the mic track's processor, which
+  `voiceGateSync` applies while the setting is on). Automatic mode (`AdaptiveVoiceGate` in
   `voiceActivity.ts`) follows the noise floor; manual mode uses a 0-1 threshold on a -70..-20 dBFS
   scale, the same scale as the live meter in Pinniped's settings (`useMicLevel`,
   `VoiceGateMeter`). Fine tuning (stickiness/hysteresis, hold, fade in/out, lookahead, automatic
@@ -144,8 +141,8 @@ Fork changes on top of upstream Element Call:
   publishing connection's elements, and only once it was connected, so at join they stayed on the
   system default while the context went to the chosen device. Every other context only processes
   audio and opens no output (`engine/livekit/processingAudioContext.ts`: speaking detection, the
-  denoiser, the soundboard, Windows share audio, the settings mic meter; LiveKit's own through
-  the patch above).
+  soundboard, Windows share audio, the settings mic meter; LiveKit's own, which hosts the voice
+  gate, through the patch above).
 - **Decryption warning**: a remote participant whose media we cannot decrypt gets a "Can't decrypt"
   pill on their tile (`Call.undecryptable$`, by LiveKit identity; `engine/livekit/decryptionHealth.ts`).
   LiveKit reports failures (`RoomEvent.EncryptionError`) but no recovery, and once it gives up on a

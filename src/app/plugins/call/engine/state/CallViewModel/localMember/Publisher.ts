@@ -19,7 +19,8 @@ import { type Logger } from 'matrix-js-sdk/lib/logger';
 
 import type { MediaDevices, SelectedDevice } from '../../MediaDevices';
 import type { MuteStates } from '../../MuteStates';
-import { autoGainSync, denoiseSync } from '../../../livekit/denoise';
+import { autoGainSync } from '../../../livekit/autoGain';
+import { voiceGateSync } from '../../../livekit/voiceGate';
 import { callSettings } from '../../../settings';
 import { Soundboard, type SoundboardLink } from '../../../livekit/soundboard';
 import { applyScreenShareQuality } from '../../../livekit/screenShareLive';
@@ -63,8 +64,8 @@ export class Publisher {
       this.logger.error('Failed to set E2EE enabled on room', e);
     });
 
-    // Setup neural noise suppression syncing
-    this.observeDenoise(this.scope, room);
+    // The microphone's voice gate and automatic gain follow the settings.
+    this.observeMicrophoneProcessing(this.scope, room);
     // Soundboard sounds go out on a track of their own.
     const sounds = new Soundboard(room, muteStates.deafened$, soundboard.monitor$, this.logger);
     soundboard.commands$.pipe(this.scope.bind()).subscribe((command) => {
@@ -135,8 +136,8 @@ export class Publisher {
 
     this.logger.info(`Start to stop tracks`);
     try {
-      // Close the denoise engine's AudioContext before the tracks go away;
-      // unpublishing alone would leave it open.
+      // Free the voice gate before the tracks go away; unpublishing alone would
+      // leave it running.
       const micTrack = this.connection.livekitRoom.localParticipant.getTrackPublication(
         Track.Source.Microphone
       )?.track;
@@ -447,7 +448,7 @@ export class Publisher {
     });
   }
 
-  private observeDenoise(scope: ObservableScope, room: LivekitRoom): void {
+  private observeMicrophoneProcessing(scope: ObservableScope, room: LivekitRoom): void {
     const track$ = scope.behavior(
       observeTrackReference$(room.localParticipant, Track.Source.Microphone).pipe(
         map((trackRef) => {
@@ -457,7 +458,7 @@ export class Publisher {
       ),
       null
     );
-    denoiseSync(scope, track$, this.logger);
+    voiceGateSync(scope, track$, this.logger);
     autoGainSync(scope, track$, this.logger);
   }
 }

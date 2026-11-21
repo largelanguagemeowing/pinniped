@@ -116,8 +116,8 @@ function generateRoomOption({
   e2eeLivekitOptions: E2EEManagerOptions | { e2eeManager: BaseE2EEManager } | undefined;
 }): RoomOptions {
   // The mic is always captured raw: the browser's noise suppression and AGC
-  // (both of which sound bad and gate noise on/off) are replaced by the fork's
-  // own pipeline. Echo cancellation stays with the browser, which has the
+  // both sound bad and gate noise on/off (automatic gain is an opt-in setting,
+  // see autoGainSync). Echo cancellation stays with the browser, which has the
   // far-end reference signal.
   return {
     ...defaultLiveKitOptions,

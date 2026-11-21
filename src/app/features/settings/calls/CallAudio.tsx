@@ -36,11 +36,6 @@ import {
   withDefaultTuning,
 } from '../../../plugins/call/voiceTuning';
 
-const denoiseSupported = () =>
-  typeof AudioWorkletNode !== 'undefined' &&
-  typeof WebAssembly === 'object' &&
-  typeof WebAssembly.compileStreaming === 'function';
-
 type AudioDevices = {
   inputs: MediaDeviceInfo[];
   outputs: MediaDeviceInfo[];
@@ -165,7 +160,6 @@ function DeviceSelect({ value, devices, fallbackName, onChange }: DeviceSelectPr
 }
 
 function CallAudio() {
-  const [callDenoise, setCallDenoise] = useSetting(settingsAtom, 'callDenoise');
   const [callAutoGain, setCallAutoGain] = useSetting(settingsAtom, 'callAutoGain');
   const [voiceGate, setVoiceGate] = useSetting(settingsAtom, 'callVoiceGate');
   const [voiceGateAuto, setVoiceGateAuto] = useSetting(settingsAtom, 'callVoiceGateAuto');
@@ -185,7 +179,6 @@ function CallAudio() {
   const [audioInput, setAudioInput] = useSetting(settingsAtom, 'callAudioInput');
   const [audioOutput, setAudioOutput] = useSetting(settingsAtom, 'callAudioOutput');
   const [devices, requestAccess] = useAudioDevices();
-  const supported = denoiseSupported();
   // Only listen to the microphone once access is granted, so opening settings never prompts.
   const micLevel = useMicLevel(audioInput, voiceGate && devices.labelled);
 
@@ -240,24 +233,6 @@ function CallAudio() {
       )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Noise Suppression"
-          description={
-            supported
-              ? 'Remove background noise from your microphone with DeepFilterNet 3.'
-              : 'Not supported by this browser.'
-          }
-          after={
-            <Switch
-              variant="Primary"
-              disabled={!supported}
-              value={callDenoise && supported}
-              onChange={setCallDenoise}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
           title="Automatic Gain"
           description="Level your microphone automatically, boosting a quiet voice and taming a loud one. Off sends your microphone untouched."
           after={<Switch variant="Primary" value={callAutoGain} onChange={setCallAutoGain} />}
@@ -271,7 +246,7 @@ function CallAudio() {
       >
         <SettingTile
           title="Voice Activity Gate"
-          description="Only send your microphone while it hears you. Noise suppression keeps running either way, so it stays adapted to your room."
+          description="Only send your microphone while it hears you."
           after={<Switch variant="Primary" value={voiceGate} onChange={setVoiceGate} />}
         />
         {voiceGate && (
@@ -291,7 +266,7 @@ function CallAudio() {
               />
               <Text size="T200" priority="300">
                 {devices.labelled
-                  ? 'Speak to test your mic. Green means it is being sent. The call listens after noise suppression, so it hears a little less than this meter.'
+                  ? 'Speak to test your mic. Green means it is being sent.'
                   : 'Allow microphone access above to see the live meter.'}
               </Text>
             </Box>

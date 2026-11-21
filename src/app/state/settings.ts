@@ -34,11 +34,9 @@ export interface Settings {
   // user's rich presence (desktop only, off by default).
   publishRichPresence: boolean;
 
-  // Call microphone: DeepFilterNet 3 noise suppression, applied by the call.
-  callDenoise: boolean;
   /** The browser's automatic gain control on the microphone, ahead of everything else. */
   callAutoGain: boolean;
-  // Only send the microphone while it hears speech (applied by the call, after the denoiser).
+  // Only send the microphone while it hears speech (applied by the call).
   // `Auto` follows the room's noise floor; otherwise `Threshold` (0-1) is the level.
   callVoiceGate: boolean;
   callVoiceGateAuto: boolean;
@@ -135,7 +133,6 @@ const defaultSettings: Settings = {
 
   publishRichPresence: false,
 
-  callDenoise: false,
   callAutoGain: false,
   callVoiceGate: false,
   callVoiceGateAuto: true,
