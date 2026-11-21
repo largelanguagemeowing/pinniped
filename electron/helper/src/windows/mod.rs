@@ -6,13 +6,18 @@
 //! The Electron main process talks to this over stdio, one JSON object per line, like the Linux
 //! helper (see linux/mod.rs). Commands go in on stdin:
 //! - `{"cmd":"screenshare_prepare"}` checks that per-application capture works here.
-//! - `{"cmd":"screenshare_link","active":true,"output":"Speakers","pid":1234}` starts (or with
-//!   `false` stops) capturing the audio that plays on the output device labelled `output` (the
-//!   default when empty), leaving out process `pid` and its children.
+//! - `{"cmd":"screenshare_link","active":true,"output":"Speakers","pid":1234,"exclude":["Some.exe"]}`
+//!   starts (or with `false` stops) capturing the audio that plays on the output device labelled
+//!   `output` (the default when empty), leaving out process `pid` and its children and the
+//!   programs on `exclude`. With `"only":"spotify.exe"` it captures that application alone (an
+//!   id from `screenshare_apps`, compared without case).
+//! - `{"cmd":"screenshare_apps","output":"Speakers","pid":1234,"exclude":["Some.exe"]}` lists the
+//!   applications such a capture would find right now, for picking one for `only`.
 //! - `{"cmd":"screenshare_release"}` stops everything.
 //!
 //! Events: `{"event":"ready",...}` at start, `{"event":"result","cmd":...,"ok":...,"error":...}`
-//! for each command, and `{"event":"audio","data":"<base64>"}` while capturing: 20 ms or so of
+//! for each command (`screenshare_apps` adds `"apps":[{"id":"spotify.exe","name":"Spotify"}]`
+//! when it succeeds), and `{"event":"audio","data":"<base64>"}` while capturing: 20 ms or so of
 //! 48 kHz stereo signed 16-bit little-endian interleaved PCM.
 
 mod capture;
@@ -23,6 +28,8 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
+
+use crate::apps::{App, AppFilter};
 
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
@@ -35,6 +42,17 @@ enum Command {
         #[serde(default)]
         pid: u32,
         /// Programs that are never shared, by file name (`Discord.exe`), whatever else plays.
+        #[serde(default)]
+        exclude: Vec<String>,
+        /// The one application to share, by its `screenshare_apps` id; every one when absent.
+        #[serde(default)]
+        only: Option<String>,
+    },
+    ScreenshareApps {
+        #[serde(default)]
+        output: String,
+        #[serde(default)]
+        pid: u32,
         #[serde(default)]
         exclude: Vec<String>,
     },
@@ -55,6 +73,9 @@ enum Event<'a> {
         cmd: &'static str,
         ok: bool,
         error: Option<String>,
+        /// What `screenshare_apps` found; only on its success.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        apps: Option<Vec<App>>,
     },
     Audio {
         data: &'a str,
@@ -162,39 +183,72 @@ pub fn main() {
             continue;
         }
         debug(|| format!("command: {}", line.trim()));
-        let (cmd, result): (&'static str, Result<(), String>) =
+        // Ok(Some) carries the answer of `screenshare_apps`; the other commands answer Ok(None).
+        let (cmd, result): (&'static str, Result<Option<Vec<App>>, String>) =
             match serde_json::from_str::<Command>(&line) {
-                Ok(Command::ScreensharePrepare) => ("screenshare_prepare", capture::check()),
+                Ok(Command::ScreensharePrepare) => {
+                    ("screenshare_prepare", capture::check().map(|()| None))
+                }
                 Ok(Command::ScreenshareLink {
                     active,
                     output,
                     pid,
                     exclude,
+                    only,
                 }) => (
                     "screenshare_link",
                     if active {
-                        session.start(output, pid, exclude)
+                        AppFilter::new(only).and_then(|apps| {
+                            session.start(capture::Share {
+                                output,
+                                pid,
+                                exclude,
+                                apps,
+                            })
+                        })
                     } else {
                         session.stop();
                         Ok(())
-                    },
+                    }
+                    .map(|()| None),
+                ),
+                Ok(Command::ScreenshareApps {
+                    output,
+                    pid,
+                    exclude,
+                }) => (
+                    "screenshare_apps",
+                    capture::apps(&output, pid, &exclude).map(Some),
                 ),
                 Ok(Command::ScreenshareRelease) => {
                     session.stop();
-                    ("screenshare_release", Ok(()))
+                    ("screenshare_release", Ok(None))
                 }
                 Ok(Command::Shortcuts {}) => ("shortcuts", Err("not supported on Windows".into())),
                 Ok(Command::Autostart {}) => ("autostart", Err("not supported on Windows".into())),
                 Err(err) => ("invalid", Err(err.to_string())),
             };
         debug(|| match &result {
-            Ok(()) => format!("{cmd}: ok"),
+            Ok(None) => format!("{cmd}: ok"),
+            Ok(Some(apps)) if apps.is_empty() => format!("{cmd}: ok, no applications"),
+            Ok(Some(apps)) => format!(
+                "{cmd}: ok, {}",
+                apps.iter()
+                    .map(|a| format!("{} ({})", a.name, a.id))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             Err(error) => format!("{cmd}: failed: {error}"),
         });
+        let (ok, error, apps) = match result {
+            Ok(apps) => (true, None, apps),
+            Err(error) => (false, Some(error), None),
+        };
         emit(&Event::Result {
             cmd,
-            ok: result.is_ok(),
-            error: result.err(),
+            ok,
+            error,
+            apps,
         });
     }
     session.stop();

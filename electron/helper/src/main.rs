@@ -5,6 +5,8 @@
 //! The Electron main process starts it and talks to it over stdio, one JSON object per line;
 //! see the platform modules for the commands.
 
+#[cfg(any(target_os = "linux", windows, test))]
+mod apps;
 #[cfg(any(windows, test))]
 mod backlog;
 #[cfg(target_os = "linux")]

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useSetAtom } from 'jotai';
 import {
   Box,
   Button,
@@ -26,10 +27,17 @@ import {
   screenShareFrameRates,
   screenShareResolutions,
 } from '../../plugins/call/types';
+import { useCallOutputLabel } from '../../hooks/useActiveCall';
 import { useSetting } from '../../state/hooks/settings';
+import {
+  type ScreenShareAudioScope,
+  screenShareAudioScopeAtom,
+} from '../../state/screenShareAudioScope';
 import { settingsAtom } from '../../state/settings';
+import type { ScreenShareAudioApp } from '../../utils/device';
 import { stopPropagation } from '../../utils/keyboard';
 import { SourcePicker } from '../screenshare-picker/SourcePicker';
+import { type ShareAudioChoice, shareAudioKey, shareAudioOptions } from './screenShareAudioChoice';
 
 type OptionProps = { label: string; selected: boolean; onSelect: () => void };
 function DropdownOption({ label, selected, onSelect }: OptionProps) {
@@ -54,10 +62,12 @@ type DropdownProps<T> = {
   value: T;
   options: DropdownOption<T>[];
   onChange: (value: T) => void;
+  /** Runs as the menu opens, to refresh choices that change. */
+  onOpen?: () => void;
 };
 
-/** A setting with a fixed list of choices: its current value, and a menu to change it. */
-function Dropdown<T>({ title, value, options, onChange }: DropdownProps<T>) {
+/** A setting with a list of choices: its current value, and a menu to change it. */
+function Dropdown<T>({ title, value, options, onChange, onOpen }: DropdownProps<T>) {
   const [cords, setCords] = useState<RectCords>();
   const current = options.find((option) => option.value === value)?.label ?? '';
 
@@ -73,13 +83,16 @@ function Dropdown<T>({ title, value, options, onChange }: DropdownProps<T>) {
         radii="400"
         size="400"
         after={<Icon size="200" src={Icons.ChevronBottom} />}
-        onClick={(evt: React.MouseEvent<HTMLButtonElement>) =>
-          setCords(evt.currentTarget.getBoundingClientRect())
-        }
+        onClick={(evt: React.MouseEvent<HTMLButtonElement>) => {
+          onOpen?.();
+          setCords(evt.currentTarget.getBoundingClientRect());
+        }}
         aria-haspopup="menu"
         aria-expanded={!!cords}
       >
-        <Text size="B400">{current}</Text>
+        <Text size="B400" truncate>
+          {current}
+        </Text>
       </Button>
       <PopOut
         anchor={cords}
@@ -134,6 +147,32 @@ export function ScreenSharePicker({ call, open, requestClose }: ScreenSharePicke
   const [shareAudio, setShareAudio] = useSetting(settingsAtom, 'callScreenShareAudio');
   const [source, setSource] = useState<string>();
   const picker = window.pinnipedDesktop?.screenSharePicker;
+
+  // Desktop: the share's audio can be limited to one of the applications playing now.
+  const bridge = window.pinnipedDesktop?.screenShareAudio;
+  const [excluded] = useSetting(settingsAtom, 'callScreenShareAudioExcluded');
+  const outputLabel = useCallOutputLabel();
+  const [playing, setPlaying] = useState<ScreenShareAudioApp[]>([]);
+  const [audioScope, setAudioScope] = useState<ScreenShareAudioScope>({ kind: 'all' });
+  const setShareAudioScope = useSetAtom(screenShareAudioScopeAtom);
+  const listPlaying = useCallback(() => {
+    bridge?.apps?.(outputLabel, excluded).then(setPlaying, () => setPlaying([]));
+  }, [bridge, outputLabel, excluded]);
+  // Every opening starts with every application, and lists those playing now.
+  useEffect(() => {
+    if (open) setAudioScope({ kind: 'all' });
+  }, [open]);
+  useEffect(() => {
+    if (open) listPlaying();
+  }, [open, listPlaying]);
+  const audioChoice: ShareAudioChoice = shareAudio ? audioScope : { kind: 'off' };
+  const audioOptions = shareAudioOptions(playing, audioChoice);
+  const chooseAudio = (value: string) => {
+    const choice = audioOptions.find((option) => option.value === value)?.choice;
+    if (!choice) return;
+    setShareAudio(choice.kind !== 'off');
+    if (choice.kind !== 'off') setAudioScope(choice);
+  };
   // Beside the picker the options sit in a row at a fixed width; alone they fill the dialog.
   const optionStyle = picker ? { width: toRem(190) } : undefined;
   // Only the picker needs a fixed-height dialog whose source list scrolls; otherwise the dialog
@@ -145,6 +184,7 @@ export function ScreenSharePicker({ call, open, requestClose }: ScreenSharePicke
   const goLive = () => {
     // The main process captures what was chosen here; it needs it before the share asks.
     picker?.select(source ?? null);
+    setShareAudioScope(audioScope);
     call.startScreenShare();
     requestClose();
   };
@@ -225,12 +265,10 @@ export function ScreenSharePicker({ call, open, requestClose }: ScreenSharePicke
                   <Box grow={picker ? undefined : 'Yes'} direction="Column" style={optionStyle}>
                     <Dropdown
                       title="Audio"
-                      value={shareAudio}
-                      options={[
-                        { value: false, label: 'None' },
-                        { value: true, label: 'Computer audio' },
-                      ]}
-                      onChange={setShareAudio}
+                      value={shareAudioKey(audioChoice)}
+                      options={audioOptions}
+                      onChange={chooseAudio}
+                      onOpen={listPlaying}
                     />
                   </Box>
                   {picker && <Box grow="Yes" />}

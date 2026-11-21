@@ -30,6 +30,9 @@ export type ScreenSharePickerSource = {
   icon: string | null;
 };
 
+/** An application whose audio a screen share can be limited to; `id` is the helper's. */
+export type ScreenShareAudioApp = { id: string; name: string };
+
 export type AutostartState = { enabled: boolean; minimized: boolean };
 
 /** The desktop app's self-update, as the main process reports it. */
@@ -65,8 +68,16 @@ declare global {
         /**
          * `output` is the label of the playback device the app uses, empty for the system default.
          * `exclude` lists programs (executable file names) that are never shared; Windows only.
+         * `only`, an application id from `apps`, limits the share to that application.
          */
-        link: (active: boolean, output?: string, exclude?: string[]) => Promise<void>;
+        link: (
+          active: boolean,
+          output?: string,
+          exclude?: string[],
+          only?: string
+        ) => Promise<void>;
+        /** The applications playing on `output` now, which a share can be limited to. */
+        apps?: (output: string, exclude: string[]) => Promise<ScreenShareAudioApp[]>;
         release: () => Promise<void>;
         /** Windows only: shows the helper's console window with debug logging, or hides it again. */
         setConsole?: (enabled: boolean) => void;

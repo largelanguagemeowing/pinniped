@@ -1,12 +1,13 @@
 //! What a screen share carries on Windows: the audio of every application that plays on the
-//! chosen output device, except Pinniped itself (call voices, soundboard, notifications), so
-//! nothing echoes back into the share.
+//! chosen output device, or of the one application picked, except Pinniped itself (call voices,
+//! soundboard, notifications), so nothing echoes back into the share.
 //!
 //! WASAPI's process loopback captures the audio one process tree renders. So a manager thread
 //! lists the audio sessions of the output device (IAudioSessionManager2), drops Pinniped's own
 //! process tree, starts one include-mode capture per remaining process tree, and mixes them into
 //! 48 kHz stereo that goes to Pinniped as PCM. Sessions that appear or end are picked up by
-//! rescanning a few times a second.
+//! rescanning a few times a second. An application is the executable of the tree's root
+//! ([`App::from_exe`]); [`apps`] lists them from the same scan.
 //!
 //! Limits: process loopback is per process, not per device, so an application (tree) that is
 //! playing on another active output device as well would bring that device in (a virtual cable)
@@ -25,6 +26,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use super::{debug, debug_once};
+use crate::apps::{app_list, is_excluded, App, AppFilter};
 use crate::backlog::Backlog;
 use base64::Engine;
 use wasapi::{
@@ -67,30 +69,44 @@ struct Running {
     thread: JoinHandle<()>,
 }
 
+/// What a share carries: what plays on the output device labelled `output` (the default when
+/// empty), from the applications `apps` admits, never from Pinniped (process `pid` and its tree)
+/// or the programs on `exclude`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Share {
+    pub output: String,
+    pub pid: u32,
+    pub exclude: Vec<String>,
+    pub apps: AppFilter,
+}
+
 #[derive(Default)]
 pub struct Capture {
     stop: Option<Arc<AtomicBool>>,
     manager: Option<JoinHandle<()>>,
     /// What the running manager was started for, so an unchanged request is not a restart.
-    key: Option<(String, u32, Vec<String>)>,
+    key: Option<Share>,
 }
 
 impl Capture {
-    pub fn start(&mut self, output: String, pid: u32, exclude: Vec<String>) -> Result<(), String> {
-        let key = (output.clone(), pid, exclude.clone());
+    pub fn start(&mut self, share: Share) -> Result<(), String> {
         debug(|| {
-            format!("link: output {output:?}, Pinniped is process {pid}, never sharing {exclude:?}")
+            format!(
+                "link: output {:?}, Pinniped is process {}, sharing {}, never sharing {:?}",
+                share.output, share.pid, share.apps, share.exclude
+            )
         });
-        if self.manager.is_some() && self.key.as_ref() == Some(&key) {
+        if self.manager.is_some() && self.key.as_ref() == Some(&share) {
             return Ok(());
         }
         self.stop();
         let stop = Arc::new(AtomicBool::new(false));
         let flag = stop.clone();
+        let key = share.clone();
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
         let manager = thread::Builder::new()
             .name("screenshare-audio".into())
-            .spawn(move || manage(output, pid, exclude, flag, ready_tx))
+            .spawn(move || manage(share, flag, ready_tx))
             .map_err(|e| e.to_string())?;
         // The manager reports whether it found the device before this answers.
         match ready_rx.recv() {
@@ -128,15 +144,24 @@ pub fn check() -> Result<(), String> {
         .map_err(|e| format!("per-application audio capture is not available: {e}"))
 }
 
-fn manage(
-    output: String,
-    own_pid: u32,
-    exclude: Vec<String>,
-    stop: Arc<AtomicBool>,
-    ready: std::sync::mpsc::Sender<Result<(), String>>,
-) {
+/// The applications that play on the output device labelled `output` (the default when empty):
+/// the process trees a share of every application would capture right now ([`audible_roots`]),
+/// so never Pinniped's (`own_pid`) or the programs on `exclude`.
+pub fn apps(output: &str, own_pid: u32, exclude: &[String]) -> Result<Vec<App>, String> {
     let _ = initialize_mta();
-    let target_id = match open_session_manager(&output) {
+    let (manager, id) = open_session_manager(output)?;
+    let others = other_render_managers(&id);
+    let roots = audible_roots(&manager, &others, own_pid, exclude, &AppFilter::All);
+    Ok(app_list(
+        roots
+            .values()
+            .filter_map(|exe| exe.as_deref().and_then(App::from_exe)),
+    ))
+}
+
+fn manage(share: Share, stop: Arc<AtomicBool>, ready: std::sync::mpsc::Sender<Result<(), String>>) {
+    let _ = initialize_mta();
+    let target_id = match open_session_manager(&share.output) {
         Ok((_, id)) => id,
         Err(err) => {
             let _ = ready.send(Err(err));
@@ -154,19 +179,20 @@ fn manage(
         .name("screenshare-scan".into())
         .spawn(move || {
             let _ = initialize_mta();
-            let Ok((manager, _)) = open_session_manager(&output) else {
+            let Ok((manager, _)) = open_session_manager(&share.output) else {
                 return;
             };
             let mut last: Option<HashSet<u32>> = None;
             while !scan_stop.load(Ordering::Relaxed) {
                 let others = other_render_managers(&target_id);
-                let wanted = audible_roots(&manager, &others, own_pid, &exclude);
+                let roots =
+                    audible_roots(&manager, &others, share.pid, &share.exclude, &share.apps);
+                let wanted: HashSet<u32> = roots.keys().copied().collect();
                 if last.as_ref() != Some(&wanted) {
                     debug(|| {
-                        let (_, names) = process_table();
-                        let mut list: Vec<String> = wanted
+                        let mut list: Vec<String> = roots
                             .iter()
-                            .map(|pid| format!("{pid} ({})", name_of(&names, *pid)))
+                            .map(|(pid, exe)| format!("{pid} ({})", exe.as_deref().unwrap_or("?")))
                             .collect();
                         list.sort();
                         let list = if list.is_empty() {
@@ -449,15 +475,17 @@ fn session_pids(manager: &IAudioSessionManager2, active_only: bool) -> Vec<u32> 
     pids
 }
 
-/// The processes to capture: the roots of the process trees that have an audio session on the
-/// device, without Pinniped's tree and without any process Pinniped runs under (capturing a tree
-/// that contains Pinniped would bring the call back in).
+/// The processes to capture, with their executable file names when known: the roots of the
+/// process trees that have an audio session on the device (only the picked application's, when
+/// `apps` picks one), without Pinniped's tree and without any process Pinniped runs under
+/// (capturing a tree that contains Pinniped would bring the call back in).
 fn audible_roots(
     manager: &IAudioSessionManager2,
     others: &[IAudioSessionManager2],
     own_pid: u32,
     exclude: &[String],
-) -> HashSet<u32> {
+    apps: &AppFilter,
+) -> HashMap<u32, Option<String>> {
     let (parents, names) = process_table();
     let excluded: HashSet<u32> = names
         .iter()
@@ -493,6 +521,14 @@ fn audible_roots(
                     name_of(&names, pid)
                 )
             });
+            continue;
+        }
+        // With one application picked, only its processes are candidates, so it is captured on
+        // its own even when it runs under another program that plays too (a game under its
+        // launcher), and whatever it started comes along with it.
+        let app = names.get(&pid).and_then(|exe| App::from_exe(exe));
+        if !apps.admits(app.as_ref().map(|a| a.id.as_str())) {
+            debug_once(|| format!("skipped {} ({pid}): sharing {apps}", name_of(&names, pid)));
             continue;
         }
         candidates.insert(pid);
@@ -540,6 +576,7 @@ fn audible_roots(
             }
             !split
         })
+        .map(|root| (root, names.get(&root).cloned()))
         .collect()
 }
 
@@ -590,18 +627,6 @@ fn process_table() -> (HashMap<u32, u32>, HashMap<u32, String>) {
         let _ = CloseHandle(snapshot);
     }
     (parents, names)
-}
-
-/// Whether the program `name` (an executable file name) is on the exclusion list. File names
-/// compare without case, and an entry may leave out `.exe`.
-fn is_excluded(name: &str, exclude: &[String]) -> bool {
-    let name = name.to_lowercase();
-    let bare = name.strip_suffix(".exe").unwrap_or(&name);
-    exclude.iter().any(|entry| {
-        let entry = entry.trim().to_lowercase();
-        let entry = entry.strip_suffix(".exe").unwrap_or(&entry);
-        !entry.is_empty() && entry == bare
-    })
 }
 
 /// The chain of parents above `pid`. Process IDs are reused, so the walk is bounded.
@@ -749,28 +774,4 @@ fn capture_loop(pid: u32, source: &Source) -> Result<(), String> {
     };
     let _ = client.stop_stream();
     result
-}
-
-#[cfg(test)]
-mod exclusion_tests {
-    use super::is_excluded;
-
-    fn list(names: &[&str]) -> Vec<String> {
-        names.iter().map(|n| n.to_string()).collect()
-    }
-
-    #[test]
-    fn names_match_without_case_or_extension() {
-        let exclude = list(&["Discord.exe", "pinniped"]);
-        assert!(is_excluded("discord.exe", &exclude));
-        assert!(is_excluded("Pinniped.exe", &exclude));
-        assert!(!is_excluded("PinnipedHelper.exe", &exclude));
-        assert!(!is_excluded("steam.exe", &exclude));
-    }
-
-    #[test]
-    fn blank_entries_match_nothing() {
-        assert!(!is_excluded("a.exe", &list(&["", "  "])));
-        assert!(!is_excluded("a.exe", &[]));
-    }
 }

@@ -185,7 +185,7 @@ Fork changes on top of upstream Element Call:
   as screen content and keeps its sharpness (`text`, `maintain-resolution`). The share is encoded
   at `priority: 'high'`, four times the camera's share of a constrained uplink. Changes apply to a
   running share.
-- **Screen share audio** (Settings → Calls, `callScreenShareAudio`; the source follows the platform,
+- **Screen share audio** (the screen share dialog's Audio choice, `callScreenShareAudio`; the source follows the platform,
   `engine/livekit/screenShareAudio.ts`): `off`, `display` (what the browser offers with the
   capture), `device` (a microphone published as the share's audio; Linux, a PipeWire virtual mic
   made by the helper's `screenshare.rs` once share audio is on during a call, kept until it ends) or `pcm` (Windows).
@@ -217,7 +217,12 @@ Fork changes on top of upstream Element Call:
   device or doubling the sound; a process that only reads a virtual cable is unaffected; Windows' own system sounds (session with process ID 0) are not shared: measured on
   Windows 11, include-mode process loopback of the caller, Audiosrv and audiodg captures none of
   them, and PID 0 is rejected;
-  a process that starts playing is heard after at most one rescan. The helper is built for Linux
+  a process that starts playing is heard after at most one rescan.
+  A share can carry one application instead of all of them: the dialog lists the applications
+  playing on the call's output (`screenshare_apps`; Windows by the executable of each process
+  tree's root, Linux by the stream's `application.process.binary`, else `application.name`;
+  `src/apps.rs`), and the choice (`screenShareAudioScopeAtom`, for that share only) reaches
+  `screenshare_link` as `only`. Listing never creates the Linux virtual device. The helper is built for Linux
   and Windows (target-gated dependencies in `Cargo.toml`, `linux/` and `windows/` modules) and
   shipped through `extraResources` in `electron/electron-builder.yml`; there is none for macOS.
 - The voice-call-layout change (pre-dating the move in-process) changed the layout behaviour that

@@ -63,6 +63,12 @@ export const loadElectronMain = async (
   const ipcMain = emitter();
   const handlers = new Map<string, Listener>();
   const windows: FakeWindow[] = [];
+  // The share audio module, recording what main passes on from the page.
+  const screenShareAudio = {
+    events: { on: vi.fn() },
+    link: vi.fn(async () => undefined),
+    apps: vi.fn(async () => []),
+  };
   const permissions = {
     request: undefined as Listener | undefined,
     check: undefined as Listener | undefined,
@@ -141,7 +147,7 @@ export const loadElectronMain = async (
         return { applyFieldTrials: vi.fn(() => ''), readEnabled: vi.fn(), writeEnabled: vi.fn() };
       if (name === './helper.cjs')
         return { helper: { on: vi.fn(), request: vi.fn(), stop: vi.fn() } };
-      if (name === './screenshare-audio.cjs') return { events: { on: vi.fn() } };
+      if (name === './screenshare-audio.cjs') return screenShareAudio;
       if (name === './hotkeys.cjs')
         return { hotkeys: { on: vi.fn(), bind: vi.fn(), unregisterAll: vi.fn() } };
       return {};
@@ -158,5 +164,5 @@ export const loadElectronMain = async (
     senderFrame: { url },
   });
 
-  return { electron, app, ipcMain, handlers, windows, permissions, fromPage };
+  return { electron, app, ipcMain, handlers, windows, permissions, fromPage, screenShareAudio };
 };

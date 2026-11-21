@@ -11,13 +11,22 @@
 //!   asks the Background portal to start the app at login.
 //! - `{"cmd":"screenshare_prepare"}` creates the virtual microphone for screen share audio.
 //! - `{"cmd":"screenshare_link","active":true,"output":"Speakers"}` starts (or with `false`
-//!   stops) feeding other applications' audio into it; see screenshare.rs.
+//!   stops) feeding other applications' audio into it; see screenshare.rs. With
+//!   `"only":"firefox"` it feeds that application alone (an id from `screenshare_apps`, compared
+//!   without case).
+//! - `{"cmd":"screenshare_apps","output":"Speakers"}` lists the applications linking would find
+//!   right now, for picking one for `only`. It works without the device and does not make it.
+//!
+//!   `screenshare_link` and `screenshare_apps` also take Windows' `pid` and `exclude` and ignore
+//!   them: Pinniped's processes are found from this helper's parent, and the exclusion list is a
+//!   Windows setting.
 //! - `{"cmd":"screenshare_release"}` removes it.
 //!
 //! Events:
 //! - `{"event":"ready","shortcuts":true}` once the portals are reachable.
 //! - `{"event":"activated","id":"mute"}` when a bound shortcut is pressed.
-//! - `{"event":"result","cmd":"shortcuts","ok":true,"error":null}` answers each command.
+//! - `{"event":"result","cmd":"shortcuts","ok":true,"error":null}` answers each command;
+//!   `screenshare_apps` adds `"apps":[{"id":"firefox","name":"Firefox"}]` when it succeeds.
 
 mod screenshare;
 
@@ -30,6 +39,8 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use zbus::{OwnedVariant, Variant};
+
+use crate::apps::{App, AppFilter};
 
 /// Matches the installed desktop file (`club.stablecat.pinniped.desktop`), so the portal can look the app up.
 const APP_ID: &str = "club.stablecat.pinniped";
@@ -50,6 +61,13 @@ enum Command {
     ScreensharePrepare,
     ScreenshareLink {
         active: bool,
+        #[serde(default)]
+        output: String,
+        /// The one application to share, by its `screenshare_apps` id; every one when absent.
+        #[serde(default)]
+        only: Option<String>,
+    },
+    ScreenshareApps {
         #[serde(default)]
         output: String,
     },
@@ -77,8 +95,15 @@ enum Event<'a> {
         cmd: &'static str,
         ok: bool,
         error: Option<String>,
+        /// What `screenshare_apps` found; only on its success.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        apps: Option<Vec<App>>,
     },
 }
+
+/// How a command went: Ok(Some) carries the answer of `screenshare_apps`, the other commands
+/// answer Ok(None).
+type Reply = Result<Option<Vec<App>>, Box<dyn std::error::Error>>;
 
 fn emit(event: &Event) {
     let mut out = std::io::stdout().lock();
@@ -221,20 +246,32 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             line = lines.next_line() => {
                 let Some(line) = line? else { break };
                 if line.trim().is_empty() { continue; }
-                let (cmd, result) = match serde_json::from_str::<Command>(&line) {
-                    Ok(Command::Shortcuts { shortcuts }) => ("shortcuts", helper.shortcuts_command(shortcuts).await),
+                let (cmd, result): (_, Reply) = match serde_json::from_str::<Command>(&line) {
+                    Ok(Command::Shortcuts { shortcuts }) => ("shortcuts", helper.shortcuts_command(shortcuts).await.map(|()| None)),
                     Ok(Command::Autostart { enabled, minimized, command }) => {
-                        ("autostart", helper.autostart_command(enabled, minimized, command).await)
+                        ("autostart", helper.autostart_command(enabled, minimized, command).await.map(|()| None))
                     }
-                    Ok(Command::ScreensharePrepare) => ("screenshare_prepare", helper.screenshare.prepare().await),
-                    Ok(Command::ScreenshareLink { active, output }) => ("screenshare_link", helper.screenshare.link(active, output)),
+                    Ok(Command::ScreensharePrepare) => ("screenshare_prepare", helper.screenshare.prepare().await.map(|()| None)),
+                    Ok(Command::ScreenshareLink { active: true, output, only }) => (
+                        "screenshare_link",
+                        AppFilter::new(only).map_err(Into::into).and_then(|apps| helper.screenshare.link(output, apps)).map(|()| None),
+                    ),
+                    Ok(Command::ScreenshareLink { active: false, .. }) => {
+                        helper.screenshare.unlink();
+                        ("screenshare_link", Ok(None))
+                    }
+                    Ok(Command::ScreenshareApps { output }) => ("screenshare_apps", helper.screenshare.apps(&output).await.map(Some)),
                     Ok(Command::ScreenshareRelease) => {
                         helper.screenshare.release();
-                        ("screenshare_release", Ok(()))
+                        ("screenshare_release", Ok(None))
                     }
                     Err(err) => ("invalid", Err(err.into())),
                 };
-                emit(&Event::Result { cmd, ok: result.is_ok(), error: result.err().map(|e| e.to_string()) });
+                let (ok, error, apps) = match result {
+                    Ok(apps) => (true, None, apps),
+                    Err(err) => (false, Some(err.to_string()), None),
+                };
+                emit(&Event::Result { cmd, ok, error, apps });
             }
             Some(signal) = async { match activated.as_mut() { Some(s) => StreamExt::next(s).await, None => std::future::pending().await } } => {
                 emit(&Event::Activated { id: signal.shortcut_id() });

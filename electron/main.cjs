@@ -194,12 +194,19 @@ handleFromApp('rich-presence:stop', async () => {
 handleFromApp('screenshare-picker:list', () => listScreenShareSources());
 onFromApp('screenshare-picker:select', (_event, id) => selectScreenShareSource(id));
 handleFromApp('screenshare-audio:prepare', () => screenShareAudio.prepare());
-handleFromApp('screenshare-audio:link', (_event, active, output, exclude) =>
+const outputLabel = (output) => (typeof output === 'string' ? output : '');
+const programNames = (names) =>
+  Array.isArray(names) ? names.filter((name) => typeof name === 'string') : [];
+handleFromApp('screenshare-audio:link', (_event, active, output, exclude, only) =>
   screenShareAudio.link(
     active === true,
-    typeof output === 'string' ? output : '',
-    Array.isArray(exclude) ? exclude.filter((name) => typeof name === 'string') : []
+    outputLabel(output),
+    programNames(exclude),
+    typeof only === 'string' && only !== '' ? only : undefined
   )
+);
+handleFromApp('screenshare-audio:apps', (_event, output, exclude) =>
+  screenShareAudio.apps(outputLabel(output), programNames(exclude))
 );
 onFromApp('screenshare-audio:console', (_event, enabled) =>
   screenShareAudio.setConsole(enabled === true)

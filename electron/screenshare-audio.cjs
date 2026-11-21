@@ -38,9 +38,34 @@ async function prepare() {
 // labelled `output` (the system default when empty) into the device (Linux) or the pcm
 // events (Windows) while `active`. Applications keep playing to their speakers as before.
 // `exclude` lists programs (executable file names) whose audio is never shared (Windows).
-async function link(active, output = '', exclude = []) {
+// `only`, an id from apps(), limits the share to that application.
+async function link(active, output = '', exclude = [], only = undefined) {
   if (!available()) return;
-  await helper.request({ cmd: 'screenshare_link', active, output, pid: process.pid, exclude });
+  await helper.request({
+    cmd: 'screenshare_link',
+    active,
+    output,
+    pid: process.pid,
+    exclude,
+    ...(typeof only === 'string' ? { only } : {}),
+  });
+}
+
+// The applications that play audio on the output device labelled `output` right now, which a
+// share could be limited to: `{ id, name }` each, never Pinniped, and on Windows without the
+// `exclude`d programs.
+async function apps(output = '', exclude = []) {
+  if (!available()) return [];
+  const result = await helper.request({
+    cmd: 'screenshare_apps',
+    output,
+    pid: process.pid,
+    exclude,
+  });
+  if (!result.ok || !Array.isArray(result.apps)) return [];
+  return result.apps
+    .filter((a) => a && typeof a.id === 'string' && a.id !== '' && typeof a.name === 'string')
+    .map(({ id, name }) => ({ id, name }));
 }
 
 async function release() {
@@ -53,4 +78,4 @@ function setConsole(enabled) {
   if (process.platform === 'win32') helper.setConsole(enabled === true);
 }
 
-module.exports = { available, prepare, link, release, setConsole, events, DEVICE_LABEL };
+module.exports = { available, prepare, link, apps, release, setConsole, events, DEVICE_LABEL };

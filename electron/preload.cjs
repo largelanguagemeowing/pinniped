@@ -45,8 +45,9 @@ contextBridge.exposeInMainWorld('pinnipedDesktop', {
     process.platform === 'linux' || process.platform === 'win32'
       ? {
           prepare: () => ipcRenderer.invoke('screenshare-audio:prepare'),
-          link: (active, output, exclude) =>
-            ipcRenderer.invoke('screenshare-audio:link', active, output, exclude),
+          link: (active, output, exclude, only) =>
+            ipcRenderer.invoke('screenshare-audio:link', active, output, exclude, only),
+          apps: (output, exclude) => ipcRenderer.invoke('screenshare-audio:apps', output, exclude),
           release: () => ipcRenderer.invoke('screenshare-audio:release'),
           setConsole: (enabled) => ipcRenderer.send('screenshare-audio:console', enabled),
           onPcm:

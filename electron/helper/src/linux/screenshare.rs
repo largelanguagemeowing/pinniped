@@ -1,7 +1,9 @@
 //! System audio for screen shares on Linux: a virtual PipeWire microphone that carries the audio
-//! of every other application but not Pinniped's own, so the call and the soundboard never echo
-//! back into the share. Chromium's getDisplayMedia() cannot capture system audio on Linux, so the
-//! call opens this virtual microphone and publishes it as the share's audio track.
+//! of every other application (or of the one picked) but not Pinniped's own, so the call and the
+//! soundboard never echo back into the share. Chromium's getDisplayMedia() cannot capture system
+//! audio on Linux, so the call opens this virtual microphone and publishes it as the share's audio
+//! track. An application is what a stream's properties name ([`App::from_stream`]);
+//! [`ScreenShare::apps`] lists those playing, without making the device.
 //!
 //! The device and its links are objects this helper creates on its own PipeWire connection, not
 //! lingering ones, so PipeWire removes them when the helper exits, however it exits.
@@ -20,13 +22,15 @@ use std::time::Duration;
 use pipewire as pw;
 use pw::link::Link;
 use pw::metadata::{Metadata, MetadataListener};
-use pw::node::{Node, NodeListener};
+use pw::node::{Node, NodeChangeMask, NodeListener};
 use pw::proxy::{ProxyListener, ProxyT};
 use pw::registry::GlobalObject;
 use pw::spa::utils::dict::DictRef;
 use pw::spa::utils::result::AsyncSeq;
 use pw::types::ObjectType;
 use tokio::io::unix::AsyncFd;
+
+use crate::apps::{app_list, App, AppFilter};
 
 /// The device's node name, unique to Pinniped.
 const DEVICE_NAME: &str = "pinniped-screenshare";
@@ -68,23 +72,44 @@ impl ScreenShare {
         Ok(())
     }
 
-    /// Starts or stops feeding other applications' audio into the device. Only what is played to
-    /// the output device labelled `output` (the system default when empty) is fed in.
-    pub fn link(&mut self, active: bool, output: String) -> Result<(), Error> {
-        let Some(conn) = self.conn.as_mut() else {
-            return if active {
-                Err("the screen share audio device is not prepared".into())
-            } else {
-                Ok(())
-            };
-        };
-        {
-            let mut state = conn.state.borrow_mut();
-            state.output = active.then_some(output);
-            state.dirty = true;
-        }
-        conn.apply();
+    /// Starts (or changes) feeding other applications' audio into the device. Only what is played
+    /// to the output device labelled `output` (the system default when empty) by the applications
+    /// `apps` admits is fed in.
+    pub fn link(&mut self, output: String, apps: AppFilter) -> Result<(), Error> {
+        let conn = self
+            .conn
+            .as_mut()
+            .ok_or("the screen share audio device is not prepared")?;
+        conn.share(Some(Sharing { output, apps }));
         Ok(())
+    }
+
+    /// Stops feeding audio into the device, which stays.
+    pub fn unlink(&mut self) {
+        if let Some(conn) = self.conn.as_mut() {
+            conn.share(None);
+        }
+    }
+
+    /// The applications playing to the output device labelled `output` (the system default when
+    /// empty), as linking would find them right now. Listing must not make the device (that
+    /// changes the system's audio devices), so without one it looks over a connection of its own
+    /// that closes again.
+    pub async fn apps(&mut self, output: &str) -> Result<Vec<App>, Error> {
+        match self.conn.as_mut() {
+            Some(conn) => {
+                conn.settle().await?;
+                // The graph may have changed while settling; links follow it as in dispatch().
+                conn.apply();
+                Ok(conn.state.borrow().apps(output))
+            }
+            None => {
+                let mut conn = Connection::new()?;
+                conn.settle().await?;
+                let apps = conn.state.borrow().apps(output);
+                Ok(apps)
+            }
+        }
     }
 
     /// Removes the device and every link to it by closing the connection.
@@ -144,12 +169,19 @@ struct State {
     source_error: Option<String>,
     /// Our links into the device, by (output port, input port).
     own_links: HashMap<(u32, u32), Link>,
-    /// The output device label while linking, None while not.
-    output: Option<String>,
+    /// What the device carries while linking, None while not.
+    sharing: Option<Sharing>,
     dirty: bool,
 
     synced: Option<AsyncSeq>,
     disconnected: bool,
+}
+
+/// What is fed into the device: what plays to the output device labelled `output`, from the
+/// applications `apps` admits.
+struct Sharing {
+    output: String,
+    apps: AppFilter,
 }
 
 struct NodeEntry {
@@ -157,8 +189,14 @@ struct NodeEntry {
     description: Option<String>,
     nick: Option<String>,
     media_class: Option<String>,
-    /// The owning process, once the node's info arrived; `Some(None)` when it has none.
-    pid: Option<Option<u32>>,
+    /// An application stream's origin, once its info arrived.
+    stream: Option<StreamInfo>,
+}
+
+/// Where an application stream comes from, by the properties in its info.
+struct StreamInfo {
+    pid: Option<u32>,
+    app: Option<App>,
 }
 
 struct PortEntry {
@@ -319,6 +357,22 @@ impl Connection {
         Ok(())
     }
 
+    fn share(&mut self, sharing: Option<Sharing>) {
+        {
+            let mut state = self.state.borrow_mut();
+            state.sharing = sharing;
+            state.dirty = true;
+        }
+        self.apply();
+    }
+
+    /// Brings the graph up to date: the first roundtrip delivers what changed and binds new
+    /// streams, the second their info.
+    async fn settle(&mut self) -> Result<(), Error> {
+        self.roundtrip().await?;
+        self.roundtrip().await
+    }
+
     /// Waits until PipeWire has handled everything sent so far.
     async fn roundtrip(&mut self) -> Result<(), Error> {
         let seq = self.core.sync(0)?;
@@ -370,11 +424,24 @@ impl Connection {
                 let listener = node
                     .add_listener_local()
                     .info(move |info| {
+                        // An info event carries the properties only when they changed (the first
+                        // one always does); in the others they are empty, which would read as a
+                        // stream of no process and no application.
+                        if !info.change_mask().contains(NodeChangeMask::PROPS) {
+                            return;
+                        }
                         let Some(state) = weak.upgrade() else { return };
                         let mut state = state.borrow_mut();
-                        let pid = prop_id(info.props(), "application.process.id");
+                        let props = info.props();
+                        let get = |key| props.and_then(|p| p.get(key));
                         if let Some(node) = state.nodes.get_mut(&id) {
-                            node.pid = Some(pid);
+                            node.stream = Some(StreamInfo {
+                                pid: prop_id(props, "application.process.id"),
+                                app: App::from_stream(
+                                    get("application.process.binary"),
+                                    get("application.name"),
+                                ),
+                            });
                         }
                         state.dirty = true;
                     })
@@ -421,14 +488,15 @@ impl Connection {
     }
 
     /// Makes our links match what should be shared: every other application's output that is
-    /// played to the output device, linked channel by channel into the virtual microphone.
+    /// played to the output device (or the picked application's), linked channel by channel into
+    /// the virtual microphone.
     fn apply(&mut self) {
         let mut state = self.state.borrow_mut();
         if !std::mem::take(&mut state.dirty) {
             return;
         }
-        let wanted = match (&state.output, state.source_id) {
-            (Some(output), Some(source)) => state.wanted_links(output, source),
+        let wanted = match (&state.sharing, state.source_id) {
+            (Some(sharing), Some(source)) => state.wanted_links(sharing, source),
             _ => HashSet::new(),
         };
 
@@ -480,7 +548,7 @@ impl State {
                         description: prop(props, "node.description"),
                         nick: prop(props, "node.nick"),
                         media_class,
-                        pid: None,
+                        stream: None,
                     },
                 );
             }
@@ -557,24 +625,16 @@ impl State {
             .map(|(&id, _)| id)
     }
 
-    fn wanted_links(&self, output: &str, source: u32) -> HashSet<(u32, u32)> {
-        let mut wanted = HashSet::new();
-        let source_in: HashMap<&str, u32> = self
-            .ports
-            .iter()
-            .filter(|(_, p)| p.node == source && !p.output)
-            .filter_map(|(&id, p)| Some((p.channel.as_deref()?, id)))
-            .collect();
-        if source_in.is_empty() {
-            return wanted;
-        }
-
+    /// The application streams that play to the output device labelled `output`, other than
+    /// Pinniped's own. A stream waits for its info before it counts; one without a process id
+    /// counts.
+    fn shared_streams(&self, output: &str) -> Vec<(u32, &StreamInfo)> {
         // Only what is played to Pinniped's output device is shared. With virtual audio routing
         // an application feeds a virtual device and a loopback forwards it to the real one;
         // capturing both would send the sound twice, so only streams that reach the output device
         // itself count.
         let Some(output) = self.output_node(output) else {
-            return wanted;
+            return Vec::new();
         };
         let output_ports: HashSet<u32> = self
             .ports
@@ -590,17 +650,45 @@ impl State {
             .collect();
 
         let own = OwnProcesses::new();
-        for (&node_id, node) in &self.nodes {
-            if node.media_class.as_deref() != Some("Stream/Output/Audio")
-                || !reaches_output.contains(&node_id)
+        self.nodes
+            .iter()
+            .filter(|(id, node)| {
+                node.media_class.as_deref() == Some("Stream/Output/Audio")
+                    && reaches_output.contains(id)
+            })
+            .filter_map(|(&id, node)| Some((id, node.stream.as_ref()?)))
+            .filter(|(_, info)| !info.pid.is_some_and(|pid| own.contains(pid)))
+            .collect()
+    }
+
+    /// The applications behind [`Self::shared_streams`], for `screenshare_apps`.
+    fn apps(&self, output: &str) -> Vec<App> {
+        app_list(
+            self.shared_streams(output)
+                .into_iter()
+                .filter_map(|(_, info)| info.app.clone()),
+        )
+    }
+
+    fn wanted_links(&self, sharing: &Sharing, source: u32) -> HashSet<(u32, u32)> {
+        let mut wanted = HashSet::new();
+        let source_in: HashMap<&str, u32> = self
+            .ports
+            .iter()
+            .filter(|(_, p)| p.node == source && !p.output)
+            .filter_map(|(&id, p)| Some((p.channel.as_deref()?, id)))
+            .collect();
+        if source_in.is_empty() {
+            return wanted;
+        }
+
+        for (node_id, info) in self.shared_streams(&sharing.output) {
+            // A stream that names no application is shared only along with everything else.
+            if !sharing
+                .apps
+                .admits(info.app.as_ref().map(|a| a.id.as_str()))
             {
                 continue;
-            }
-            // Wait for the node's info before deciding; a stream without a process id is shared.
-            match node.pid {
-                None => continue,
-                Some(Some(pid)) if own.contains(pid) => continue,
-                _ => {}
             }
             for (&port_id, port) in &self.ports {
                 if port.node != node_id || !port.output {

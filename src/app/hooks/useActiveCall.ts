@@ -7,6 +7,7 @@ import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { useMatrixClient } from './useMatrixClient';
 import { callAtom, callIdleAtom } from '../state/call';
+import { screenShareAudioScopeAtom } from '../state/screenShareAudioScope';
 import { CallPreferences } from '../state/callPreferences';
 import { useCallPreferencesAtom } from '../state/hooks/callPreferences';
 
@@ -122,6 +123,38 @@ export const useScreenShareAudioBridge = (call: Call) => {
   }, [bridge, prepared, helperConsole]);
 
   // Only audio played to the output device the call uses is shared, see electron/screenshare-audio.cjs.
+  const outputLabel = useCallOutputLabel();
+
+  // A share limited to one application is limited for that share only.
+  const [scope, setScope] = useAtom(screenShareAudioScopeAtom);
+  const wasSharing = useRef(sharing);
+  useEffect(() => {
+    if (wasSharing.current && !sharing) setScope({ kind: 'all' });
+    wasSharing.current = sharing;
+  }, [sharing, setScope]);
+  const only = scope.kind === 'app' ? scope.app.id : undefined;
+
+  // Windows: pass the captured audio on to the call, which publishes it as the share's audio.
+  useEffect(() => {
+    if (!bridge?.onPcm || !enabled || !sharing) return undefined;
+    return bridge.onPcm((chunk) => call.vm.pushShareAudio(chunk));
+  }, [bridge, call, enabled, sharing]);
+
+  useEffect(() => {
+    if (!bridge || !enabled) return undefined;
+    bridge.link(sharing, outputLabel, excluded, only);
+    return () => {
+      bridge.link(false);
+    };
+  }, [bridge, enabled, sharing, outputLabel, excluded, only, helperConsole]);
+};
+
+/**
+ * Desktop: the label of the playback device the call uses, as the helper matches it ('' for the
+ * system default). Only audio played there is shared.
+ */
+export const useCallOutputLabel = (): string => {
+  const bridge = window.pinnipedDesktop?.screenShareAudio;
   const [audioOutput] = useSetting(settingsAtom, 'callAudioOutput');
   const [outputLabel, setOutputLabel] = useState('');
   useEffect(() => {
@@ -141,18 +174,5 @@ export const useScreenShareAudioBridge = (call: Call) => {
       navigator.mediaDevices.removeEventListener('devicechange', resolve);
     };
   }, [bridge, audioOutput]);
-
-  // Windows: pass the captured audio on to the call, which publishes it as the share's audio.
-  useEffect(() => {
-    if (!bridge?.onPcm || !enabled || !sharing) return undefined;
-    return bridge.onPcm((chunk) => call.vm.pushShareAudio(chunk));
-  }, [bridge, call, enabled, sharing]);
-
-  useEffect(() => {
-    if (!bridge || !enabled) return undefined;
-    bridge.link(sharing, outputLabel, excluded);
-    return () => {
-      bridge.link(false);
-    };
-  }, [bridge, enabled, sharing, outputLabel, excluded, helperConsole]);
+  return outputLabel;
 };
