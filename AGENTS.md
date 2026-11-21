@@ -86,7 +86,8 @@ Fork changes on top of upstream Element Call:
 
 - **Audio pipeline** (`engine/livekit/voiceGate.ts`, `engine/livekit/autoGain.ts` and their
   caller, `Publisher`): the mic is always captured raw (browser noise suppression and AGC off; AEC
-  stays with the browser), 96 kbps Opus, DTX off, in-band FEC off (`disableOpusFec` in
+  stays with the browser), 96 kbps Opus, DTX off, in-band FEC on, which only adds redundancy
+  while loss is reported (`setOpusParameters` in
   `engine/livekit/bitrateHints.ts` rewrites the Opus fmtp in the answer; `installBitrateHints`
   patches `RTCPeerConnection` once, before the first call). An opt-in automatic gain toggle
   (Settings → Calls → Call Audio, `callAutoGain`) re-constrains the live mic track with the

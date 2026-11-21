@@ -25,14 +25,16 @@ const PASSIVE_CODECS = /^(rtx|red|ulpfec|flexfec-03)$/i;
 
 /**
  * Opus parameters for the audio we send, written into the answer because that is
- * where Chrome reads its sender configuration from. In-band FEC is off: it spends
- * bitrate on redundancy that only helps lossy links. `sprop-stereo` is dropped:
+ * where Chrome reads its sender configuration from. In-band FEC is on: Opus only
+ * spends bits on redundancy while RTCP reports loss, so a clean link costs nothing,
+ * and on a lossy one an isolated lost packet is recovered from the next one
+ * instead of concealed (there is no RED, see `options.ts`). `sprop-stereo` is dropped:
  * it only hints what the remote end sends, and livekit-client sets it on stereo
  * tracks only, so mono and stereo audio sections (microphone, soundboard) would
  * otherwise carry different parameters for the one bundled Opus payload type,
  * which Chrome rejects ("BUNDLE group contains a codec collision").
  */
-export function disableOpusFec(sdp: string): string {
+export function setOpusParameters(sdp: string): string {
   const lines = sdp.split('\r\n');
   const opus = new Set<string>();
   let inAudio = false;
@@ -46,7 +48,7 @@ export function disableOpusFec(sdp: string): string {
     const kept = config
       .split(';')
       .filter((p) => !/^(|useinbandfec=.*|sprop-stereo=.*)$/.test(p.trim()));
-    return [...kept, 'useinbandfec=0'].join(';');
+    return [...kept, 'useinbandfec=1'].join(';');
   };
   const out: string[] = [];
   const seen = new Set<string>();
@@ -180,7 +182,7 @@ export function installBitrateHints(): void {
       description?.type === 'answer' && description.sdp
         ? {
             ...description,
-            sdp: disableOpusFec(
+            sdp: setOpusParameters(
               addBitrateHints(description.sdp, Math.round(screenShareMaxBitrate / 1000))
             ),
           }

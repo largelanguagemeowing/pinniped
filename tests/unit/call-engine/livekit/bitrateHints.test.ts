@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   addBitrateHints,
-  disableOpusFec,
+  setOpusParameters,
   summarizeCongestionFeedback,
 } from '../../../../src/app/plugins/call/engine/livekit/bitrateHints';
 
@@ -49,9 +49,10 @@ describe('addBitrateHints', () => {
   });
 });
 
-describe('disableOpusFec', () => {
-  it('turns in-band FEC off for Opus', () => {
-    expect(disableOpusFec(sdp).split('\r\n')).toContain('a=fmtp:111 minptime=10;useinbandfec=0');
+describe('setOpusParameters', () => {
+  it('turns in-band FEC on for Opus', () => {
+    const off = sdp.replace('useinbandfec=1', 'useinbandfec=0');
+    expect(setOpusParameters(off).split('\r\n')).toContain('a=fmtp:111 minptime=10;useinbandfec=1');
   });
 
   it('gives every audio section the same Opus parameters', () => {
@@ -64,25 +65,25 @@ describe('disableOpusFec', () => {
       'a=fmtp:111 minptime=10;sprop-stereo=1;useinbandfec=1',
       '',
     ].join('\r\n');
-    const fmtps = disableOpusFec(mixed)
+    const fmtps = setOpusParameters(mixed)
       .split('\r\n')
       .filter((l) => l.startsWith('a=fmtp:'));
     expect(fmtps).toEqual([
-      'a=fmtp:111 minptime=10;useinbandfec=0',
-      'a=fmtp:111 minptime=10;useinbandfec=0',
+      'a=fmtp:111 minptime=10;useinbandfec=1',
+      'a=fmtp:111 minptime=10;useinbandfec=1',
     ]);
   });
 
   it('adds an fmtp line when Opus has none', () => {
     const bare = ['m=audio 9 UDP/TLS/RTP/SAVPF 111', 'a=rtpmap:111 opus/48000/2', ''].join('\r\n');
-    expect(disableOpusFec(bare).split('\r\n')).toContain('a=fmtp:111 useinbandfec=0');
+    expect(setOpusParameters(bare).split('\r\n')).toContain('a=fmtp:111 useinbandfec=1');
   });
 
   it('leaves video and SDP without Opus alone', () => {
-    const out = disableOpusFec(sdp).split('\r\n');
+    const out = setOpusParameters(sdp).split('\r\n');
     expect(out).toContain('a=fmtp:97 apt=96');
     const noAudio = ['m=video 9 UDP/TLS/RTP/SAVPF 96', 'a=rtpmap:96 VP8/90000', ''].join('\r\n');
-    expect(disableOpusFec(noAudio)).toBe(noAudio);
+    expect(setOpusParameters(noAudio)).toBe(noAudio);
   });
 });
 
