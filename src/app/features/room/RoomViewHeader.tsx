@@ -421,6 +421,7 @@ function CallButton() {
               startCall(room, startPreferences(true));
             }}
             disabled={inAnotherCall || callStarted}
+            aria-label="Call"
             aria-pressed={!!menuAnchor}
           >
             <Icon size="400" src={Icons.VideoCamera} filled={!!menuAnchor} />
@@ -760,7 +761,13 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
               }
             >
               {(triggerRef) => (
-                <IconButton size="300" fill="None" ref={triggerRef} onClick={handleMemberToggle}>
+                <IconButton
+                  size="300"
+                  fill="None"
+                  ref={triggerRef}
+                  onClick={handleMemberToggle}
+                  aria-label={toggleLabel}
+                >
                   <Icon size="400" src={Icons.User} />
                 </IconButton>
               )}
@@ -785,6 +792,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                     size="300"
                     onClick={handleOpenMenu}
                     ref={triggerRef}
+                    aria-label="More Options"
                     aria-pressed={!!menuAnchor}
                   >
                     <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
