@@ -1,5 +1,5 @@
 diff --git a/node_modules/livekit-client/dist/livekit-client.esm.mjs b/node_modules/livekit-client/dist/livekit-client.esm.mjs
-index a401b99..cf17d53 100644
+index a401b99..e385326 100644
 --- a/node_modules/livekit-client/dist/livekit-client.esm.mjs
 +++ b/node_modules/livekit-client/dist/livekit-client.esm.mjs
 @@ -12862,7 +12862,7 @@ function detectSilence(track_1) {
@@ -45,7 +45,34 @@ index a401b99..cf17d53 100644
    if (!audioContext) {
      throw new Error('Audio Context not supported on this browser');
    }
-@@ -31258,7 +31265,8 @@ class Room extends eventsExports.EventEmitter {
+@@ -15181,13 +15188,13 @@ class E2EEManager extends eventsExports.EventEmitter {
+     });
+   }
+   setupEventListeners(room, keyProvider) {
+-    room.on(RoomEvent.TrackPublished, (pub, participant) => this.setParticipantCryptorEnabled(pub.trackInfo.encryption !== Encryption_Type.NONE, participant.identity));
++    // A remote participant's media is always decrypted. The server's claim that a track is
++    // unencrypted is not trusted: it would turn decryption off for all of that participant's tracks.
++    room.on(RoomEvent.TrackPublished, (pub, participant) => this.setParticipantCryptorEnabled(true, participant.identity));
+     room.on(RoomEvent.ConnectionStateChanged, state => {
+       if (state === ConnectionState.Connected) {
+         room.remoteParticipants.forEach(participant => {
+-          participant.trackPublications.forEach(pub => {
+-            this.setParticipantCryptorEnabled(pub.trackInfo.encryption !== Encryption_Type.NONE, participant.identity);
+-          });
++          this.setParticipantCryptorEnabled(true, participant.identity);
+         });
+       }
+     }).on(RoomEvent.TrackUnsubscribed, (track, _, participant) => {
+@@ -15201,6 +15208,8 @@ class E2EEManager extends eventsExports.EventEmitter {
+       };
+       (_a = this.worker) === null || _a === void 0 ? void 0 : _a.postMessage(msg);
+     }).on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
++      // Before the receiver's transform exists, so no frame of it passes undecrypted.
++      this.setParticipantCryptorEnabled(true, participant.identity);
+       this.setupE2EEReceiver(track, participant.identity, pub.trackInfo);
+     }).on(RoomEvent.SignalConnected, () => {
+       if (!this.room) {
+@@ -31258,7 +31267,8 @@ class Room extends eventsExports.EventEmitter {
        } else if (!this.audioContext || this.audioContext.state === 'closed') {
          // by using an AudioContext, it reduces lag on audio elements
          // https://stackoverflow.com/questions/9811429/html5-audio-tag-on-safari-has-a-delay/54119854#54119854
