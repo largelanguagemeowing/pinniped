@@ -14,7 +14,7 @@ on:
       - package-lock.json
       - playwright.config.ts
       - vite.config.js
-      - Dockerfile
+      - Containerfile
       - .github/workflows/e2e.yml
 
 permissions:

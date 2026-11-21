@@ -22,7 +22,7 @@ const IMAGES = {
   synapse: 'ghcr.io/element-hq/synapse:v1.165.0',
   livekit: 'docker.io/livekit/livekit-server:v1.13.11',
   jwt: 'ghcr.io/element-hq/lk-jwt-service:0.10.0',
-  // built from the Dockerfile's server stage: justserve with the production settings
+  // built from the Containerfile's server stage: justserve with the production settings
   web: 'localhost/pinniped-e2e-web',
 };
 
@@ -279,7 +279,7 @@ async function up() {
     '-t',
     IMAGES.web,
     '-f',
-    path.join(repo, 'Dockerfile'),
+    path.join(repo, 'Containerfile'),
     webContext
   );
   run('web', IMAGES.web, [

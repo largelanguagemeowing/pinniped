@@ -11,7 +11,7 @@ import { execSync } from 'node:child_process';
 import buildConfig from './build.config.ts';
 
 // Fork-only: short commit hash baked into the bundle. The container build has
-// no .git, so the Dockerfile passes it in as APP_COMMIT.
+// no .git, so the Containerfile passes it in as APP_COMMIT.
 const appCommit = (() => {
   if (process.env.APP_COMMIT) return process.env.APP_COMMIT;
   try {

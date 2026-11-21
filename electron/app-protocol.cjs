@@ -1,7 +1,7 @@
 // Serves the built Pinniped SPA over a custom privileged scheme (app://cinny/).
 // A standard+secure scheme gives a stable origin (session persists), a secure
 // context, and no open TCP port. No service workers: the main process
-// authenticates media itself. SPA fallback, as in the web image (Dockerfile).
+// authenticates media itself. SPA fallback, as in the web image (Containerfile).
 
 const { protocol } = require('electron');
 const fs = require('fs');

@@ -236,7 +236,7 @@ The Playwright suite (`tests/e2e/`, see its README) runs in CI (`.github/workflo
 throwaway homeserver on the runner: `tests/e2e/stack/stack.mjs` starts Synapse, LiveKit and
 lk-jwt-service (as an application service, wired like
 [matrix-installer](https://github.com/largelanguagemeowing/matrix-installer)) on the host network,
-serves `dist/` with the production image's justserve settings (the `Dockerfile`'s `server` stage), and registers three accounts. Locally:
+serves `dist/` with the production image's justserve settings (the `Containerfile`'s `server` stage), and registers three accounts. Locally:
 `npm run build && npm run e2e:stack:up && npm run test:e2e:stack`. Tests drive the UI the way a person
 would (rooms are created, invites sent and calls joined through Pinniped itself); the API is for
 cleanup and for content the UI cannot produce. `call.spec.ts` signs two people in, meets them in a new
@@ -245,7 +245,7 @@ rooms only the deployment has are tagged `@deployment` and skipped on the stack.
 
 ## Build and deployment
 
-Pinniped ships as a container image to a Kubernetes cluster. The app is a static Vite SPA served by [justserve](https://github.com/belohnung/justserve) (see `Dockerfile`: `node:24.22.2-alpine` builds, justserve serves). Build and deploy from `fork/dev`, after committing and pushing.
+Pinniped ships as a container image to a Kubernetes cluster. The app is a static Vite SPA served by [justserve](https://github.com/belohnung/justserve) (see `Containerfile`: `node:24.22.2-alpine` builds, justserve serves). Build and deploy from `fork/dev`, after committing and pushing.
 
 ### Target
 
@@ -262,7 +262,7 @@ The deployment uses `imagePullPolicy: Always` with the `:latest` tag, so a rollo
 
 ### Base images
 
-Both base images in the `Dockerfile` are pinned by their multi-arch index digest, so a rebuild
+Both base images in the `Containerfile` are pinned by their multi-arch index digest, so a rebuild
 uses the same builder and server however the tags move; change a tag and its digest together.
 For node, the digest of a tag is `skopeo inspect --raw docker://docker.io/library/node:<tag> | sha256sum`.
 justserve's release notes list the digest of each release. Its releases are signed keyless by
@@ -302,7 +302,7 @@ docker --context orbstack build --platform linux/amd64 \
   --build-arg APP_COMMIT=$SHA \
   -t repo.k8s.mreow.de/githubshit/cinny:latest \
   -t repo.k8s.mreow.de/githubshit/cinny:sha-$SHA \
-  -f Dockerfile .
+  -f Containerfile .
 docker --context orbstack push repo.k8s.mreow.de/githubshit/cinny:sha-$SHA
 docker --context orbstack push repo.k8s.mreow.de/githubshit/cinny:latest
 ```
@@ -321,7 +321,7 @@ podman build --format docker \
   --build-arg APP_COMMIT=$SHA \
   -t repo.k8s.mreow.de/githubshit/cinny:latest \
   -t repo.k8s.mreow.de/githubshit/cinny:sha-$SHA \
-  -f Dockerfile .
+  -f Containerfile .
 
 # 2. Push both tags. The saved login in ~/.config/containers/auth.json has
 #    push rights to githubshit/cinny.

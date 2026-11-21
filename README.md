@@ -25,7 +25,7 @@ To build the desktop app for Linux, run `npm run electron:dist`. Packages land i
 
 ## Self-hosting
 
-Serve the files in `dist/` with any web server. The app uses client-side routing, so the server must send `index.html` for unknown paths. The container image ([`Dockerfile`](Dockerfile)) serves them with [justserve](https://github.com/belohnung/justserve). If you'd rather not configure redirects, enable hash routing in [`config.json`](config.json).
+Serve the files in `dist/` with any web server. The app uses client-side routing, so the server must send `index.html` for unknown paths. The container image ([`Containerfile`](Containerfile)) serves them with [justserve](https://github.com/belohnung/justserve). If you'd rather not configure redirects, enable hash routing in [`config.json`](config.json).
 
 To deploy under a subdirectory, set `base` in [`build.config.ts`](build.config.ts) and rebuild.
 
