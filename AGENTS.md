@@ -262,9 +262,11 @@ The deployment uses `imagePullPolicy: Always` with the `:latest` tag, so a rollo
 
 ### Base images
 
-justserve is pinned in the `Dockerfile` by its release's multi-arch index digest, which the
-release notes list. Releases are signed keyless by justserve's release workflow; verify a new
-digest before pinning it, and change the tag and digest together:
+Both base images in the `Dockerfile` are pinned by their multi-arch index digest, so a rebuild
+uses the same builder and server however the tags move; change a tag and its digest together.
+For node, the digest of a tag is `skopeo inspect --raw docker://docker.io/library/node:<tag> | sha256sum`.
+justserve's release notes list the digest of each release. Its releases are signed keyless by
+justserve's release workflow; verify a new digest before pinning it:
 
 ```bash
 cosign verify ghcr.io/belohnung/justserve@sha256:<digest> \
