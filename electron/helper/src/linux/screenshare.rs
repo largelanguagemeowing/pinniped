@@ -684,8 +684,10 @@ mod tests {
     /// Runs this test binary again as a child that just waits, standing in for a Chromium child
     /// process: a descendant running the same executable.
     fn same_exe_child() -> Child {
+        // The test's path without the crate name, which the test filter leaves out.
+        let module = module_path!().split_once("::").unwrap().1;
         Command::new(std::env::current_exe().unwrap())
-            .args(["--ignored", "--exact", "screenshare::tests::wait_a_while"])
+            .args(["--ignored", "--exact", &format!("{module}::wait_a_while")])
             .spawn()
             .unwrap()
     }
