@@ -18,7 +18,13 @@ metadata:
   labels:
     app: cinny
 spec:
-  replicas: 1
+  # Two pods, replaced one at a time: a rollout or a node drain always leaves one serving.
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: cinny
@@ -55,18 +61,36 @@ spec:
             limits:
               cpu: 250m
               memory: 128Mi
+          # justserve opens its port only once the whole site is loaded, so an open port is ready.
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 2
+            failureThreshold: 60
           readinessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: http
-            initialDelaySeconds: 3
-            periodSeconds: 10
+            periodSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 20
+            periodSeconds: 10
+          lifecycle:
+            # A terminating pod keeps serving while the gateway stops routing to it.
+            preStop:
+              sleep:
+                seconds: 5
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cinny
+  namespace: githubshit
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: cinny
 ---
 # cinny.k8s.mreow.de and im.queef.in are routed by HTTPRoutes in the cluster's
 # infrastructure repo. pinniped.stablecat.club is routed from here (below); only its
