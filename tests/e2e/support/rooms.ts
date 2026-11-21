@@ -57,6 +57,30 @@ export async function createRoom(page: Page, room: NewRoom): Promise<string> {
   return currentRoomId(page);
 }
 
+/** Starts a one-to-one chat with `userId` from Home and returns its room ID. */
+export async function createDirectMessage(page: Page, userId: string): Promise<string> {
+  await page.goto('/home/');
+  await page.getByRole('button', { name: 'Create Chat', exact: true }).first().click();
+  await page.locator('input[name="userIdInput"]').fill(userId);
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
+  return currentRoomId(page);
+}
+
+/**
+ * Accepts the pending DM invite, from someone this person shares no room with (listed as
+ * Public), which opens the conversation with the direct messages.
+ */
+export async function acceptDirectInvite(page: Page, roomId: string): Promise<void> {
+  await page.goto('/inbox/invites/');
+  await page.getByRole('button', { name: /^Public\b/ }).click();
+  await page.getByRole('button', { name: 'Accept', exact: true }).click();
+  await page.waitForURL(
+    (url) => decodeURIComponent(url.pathname).replace(/\/$/, '') === `/home/${roomId}`
+  );
+  await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
+}
+
 /** Sends a message through the composer of the open room and returns its event ID. */
 export async function sendMessage(page: Page, text: string): Promise<string> {
   const editor = page.locator('[data-editable-name="RoomInput"]');

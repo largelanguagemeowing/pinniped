@@ -1,5 +1,23 @@
-import { expect, type Page } from '@playwright/test';
+import { type Browser, expect, type Page } from '@playwright/test';
 import { type Credentials, e2eCredentials } from './env';
+
+type SignInOptions = {
+  /** Playwright's clock, installed before the app loads: time runs as usual until a test moves it. */
+  fakeClock?: boolean;
+};
+
+/** Signs in on a browser context of its own, so this person gets a device of their own. */
+export async function signIn(
+  browser: Browser,
+  credentials: Credentials,
+  { fakeClock = false }: SignInOptions = {}
+): Promise<Page> {
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  if (fakeClock) await context.clock.install();
+  const page = await context.newPage();
+  await loginWithTestAccount(page, credentials);
+  return page;
+}
 
 export async function ownUserId(page: Page): Promise<string> {
   const userId = await page.evaluate(() => localStorage.getItem('cinny_user_id'));

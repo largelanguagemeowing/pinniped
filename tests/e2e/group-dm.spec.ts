@@ -1,33 +1,12 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
-import { loginWithTestAccount, ownUserId } from './support/auth';
-import { type Credentials, peerCredentials, thirdCredentials } from './support/env';
+import { expect, test, type Page } from '@playwright/test';
+import { loginWithTestAccount, ownUserId, signIn } from './support/auth';
+import { peerCredentials, thirdCredentials } from './support/env';
 import { matrixRequest } from './support/matrix';
-import { currentRoomId, leaveRooms } from './support/rooms';
+import { acceptDirectInvite, createDirectMessage, leaveRooms } from './support/rooms';
 
 // Three people sign in here, each with a device of their own.
 test.use({ storageState: { cookies: [], origins: [] } });
 test.skip(!process.env.E2E_THIRD_USERNAME, 'needs two more accounts (E2E_PEER_*, E2E_THIRD_*)');
-
-async function signIn(browser: Browser, credentials: Credentials): Promise<Page> {
-  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await loginWithTestAccount(page, credentials);
-  return page;
-}
-
-/**
- * Accepts the pending DM invite, from someone this person shares no room with (listed as
- * Public), which opens the conversation with the direct messages.
- */
-async function acceptDirectInvite(page: Page, roomId: string): Promise<void> {
-  await page.goto('/inbox/invites/');
-  await page.getByRole('button', { name: /^Public\b/ }).click();
-  await page.getByRole('button', { name: 'Accept', exact: true }).click();
-  await page.waitForURL(
-    (url) => decodeURIComponent(url.pathname).replace(/\/$/, '') === `/home/${roomId}`
-  );
-  await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
-}
 
 async function invite(page: Page, userId: string): Promise<void> {
   await page.getByRole('button', { name: 'More Options', exact: true }).click();
@@ -79,12 +58,7 @@ test('a direct message stays one for everyone after a third person is invited', 
     const thirdId = await ownUserId(third);
 
     // a one-to-one chat
-    await page.goto('/home/');
-    await page.getByRole('button', { name: 'Create Chat', exact: true }).first().click();
-    await page.locator('input[name="userIdInput"]').fill(peerId);
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
-    await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
-    roomId = currentRoomId(page);
+    roomId = await createDirectMessage(page, peerId);
     await acceptDirectInvite(peer, roomId);
     await test.step('a direct message for the peer', () => expectDirectMessage(peer, roomId));
 
