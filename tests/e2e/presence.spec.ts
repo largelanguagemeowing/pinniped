@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Request } from '@playwright/test';
 import { ownUserId, signIn } from './support/auth';
 import { e2eCredentials, peerCredentials } from './support/env';
 import { matrixRequest } from './support/matrix';
@@ -114,6 +114,28 @@ async function clearStatus(page: Page): Promise<void> {
 const richPresencePath = async (page: Page) =>
   `/profile/${encodeURIComponent(await ownUserId(page))}/${RICH_PRESENCE}`;
 
+/** Writes what a publisher writes for `page`'s person; a desktop app does this, the web cannot. */
+const publishRichPresence = async (page: Page, track: string, expiresAt?: number) =>
+  matrixRequest(page, {
+    method: 'PUT',
+    path: await richPresencePath(page),
+    body: {
+      [RICH_PRESENCE]: {
+        type: `${RICH_PRESENCE}.media`,
+        artist: 'E2E Artist',
+        track,
+        ...(expiresAt === undefined ? {} : { [RICH_PRESENCE_EXPIRES_AT]: expiresAt }),
+      },
+    },
+  });
+
+const unpublishRichPresence = async (page: Page) =>
+  matrixRequest(page, { method: 'DELETE', path: await richPresencePath(page) });
+
+// Synapse sends profile changes down sync only with include_profile_updates_in_sync, which is off
+// by default; without it Pinniped looks at a profile again every 3 minutes.
+const lookAgain = () => user.clock.fastForward('03:00');
+
 test.beforeAll(async ({ browser }) => {
   user = await signIn(browser, e2eCredentials, { fakeClock: true });
   peer = await signIn(browser, peerCredentials());
@@ -187,27 +209,8 @@ test('a status message reaches the other person and outlasts Invisible', async (
 test('rich presence shows with the person until they stop it or it goes stale', async () => {
   const seen = dmRow(user);
   const track = `e2e track ${Date.now()}`;
-  const path = await richPresencePath(peer);
-  // what a publisher writes; a desktop app does this, the web build cannot
-  const publish = (expiresAt?: number) =>
-    matrixRequest(peer, {
-      method: 'PUT',
-      path,
-      body: {
-        [RICH_PRESENCE]: {
-          type: `${RICH_PRESENCE}.media`,
-          artist: 'E2E Artist',
-          track,
-          ...(expiresAt === undefined ? {} : { [RICH_PRESENCE_EXPIRES_AT]: expiresAt }),
-        },
-      },
-    });
 
-  // Synapse sends profile changes down sync only with include_profile_updates_in_sync, which is
-  // off by default; without it Pinniped looks at the profile again every 3 minutes.
-  const lookAgain = () => user.clock.fastForward('03:00');
-
-  await publish();
+  await publishRichPresence(peer, track);
   await lookAgain();
   await expect(seen.getByText(track)).toBeVisible();
   // and on their profile in the conversation
@@ -216,18 +219,59 @@ test('rich presence shows with the person until they stop it or it goes stale', 
   await openHome(user);
 
   // the publisher stops and clears it
-  await matrixRequest(peer, { method: 'DELETE', path });
+  await unpublishRichPresence(peer);
   await lookAgain();
   await expect(seen.getByText(track)).toHaveCount(0);
 
   // a publisher that died left it behind: it expires on its own
   const now = await user.evaluate(() => Date.now());
-  await publish(now + 4 * 60_000);
+  await publishRichPresence(peer, track, now + 4 * 60_000);
   await lookAgain();
   await expect(seen.getByText(track)).toBeVisible();
   await user.clock.fastForward('01:01');
   await expect(seen.getByText(track)).toHaveCount(0);
-  await matrixRequest(peer, { method: 'DELETE', path });
+  await unpublishRichPresence(peer);
+});
+
+test('someone invisible looks offline: no activity, and not online when they open the app again', async () => {
+  // the peer is invisible here, so that the one watching can make Pinniped look at profiles again
+  const seen = dmRow(user);
+  const track = `e2e invisible ${Date.now()}`;
+  await publishRichPresence(peer, track);
+  await lookAgain();
+  await expect(seen.getByText(track)).toBeVisible();
+
+  // Their profile still has it (the desktop app takes it down), and it shows no more.
+  await choosePresence(peer, 'Invisible');
+  await expect(badge(seen, 'Offline')).toBeVisible();
+  await expect(seen.getByText(track)).toHaveCount(0);
+
+  // Opening the app again keeps them invisible from its first sync on. Synapse takes presence from
+  // at most one sync in 10 s, so what the badge shows right after is no proof: each sync has to
+  // say offline, since one that says nothing counts as online.
+  const syncs: URL[] = [];
+  const recordSync = (request: Request) => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/client/v3/sync')) syncs.push(url);
+  };
+  peer.on('request', recordSync);
+  await peer.reload();
+  const userStatus = await syncAgain(peer, user);
+  peer.off('request', recordSync);
+  expect(syncs.length).toBeGreaterThan(0);
+  expect(syncs.map((url) => url.searchParams.get('set_presence'))).toEqual(
+    syncs.map(() => 'offline')
+  );
+  await expect(badge(seen, 'Offline')).toBeVisible();
+  await expect(seen.getByText(track)).toHaveCount(0);
+
+  await choosePresence(peer, 'Online');
+  await expect(badge(seen, 'Active')).toBeVisible();
+  await expect(seen.getByText(track)).toBeVisible();
+
+  await unpublishRichPresence(peer);
+  await setStatus(user, '');
+  await expect(dmRow(peer).getByText(userStatus)).toHaveCount(0);
 });
 
 test('someone idle for five minutes shows as away until they are back', async () => {
