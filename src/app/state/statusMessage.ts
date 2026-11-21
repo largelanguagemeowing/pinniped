@@ -1,4 +1,4 @@
-import { MatrixClient, SetPresence } from 'matrix-js-sdk';
+import { MatrixClient, MatrixError, SetPresence } from 'matrix-js-sdk';
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { useAccountData } from '../hooks/useAccountData';
 import { useUserPresence } from '../hooks/useUserPresence';
@@ -19,6 +19,31 @@ const SYNC_PRESENCE: Record<PresenceChoice, SetPresence> = {
   offline: SetPresence.Offline,
 };
 
+// Synapse allows one presence update every 10 s by default; the server says how long to wait.
+const MAX_RATE_LIMIT_RETRIES = 3;
+
+// The newest update per client: one still waiting out a rate limit gives way to it.
+const latestUpdates = new WeakMap<MatrixClient, object>();
+
+const putPresence = async (mx: MatrixClient, presence: PresenceChoice, statusMsg: string) => {
+  const update = {};
+  latestUpdates.set(mx, update);
+  for (let retry = 0; ; retry += 1) {
+    try {
+      await mx.setPresence({ presence, status_msg: statusMsg });
+      return;
+    } catch (err) {
+      const wait =
+        err instanceof MatrixError && err.isRateLimitError() ? err.getRetryAfterMs() : null;
+      if (wait === null || retry >= MAX_RATE_LIMIT_RETRIES) throw err;
+      await new Promise((resolve) => {
+        setTimeout(resolve, wait);
+      });
+      if (latestUpdates.get(mx) !== update) return;
+    }
+  }
+};
+
 // A /sync without set_presence counts as online (Synapse), which would undo the choice at the next
 // request, so every sync carries it too; set first, so no sync starts in between without it.
 export const sendPresence = async (
@@ -27,7 +52,7 @@ export const sendPresence = async (
   statusMsg: string = getRememberedStatus(mx)
 ) => {
   await mx.setSyncPresence(SYNC_PRESENCE[presence]);
-  await mx.setPresence({ presence, status_msg: statusMsg });
+  await putPresence(mx, presence, statusMsg);
 };
 
 /** Stores the status message and applies it to the current presence. */
