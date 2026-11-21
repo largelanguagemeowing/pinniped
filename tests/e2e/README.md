@@ -10,7 +10,7 @@ The suite runs against either a throwaway local homeserver (what CI does) or a d
 
 - Synapse (SQLite, one TLS listener for the client and federation APIs, self-signed certificate)
 - LiveKit and lk-jwt-service, wired as in [matrix-installer](https://github.com/largelanguagemeowing/matrix-installer): lk-jwt-service is an application service (MSC4502/MSC4512), and Synapse's `/.well-known/matrix/client` announces it
-- nginx serving `dist/` with `docker-nginx.conf`, as the production image does
+- justserve serving `dist/` with the production settings: the `Dockerfile`'s `server` stage, which is the production image without the bundle
 
 The containers share the host network, so the browser, the SFU and the services meet on loopback and WebRTC needs no NAT traversal. Each `up` generates fresh secrets, a certificate and three accounts (`e2e-user`, `e2e-peer`, `e2e-third`), and writes their credentials to `playwright/.stack/e2e.env`.
 
@@ -22,7 +22,7 @@ npm run e2e:stack:down
 node tests/e2e/stack/stack.mjs logs   # container logs
 ```
 
-Ports: Synapse 18448, lk-jwt-service 18080, LiveKit 17880-17882, app 14173. Image versions are pinned in `stack.mjs`.
+Ports: Synapse 18448, lk-jwt-service 18080, LiveKit 17880-17882, app 14173. Image versions are pinned in `stack.mjs`, the web server's in the `Dockerfile`.
 
 Tests that need rooms which only exist on the deployment are tagged `@deployment`, and `test:e2e:stack` skips them (`room-reorder.spec.ts`, which uses the federated `#space:unredacted.org`). Other tests create what they need through the UI (`support/rooms.ts`) and leave it afterwards.
 

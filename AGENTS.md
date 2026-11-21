@@ -236,7 +236,7 @@ The Playwright suite (`tests/e2e/`, see its README) runs in CI (`.github/workflo
 throwaway homeserver on the runner: `tests/e2e/stack/stack.mjs` starts Synapse, LiveKit and
 lk-jwt-service (as an application service, wired like
 [matrix-installer](https://github.com/largelanguagemeowing/matrix-installer)) on the host network,
-serves `dist/` through `docker-nginx.conf`, and registers three accounts. Locally:
+serves `dist/` with the production image's justserve settings (the `Dockerfile`'s `server` stage), and registers three accounts. Locally:
 `npm run build && npm run e2e:stack:up && npm run test:e2e:stack`. Tests drive the UI the way a person
 would (rooms are created, invites sent and calls joined through Pinniped itself); the API is for
 cleanup and for content the UI cannot produce. `call.spec.ts` signs two people in, meets them in a new
@@ -245,7 +245,7 @@ rooms only the deployment has are tagged `@deployment` and skipped on the stack.
 
 ## Build and deployment
 
-Pinniped ships as a container image to a Kubernetes cluster. The app is a static Vite SPA served by nginx (see `Dockerfile`: `node:24.22.2-alpine` builds, `nginx-unprivileged:1.31.7-alpine` serves). Build and deploy from `fork/dev`, after committing and pushing.
+Pinniped ships as a container image to a Kubernetes cluster. The app is a static Vite SPA served by [justserve](https://github.com/belohnung/justserve) (see `Dockerfile`: `node:24.22.2-alpine` builds, justserve serves). Build and deploy from `fork/dev`, after committing and pushing.
 
 ### Target
 
@@ -259,6 +259,21 @@ Pinniped ships as a container image to a Kubernetes cluster. The app is a static
 Deploy only to DUS. The `cluster-gz6gk` context is the FRA cluster, which also runs a `cinny` deployment (served at `cinny.k8s-fra.mreow.de`); do not roll out there.
 
 The deployment uses `imagePullPolicy: Always` with the `:latest` tag, so a rollout restart pulls whatever `:latest` currently points to in the registry.
+
+### Base images
+
+justserve is pinned in the `Dockerfile` by its release's multi-arch index digest, which the
+release notes list. Releases are signed keyless by justserve's release workflow; verify a new
+digest before pinning it, and change the tag and digest together:
+
+```bash
+cosign verify ghcr.io/belohnung/justserve@sha256:<digest> \
+  --certificate-identity https://github.com/belohnung/justserve/.github/workflows/release.yml@refs/tags/<tag> \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+cosign is not installed here; `go install github.com/sigstore/cosign/v3/cmd/cosign@<version>`
+builds it, with its modules checked against sum.golang.org.
 
 ### Tooling (this machine)
 
@@ -291,7 +306,7 @@ docker --context orbstack push repo.k8s.mreow.de/githubshit/cinny:latest
 ```
 
 Then roll out and verify as below. When verifying against the pushed image, add
-`--platform linux/amd64` to `docker run`.
+`--platform linux/amd64` to `docker create`.
 
 ### Deploy steps
 
@@ -324,9 +339,10 @@ Do not compare the local podman image digest to the cluster's `imageID`. They le
 # What the live site serves
 curl -sS https://cinny.k8s.mreow.de/ | grep -oE 'assets/index-[^"]+\.js' | head -1
 
-# What the pushed image serves (should match the live site)
-podman run --rm repo.k8s.mreow.de/githubshit/cinny:latest cat /app/index.html \
-  | grep -oE 'assets/index-[^"]+\.js' | head -1
+# What the pushed image serves (should match the live site). It has no shell: copy the file out.
+ctr=$(podman create repo.k8s.mreow.de/githubshit/cinny:latest)
+podman cp "$ctr:/srv/index.html" - | tar -xO | grep -oE 'assets/index-[^"]+\.js' | head -1
+podman rm "$ctr"
 ```
 
 A successful deploy: the live hash changed from the previous deploy, and live == pushed image. The build runs inside the container (no local `dist/` is produced), and a local `npm run build` yields a different hash than the container build (different Node version), so do not use a local build to verify the deployed bundle. Compare against the pushed image's `index.html`.

@@ -32,8 +32,8 @@ spec:
       enableServiceLinks: false
       securityContext:
         runAsNonRoot: true
-        runAsUser: 101
-        runAsGroup: 101
+        runAsUser: 65532
+        runAsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -67,15 +67,6 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 20
-          volumeMounts:
-            # nginx's pid file and temp paths; the root filesystem is read-only.
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir:
-            medium: Memory
-            sizeLimit: 32Mi
 ---
 # cinny.k8s.mreow.de and im.queef.in are routed by HTTPRoutes in the cluster's
 # infrastructure repo. pinniped.stablecat.club is routed from here (below); only its

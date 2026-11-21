@@ -1,5 +1,5 @@
 # Fork-only: the Playwright suite against a throwaway homeserver on the runner (tests/e2e/stack):
-# Synapse, LiveKit and lk-jwt-service, with the built app behind the production nginx config.
+# Synapse, LiveKit and lk-jwt-service, with the built app served as the production image serves it.
 name: e2e
 on:
   push:
@@ -14,7 +14,7 @@ on:
       - package-lock.json
       - playwright.config.ts
       - vite.config.js
-      - docker-nginx.conf
+      - Dockerfile
       - .github/workflows/e2e.yml
 
 permissions:

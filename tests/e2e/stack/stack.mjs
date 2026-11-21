@@ -1,8 +1,8 @@
 // Usage: node tests/e2e/stack/stack.mjs up|down|logs
 //
 // A throwaway Matrix stack for the e2e suite, on this machine's loopback: Synapse, LiveKit and
-// lk-jwt-service (an application service, as matrix-installer runs it), plus nginx serving dist/
-// with the production nginx config. `up` builds nothing: run `npm run build` first. It registers
+// lk-jwt-service (an application service, as matrix-installer runs it), plus justserve serving
+// dist/ with the production settings. `up` does not build the app: run `npm run build` first. It registers
 // three accounts and writes their credentials to playwright/.stack/e2e.env, which
 // `npm run test:e2e:stack` reads. Secrets and the TLS certificate are generated per `up`.
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -22,8 +22,8 @@ const IMAGES = {
   synapse: 'ghcr.io/element-hq/synapse:v1.165.0',
   livekit: 'docker.io/livekit/livekit-server:v1.13.11',
   jwt: 'ghcr.io/element-hq/lk-jwt-service:0.10.0',
-  // the Dockerfile's serving image
-  web: 'docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine',
+  // built from the Dockerfile's server stage: justserve with the production settings
+  web: 'localhost/pinniped-e2e-web',
 };
 
 // Off the usual defaults, so the stack runs next to a dev server or a local homeserver.
@@ -267,14 +267,27 @@ async function up() {
     'LIVEKIT_SANITY_CHECK_INTERVAL_SECONDS=60',
     ...mount('lk-jwt-registration.yaml', '/etc/lk-jwt/registration.yaml'),
   ]);
+  // The server stage copies nothing from its context and skips the bundle build; dist/ is
+  // mounted where the production image has its copy.
+  const webContext = path.join(state, 'web-context');
+  fs.mkdirSync(webContext);
+  container(
+    'build',
+    '-q',
+    '--target',
+    'server',
+    '-t',
+    IMAGES.web,
+    '-f',
+    path.join(repo, 'Dockerfile'),
+    webContext
+  );
   run('web', IMAGES.web, [
     '-p',
     `127.0.0.1:${PORTS.web}:8080`,
     '-v',
-    `${dist}:/usr/share/nginx/html:ro,z`,
-    '-v',
-    `${path.join(repo, 'docker-nginx.conf')}:/etc/nginx/conf.d/default.conf:ro,z`,
-    ...mount('pinniped-config.json', '/usr/share/nginx/html/config.json'),
+    `${dist}:/srv:ro,z`,
+    ...mount('pinniped-config.json', '/srv/config.json'),
   ]);
 
   await waitFor('Synapse', async () => {
