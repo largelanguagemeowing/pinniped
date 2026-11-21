@@ -1,6 +1,13 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { createRoom, leaveRooms } from './support/rooms';
 
-const ROOM_PATH = '%23test%3Astablecat.club/!pFxmCvJLPLEicHDuJi%3Astablecat.club';
+let roomId: string;
+test.beforeEach(async ({ page }) => {
+  roomId = await createRoom(page, { name: `mention e2e ${Date.now()}` });
+});
+test.afterEach(async ({ page }) => {
+  await leaveRooms(page, [roomId]);
+});
 
 type Accept = (page: Page, editor: Locator, item: Locator) => Promise<void>;
 
@@ -25,8 +32,6 @@ const accepts: Record<string, Accept> = {
 };
 
 const openMentionMenu = async (page: Page) => {
-  await page.goto(`/${ROOM_PATH}`);
-
   const editor = page.locator('[data-editable-name="RoomInput"]');
   await expect(editor).toBeVisible();
   const userId = await ownUserId(page);

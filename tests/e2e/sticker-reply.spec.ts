@@ -1,29 +1,45 @@
-import { expect, test } from '@playwright/test';
-import { redactEvent } from './support/matrix';
+import { expect, test, type Page } from '@playwright/test';
+import { matrixRequest, uploadMedia } from './support/matrix';
+import { createRoom, leaveRooms, sendMessage } from './support/rooms';
 
-const ROOM_ID = '!pFxmCvJLPLEicHDuJi:stablecat.club';
-const ROOM_PATH = '%23test%3Astablecat.club/!pFxmCvJLPLEicHDuJi%3Astablecat.club';
+/** A 64x64 PNG drawn in the page. */
+const pngBytes = (page: Page): Promise<number[]> =>
+  page.evaluate(async () => {
+    const canvas = new OffscreenCanvas(64, 64);
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('No 2D canvas');
+    context.fillStyle = '#c0392b';
+    context.fillRect(0, 0, 64, 64);
+    const blob = await canvas.convertToBlob({ type: 'image/png' });
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+
+/** A sticker pack in the room's state, as a room's own pack is shared. */
+async function addRoomStickerPack(page: Page, roomId: string): Promise<void> {
+  const url = await uploadMedia(page, {
+    bytes: await pngBytes(page),
+    contentType: 'image/png',
+    filename: 'gadsen.png',
+  });
+  await matrixRequest(page, {
+    method: 'PUT',
+    path: `/rooms/${encodeURIComponent(roomId)}/state/im.ponies.room_emotes/e2e`,
+    body: {
+      pack: { display_name: 'e2e stickers', usage: ['sticker'] },
+      images: { gadsen: { url, body: 'gadsen', info: { w: 64, h: 64, mimetype: 'image/png' } } },
+    },
+  });
+}
 
 test('renders a sticker as a reply to the selected message', async ({ page }) => {
-  let targetEventId: string | undefined;
-  let stickerEventId: string | undefined;
+  const roomId = await createRoom(page, { name: `sticker e2e ${Date.now()}` });
 
   try {
-    await page.goto(`/${ROOM_PATH}`);
-
-    const editor = page.locator('[data-editable-name="RoomInput"]');
-    await expect(editor).toBeVisible();
+    await addRoomStickerPack(page, roomId);
 
     const marker = `sticker reply e2e ${Date.now()}`;
-    await editor.fill(marker);
-    await editor.press('Enter');
-
-    const target = page.getByText(marker, { exact: true });
-    await expect(target).toBeVisible();
-    const targetItem = target.locator('xpath=ancestor::*[@data-message-id][1]');
-    await expect.poll(() => targetItem.getAttribute('data-message-id')).toMatch(/^\$/);
-    targetEventId = (await targetItem.getAttribute('data-message-id')) ?? undefined;
-    expect(targetEventId).toBeTruthy();
+    const targetEventId = await sendMessage(page, marker);
+    const targetItem = page.locator(`[data-message-id="${targetEventId}"]`);
 
     await targetItem.hover();
     await targetItem.locator('button[data-event-id]').first().click();
@@ -42,7 +58,7 @@ test('renders a sticker as a reply to the selected message', async ({ page }) =>
     expect(stickerResponse.ok()).toBe(true);
     const stickerContent = stickerResponse.request().postDataJSON();
     expect(stickerContent['m.relates_to']?.['m.in_reply_to']?.event_id).toBe(targetEventId);
-    stickerEventId = ((await stickerResponse.json()) as { event_id?: string }).event_id;
+    const stickerEventId = ((await stickerResponse.json()) as { event_id?: string }).event_id;
 
     const stickerItem = page
       .locator('[data-message-id]')
@@ -54,9 +70,7 @@ test('renders a sticker as a reply to the selected message', async ({ page }) =>
     await expect(stickerItem).toContainText(marker);
     await expect.poll(() => stickerItem.getAttribute('data-message-id')).toMatch(/^\$/);
     expect(await stickerItem.getAttribute('data-message-id')).toBe(stickerEventId);
-    if (!targetEventId || !stickerEventId) throw new Error('Missing sent event IDs');
   } finally {
-    if (stickerEventId) await redactEvent(page, ROOM_ID, stickerEventId);
-    if (targetEventId) await redactEvent(page, ROOM_ID, targetEventId);
+    await leaveRooms(page, [roomId]);
   }
 });

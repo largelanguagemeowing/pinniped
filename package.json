@@ -28,7 +28,10 @@
     "electron:dist:win": "npm run build && electron-builder --config electron/electron-builder.yml --win",
     "electron:dist:mac": "npm run build && electron-builder --config electron/electron-builder.yml --mac",
     "patch:deps": "patch-package --error-on-fail --error-on-warn",
-    "postinstall": "npm run patch:deps"
+    "postinstall": "npm run patch:deps",
+    "e2e:stack:up": "node tests/e2e/stack/stack.mjs up",
+    "e2e:stack:down": "node tests/e2e/stack/stack.mjs down",
+    "test:e2e:stack": "E2E_ENV_FILE=playwright/.stack/e2e.env playwright test --grep-invert @deployment"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx,js,jsx}": "eslint",

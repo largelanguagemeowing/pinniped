@@ -1,0 +1,17 @@
+port: ${livekit_port}
+bind_addresses: ['127.0.0.1']
+rtc:
+  tcp_port: ${livekit_tcp_port}
+  udp_port: ${livekit_udp_port}
+  # Browser and SFU share the host, so media stays on loopback.
+  use_external_ip: false
+  node_ip: 127.0.0.1
+  enable_loopback_candidate: true
+room:
+  auto_create: false # lk-jwt-service creates rooms for authorised users
+webhook:
+  api_key: '${livekit_key}'
+  urls:
+    - http://127.0.0.1:${jwt_port}/sfu_webhook
+keys:
+  '${livekit_key}': '${livekit_secret}'

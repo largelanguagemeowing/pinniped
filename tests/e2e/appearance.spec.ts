@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Fork dark themes in the Appearance section of the General settings page.
+// Fork dark themes on the Appearance settings page.
 // Settings live in the `settings` localStorage key; every test restores the
 // previous value afterwards.
 
@@ -15,8 +15,8 @@ const writeSettings = async (page: Page, settings: StoredSettings): Promise<void
 
 const openAppearance = async (page: Page): Promise<void> => {
   await page.getByRole('button', { name: 'User Settings' }).click();
-  await page.getByText('General', { exact: true }).first().click();
-  await expect(page.getByText('Appearance', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+  await expect(page.getByText('System Theme', { exact: true })).toBeVisible();
 };
 
 /** The single control button of the setting tile with the given title. */
@@ -135,11 +135,16 @@ test.describe('Appearance themes', () => {
     await page.reload();
 
     await expect(page.locator('body')).toHaveClass(/\bcatppuccin-mocha\b/);
-    const linkVar = await page.evaluate(() =>
-      getComputedStyle(document.body).getPropertyValue('--tc-link').trim()
-    );
-    // dark link value, not the light default
-    expect(linkVar).not.toBe('hsl(213deg 100% 45%)');
-    expect(linkVar).toContain('80%');
+    // HSL lightness of the resolved link color; the build may rewrite its notation
+    const linkLightness = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--tc-link)';
+      document.body.append(probe);
+      const [r, g, b] = (getComputedStyle(probe).color.match(/[\d.]+/g) ?? []).map(Number);
+      probe.remove();
+      return (Math.max(r, g, b) + Math.min(r, g, b)) / 2 / 255;
+    });
+    // the shared dark link value (80% lightness), not the light default (45%)
+    expect(linkLightness).toBeCloseTo(0.8, 2);
   });
 });

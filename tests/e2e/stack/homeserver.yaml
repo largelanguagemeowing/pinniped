@@ -1,0 +1,67 @@
+# Throwaway Synapse for the e2e suite; the MatrixRTC parts follow matrix-installer's homeserver.yaml.
+server_name: '${server_name}'
+public_baseurl: 'https://${server_name}/'
+pid_file: /data/homeserver.pid
+
+# One TLS listener for both APIs: lk-jwt-service checks OpenID tokens over federation, which is
+# always HTTPS, and the browser finds the homeserver and the LiveKit service through the same
+# /.well-known/matrix/client a real deployment serves.
+listeners:
+  - port: ${homeserver_port}
+    tls: true
+    type: http
+    bind_addresses: ['127.0.0.1']
+    resources:
+      - names: [client, federation]
+        compress: false
+tls_certificate_path: /config/tls.crt
+tls_private_key_path: /config/tls.key
+
+database:
+  name: sqlite3
+  args:
+    database: /data/homeserver.db
+
+media_store_path: /data/media_store
+signing_key_path: /data/signing.key
+
+trusted_key_servers: []
+report_stats: false
+enable_registration: false
+registration_shared_secret: '${registration_secret}'
+macaroon_secret_key: '${macaroon_secret}'
+form_secret: '${form_secret}'
+
+# Every run signs in fresh devices, creates a room per test and invites the same peer again
+# (Synapse allows 10 rooms in a burst, then about one a minute, and lets a user receive 5 invites
+# in a burst, then one every 5 minutes).
+rc_room_creation:
+  per_second: 10
+  burst_count: 100
+rc_login:
+  address: { per_second: 10, burst_count: 100 }
+  account: { per_second: 10, burst_count: 100 }
+rc_invites:
+  per_user: { per_second: 10, burst_count: 100 }
+
+# MatrixRTC requirements, as in matrix-installer
+max_event_delay_duration: 24h
+rc_message:
+  per_second: 0.5
+  burst_count: 30
+rc_delayed_event_mgmt:
+  per_second: 1
+  burst_count: 20
+experimental_features:
+  msc3266_enabled: true
+  msc4222_enabled: true
+  msc4502_enabled: true # lk-jwt-service as application service
+  msc4512_enabled: true
+
+app_service_config_files:
+  - /config/lk-jwt-registration.yaml
+
+extra_well_known_client_content:
+  org.matrix.msc4143.rtc_foci:
+    - type: livekit
+      livekit_service_url: 'http://127.0.0.1:${jwt_port}'

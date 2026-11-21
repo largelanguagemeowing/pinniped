@@ -15,6 +15,7 @@ room-view.png
 /test-results/
 /playwright-report/
 /playwright/.auth/
+/playwright/.stack/
 .playwright-cli/
 
 # Env / secrets

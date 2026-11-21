@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.e2e', quiet: true });
+// .env.e2e targets a deployment; the local stack (tests/e2e/stack) writes its own file.
+dotenv.config({ path: process.env.E2E_ENV_FILE ?? '.env.e2e', quiet: true });
 
 const authFile = 'playwright/.auth/user.json';
 const baseURL = process.env.PLAYWRIGHT_BASE_URL?.trim();
@@ -24,6 +25,7 @@ export default defineConfig({
     browserName: 'chromium',
     headless: true,
     viewport: { width: 1280, height: 720 },
+    ignoreHTTPSErrors: process.env.E2E_IGNORE_HTTPS_ERRORS === 'true',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

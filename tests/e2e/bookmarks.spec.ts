@@ -1,8 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
-import { matrixRequest, redactEvent } from './support/matrix';
-
-const ROOM_ID = '!pFxmCvJLPLEicHDuJi:stablecat.club';
-const ROOM_PATH = '%23test%3Astablecat.club/!pFxmCvJLPLEicHDuJi%3Astablecat.club';
+import { matrixRequest } from './support/matrix';
+import { createRoom, leaveRooms, sendMessage } from './support/rooms';
 const INDEX_TYPE = 'org.matrix.msc4438.bookmarks.index';
 const ITEM_PREFIX = 'org.matrix.msc4438.bookmark.';
 
@@ -42,23 +40,12 @@ const isAccountDataPut = (url: string, type: string) =>
   decodeURIComponent(url).endsWith(`/account_data/${type}`);
 
 test('bookmarks a message privately and lists it in the room header', async ({ page }) => {
+  const roomId = await createRoom(page, { name: `bookmarks e2e ${Date.now()}` });
   let eventId: string | undefined;
 
   try {
-    await page.goto(`/${ROOM_PATH}`);
-    const editor = page.locator('[data-editable-name="RoomInput"]');
-    await expect(editor).toBeVisible();
-
     const marker = `bookmark e2e ${Date.now()}`;
-    await editor.fill(marker);
-    await editor.press('Enter');
-
-    const message = page
-      .getByText(marker, { exact: true })
-      .locator('xpath=ancestor::*[@data-message-id][1]');
-    await expect.poll(() => message.getAttribute('data-message-id')).toMatch(/^\$/);
-    eventId = (await message.getAttribute('data-message-id')) ?? undefined;
-    if (!eventId) throw new Error('Missing sent event ID');
+    eventId = await sendMessage(page, marker);
 
     // bookmark from the context menu
     await page.getByText(marker, { exact: true }).click({ button: 'right' });
@@ -71,7 +58,7 @@ test('bookmarks a message privately and lists it in the room header', async ({ p
     const [bookmarkId] = await bookmarkIdsOf(page, eventId);
     expect(bookmarkId).toBeTruthy();
     expect(await readItem(page, bookmarkId)).toMatchObject({
-      room_id: ROOM_ID,
+      room_id: roomId,
       event_id: eventId,
       body_preview: marker,
     });
@@ -108,7 +95,7 @@ test('bookmarks a message privately and lists it in the room header', async ({ p
           },
         });
       }
-      await redactEvent(page, ROOM_ID, eventId);
     }
+    await leaveRooms(page, [roomId]);
   }
 });

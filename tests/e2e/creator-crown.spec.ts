@@ -1,10 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { matrixRequest } from './support/matrix';
-
-// room version 12, so it has creators
-const V12_ROOM_ID = '!SSZyjqjwolfGYGY6z-4HW4bmdhIW6vnZSN1qgLzxlH0';
-// pre-12, so nobody is a creator
-const LEGACY_ROOM_PATH = '%23test%3Astablecat.club/!pFxmCvJLPLEicHDuJi%3Astablecat.club';
+import { createRoom, leaveRooms } from './support/rooms';
 
 type StateEvent = { type: string; sender: string; content: Record<string, unknown> };
 
@@ -30,19 +26,26 @@ const crownedUserIds = (page: Page) =>
     .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-user-id') ?? '').sort());
 
 test('crowns the room creators in the member list', async ({ page }) => {
-  await page.goto(`/home/${V12_ROOM_ID}`);
-  await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
-
-  const expected = await joinedCreators(page, V12_ROOM_ID);
-  expect(expected.length).toBeGreaterThan(0);
-  await expect.poll(() => crownedUserIds(page)).toEqual(expected);
+  // room version 12, so it has creators
+  const roomId = await createRoom(page, { name: `crown e2e ${Date.now()}`, version: '12' });
+  try {
+    const expected = await joinedCreators(page, roomId);
+    expect(expected.length).toBeGreaterThan(0);
+    await expect.poll(() => crownedUserIds(page)).toEqual(expected);
+  } finally {
+    await leaveRooms(page, [roomId]);
+  }
 });
 
 test('crowns nobody in a room without creators', async ({ page }) => {
-  await page.goto(`/${LEGACY_ROOM_PATH}`);
-  await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
-  const ownUserId = await page.evaluate(() => localStorage.getItem('cinny_user_id'));
-  await expect(page.locator(`button[data-user-id="${ownUserId}"]`).first()).toBeVisible();
+  // pre-12, so nobody is a creator
+  const roomId = await createRoom(page, { name: `no crown e2e ${Date.now()}`, version: '11' });
+  try {
+    const ownUserId = await page.evaluate(() => localStorage.getItem('cinny_user_id'));
+    await expect(page.locator(`button[data-user-id="${ownUserId}"]`).first()).toBeVisible();
 
-  await expect(page.getByLabel('Founder', { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel('Founder', { exact: true })).toHaveCount(0);
+  } finally {
+    await leaveRooms(page, [roomId]);
+  }
 });

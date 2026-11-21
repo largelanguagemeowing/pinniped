@@ -1,16 +1,12 @@
 import { devices, expect, test } from '@playwright/test';
-import { redactEvent } from './support/matrix';
-
-const ROOM_ID = '!SSZyjqjwolfGYGY6z-4HW4bmdhIW6vnZSN1qgLzxlH0';
+import { createRoom, leaveRooms } from './support/rooms';
 
 test.use({ ...devices['Pixel 5'] });
 
 test('keeps the mobile composer focused while sending', async ({ page }) => {
-  let eventId: string | undefined;
+  const roomId = await createRoom(page, { name: `mobile composer e2e ${Date.now()}` });
 
   try {
-    await page.goto(`/home/${ROOM_ID}`);
-
     const editor = page.locator('[data-editable-name="RoomInput"]');
     await expect(editor).toBeVisible();
     await editor.click();
@@ -39,8 +35,7 @@ test('keeps the mobile composer focused while sending', async ({ page }) => {
 
     const sendResponse = await sendResponsePromise;
     expect(sendResponse.ok()).toBe(true);
-    eventId = ((await sendResponse.json()) as { event_id?: string }).event_id;
   } finally {
-    if (eventId) await redactEvent(page, ROOM_ID, eventId);
+    await leaveRooms(page, [roomId]);
   }
 });

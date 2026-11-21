@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { matrixRequest, redactEvent } from './support/matrix';
-
-const ROOM_ID = '!pFxmCvJLPLEicHDuJi:stablecat.club';
-const ROOM_PATH = '%23test%3Astablecat.club/!pFxmCvJLPLEicHDuJi%3Astablecat.club';
+import { matrixRequest, uploadMedia } from './support/matrix';
+import { createRoom, leaveRooms } from './support/rooms';
 const AUDIO_DURATION_SECONDS = 4;
 
 const createSilentWav = (): number[] => {
@@ -28,37 +26,20 @@ const createSilentWav = (): number[] => {
 };
 
 test('audio timeline supports pointer and keyboard seeking', async ({ page }) => {
-  let eventId: string | undefined;
+  const roomId = await createRoom(page, { name: `audio e2e ${Date.now()}` });
 
   try {
-    await page.goto(`/${ROOM_PATH}`);
-
+    // an audio message with a known duration, as another client would send it
     const audioBytes = createSilentWav();
-    const contentUri = await page.evaluate(async (bytes) => {
-      const homeserver = localStorage.getItem('cinny_hs_base_url');
-      const accessToken = localStorage.getItem('cinny_access_token');
-      if (!homeserver || !accessToken) throw new Error('Missing authenticated Matrix session');
-
-      const response = await fetch(
-        `${homeserver}/_matrix/media/v3/upload?filename=scrub-test.wav`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'audio/wav',
-          },
-          body: new Uint8Array(bytes),
-        }
-      );
-      if (!response.ok) throw new Error(`Audio upload failed: ${response.status}`);
-      const result = (await response.json()) as { content_uri?: string };
-      if (!result.content_uri) throw new Error('Audio upload returned no content URI');
-      return result.content_uri;
-    }, audioBytes);
+    const contentUri = await uploadMedia(page, {
+      bytes: audioBytes,
+      contentType: 'audio/wav',
+      filename: 'scrub-test.wav',
+    });
 
     const result = await matrixRequest<{ event_id: string }>(page, {
       method: 'PUT',
-      path: `/rooms/${encodeURIComponent(ROOM_ID)}/send/m.room.message/${Date.now()}`,
+      path: `/rooms/${encodeURIComponent(roomId)}/send/m.room.message/${Date.now()}`,
       body: {
         msgtype: 'm.audio',
         body: 'Audio scrubber test',
@@ -70,7 +51,7 @@ test('audio timeline supports pointer and keyboard seeking', async ({ page }) =>
         },
       },
     });
-    eventId = result?.event_id;
+    const eventId = result?.event_id;
     if (!eventId) throw new Error('Missing sent event ID');
 
     const message = page.locator(`[data-message-id="${eventId}"]`);
@@ -119,16 +100,20 @@ test('audio timeline supports pointer and keyboard seeking', async ({ page }) =>
     await expect
       .poll(async () => Number(await seekSlider.getAttribute('aria-valuenow')))
       .toBeGreaterThan(2);
-    await expect.poll(() => audio.evaluate((element) => element.currentTime)).toBeGreaterThan(2);
+    await expect
+      .poll(() => audio.evaluate((element: HTMLMediaElement) => element.currentTime))
+      .toBeGreaterThan(2);
     await page.mouse.up();
 
     await seekSlider.focus();
-    const beforeKeyboardSeek = await audio.evaluate((element) => element.currentTime);
+    const beforeKeyboardSeek = await audio.evaluate(
+      (element: HTMLMediaElement) => element.currentTime
+    );
     await seekSlider.press('ArrowLeft');
     await expect
-      .poll(() => audio.evaluate((element) => element.currentTime))
+      .poll(() => audio.evaluate((element: HTMLMediaElement) => element.currentTime))
       .toBeLessThan(beforeKeyboardSeek);
   } finally {
-    if (eventId) await redactEvent(page, ROOM_ID, eventId);
+    await leaveRooms(page, [roomId]);
   }
 });

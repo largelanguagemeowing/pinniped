@@ -200,6 +200,19 @@ Fork changes on top of upstream Element Call:
   and `SpotlightTile`); those tests were removed rather than kept failing. Upstream `v0.20.1` still
   has them if you want to port one.
 
+## End-to-end tests
+
+The Playwright suite (`tests/e2e/`, see its README) runs in CI (`.github/workflows/e2e.yml`) against a
+throwaway homeserver on the runner: `tests/e2e/stack/stack.mjs` starts Synapse, LiveKit and
+lk-jwt-service (as an application service, wired like
+[matrix-installer](https://github.com/largelanguagemeowing/matrix-installer)) on the host network,
+serves `dist/` through `docker-nginx.conf`, and registers three accounts. Locally:
+`npm run build && npm run e2e:stack:up && npm run test:e2e:stack`. Tests drive the UI the way a person
+would (rooms are created, invites sent and calls joined through Pinniped itself); the API is for
+cleanup and for content the UI cannot produce. `call.spec.ts` signs two people in, meets them in a new
+encrypted voice room and checks each hears the other (Chromium's fake microphone). Tests that need
+rooms only the deployment has are tagged `@deployment` and skipped on the stack.
+
 ## Build and deployment
 
 Pinniped ships as a container image to a Kubernetes cluster. The app is a static Vite SPA served by nginx (see `Dockerfile`: `node:24.22.2-alpine` builds, `nginx-unprivileged:1.31.7-alpine` serves). Build and deploy from `fork/dev`, after committing and pushing.

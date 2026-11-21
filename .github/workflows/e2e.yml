@@ -1,0 +1,52 @@
+# Fork-only: the Playwright suite against a throwaway homeserver on the runner (tests/e2e/stack):
+# Synapse, LiveKit and lk-jwt-service, with the built app behind the production nginx config.
+name: e2e
+on:
+  push:
+    branches: [fork/dev]
+  pull_request:
+    paths:
+      - src/**
+      - public/**
+      - tests/e2e/**
+      - patches/**
+      - package.json
+      - package-lock.json
+      - playwright.config.ts
+      - vite.config.js
+      - docker-nginx.conf
+      - .github/workflows/e2e.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright against a local homeserver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run build
+      - run: npm run e2e:stack:up
+      - run: npm run test:e2e:stack
+      - name: Stack logs
+        if: failure()
+        run: node tests/e2e/stack/stack.mjs logs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

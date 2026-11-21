@@ -41,7 +41,8 @@ async function dragSecondRoomFirst(page: Page, expectedFirst: string, attempts =
   }
 }
 
-test.describe('Space sidebar room reordering', () => {
+// @deployment: needs the federated #space:unredacted.org, so the local stack skips it
+test.describe('Space sidebar room reordering', { tag: '@deployment' }, () => {
   test('drag reorders rooms and persists across reload', async ({ page }) => {
     await goToSpace(page);
 

@@ -64,3 +64,28 @@ export async function redactEvent(page: Page, roomId: string, eventId: string): 
     { targetRoomId: roomId, targetEventId: eventId }
   );
 }
+
+/** Uploads a file to the homeserver's media repository and returns its mxc:// URI. */
+export async function uploadMedia(
+  page: Page,
+  file: { bytes: number[]; contentType: string; filename: string }
+): Promise<string> {
+  return page.evaluate(async ({ bytes, contentType, filename }) => {
+    const homeserver = localStorage.getItem('cinny_hs_base_url');
+    const accessToken = localStorage.getItem('cinny_access_token');
+    if (!homeserver || !accessToken) throw new Error('Missing authenticated Matrix session');
+
+    const response = await fetch(
+      `${homeserver}/_matrix/media/v3/upload?filename=${encodeURIComponent(filename)}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': contentType },
+        body: new Uint8Array(bytes),
+      }
+    );
+    if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+    const result = (await response.json()) as { content_uri?: string };
+    if (!result.content_uri) throw new Error('Upload returned no content URI');
+    return result.content_uri;
+  }, file);
+}

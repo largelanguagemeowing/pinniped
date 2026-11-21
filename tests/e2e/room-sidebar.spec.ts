@@ -1,8 +1,19 @@
 import { expect, test } from '@playwright/test';
+import { createRoom, leaveRooms } from './support/rooms';
+
+let roomId: string;
+let roomName: string;
+test.beforeEach(async ({ page }) => {
+  roomName = `sidebar e2e ${Date.now()}`;
+  roomId = await createRoom(page, { name: roomName });
+});
+test.afterEach(async ({ page }) => {
+  await leaveRooms(page, [roomId]);
+});
 
 test('room actions remain accessible without changing the row height', async ({ page }) => {
   await page.goto('/rooms/');
-  const link = page.locator('a[href*="/rooms/!"], a[href*="/rooms/%21"]').first();
+  const link = page.getByRole('link', { name: roomName });
   await expect(link).toBeVisible();
   const row = link.locator('..');
   const initialBounds = await row.boundingBox();
@@ -26,7 +37,7 @@ test('room actions remain accessible without changing the row height', async ({ 
 
 test('collapsing a room category keeps the selected room reachable', async ({ page }) => {
   await page.goto('/rooms/');
-  const link = page.locator('a[href*="/rooms/!"], a[href*="/rooms/%21"]').first();
+  const link = page.getByRole('link', { name: roomName });
   await expect(link).toBeVisible();
   const href = await link.getAttribute('href');
   await link.click();
