@@ -25,6 +25,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use super::{debug, debug_once};
+use crate::backlog::Backlog;
 use base64::Engine;
 use wasapi::{
     initialize_mta, AudioClient, DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat,
@@ -50,6 +51,8 @@ const MAX_CHUNK_FRAMES: usize = RATE / 5;
 const RETRY: Duration = Duration::from_secs(2);
 /// The most one source may hold, in samples (two channels, one second), if the mixer stalls.
 const MAX_BUFFERED: usize = RATE * 2;
+/// How far behind the mix a source may fall before its oldest audio is dropped.
+const BACKLOG: Backlog = Backlog::at(RATE);
 
 /// One running capture of a process tree.
 struct Source {
@@ -278,11 +281,25 @@ fn manage(
             emitted = due;
         }
         let mut mix: Vec<f32> = vec![0.0; frames * 2];
-        for r in running.values() {
+        for (pid, r) in &running {
             let mut samples = r.source.samples.lock().unwrap();
             let take = samples.len().min(mix.len());
             for (m, s) in mix.iter_mut().zip(samples.drain(..take)) {
                 *m += s;
+            }
+            // What is left goes out late, and nothing else brings it down (see backlog.rs).
+            let held = samples.len() / 2;
+            let dropped = BACKLOG.trim(&mut samples, 2);
+            drop(samples);
+            if dropped > 0 {
+                stats.trimmed(dropped);
+                debug(|| {
+                    format!(
+                        "process {pid} was {} ms behind after the mix; dropped its oldest {} ms",
+                        held * 1000 / RATE,
+                        dropped * 1000 / RATE
+                    )
+                });
             }
         }
         // Nothing to send while everything is silent: the far end plays silence on a gap.
@@ -609,6 +626,9 @@ struct MixStats {
     silent: u32,
     frames: usize,
     longest_gap: Duration,
+    /// Sources trimmed for falling behind, and how many frames that dropped.
+    trims: u32,
+    trimmed: usize,
 }
 
 impl MixStats {
@@ -620,11 +640,18 @@ impl MixStats {
             silent: 0,
             frames: 0,
             longest_gap: Duration::ZERO,
+            trims: 0,
+            trimmed: 0,
         }
     }
 
     fn silent(&mut self) {
         self.silent += 1;
+    }
+
+    fn trimmed(&mut self, frames: usize) {
+        self.trims += 1;
+        self.trimmed += frames;
     }
 
     fn sent(&mut self, frames: usize) {
@@ -644,11 +671,13 @@ impl MixStats {
         let secs = self.since.elapsed().as_secs_f64();
         debug(|| {
             format!(
-                "mix: {sources} source(s), {} chunks ({:.1} s of audio in {secs:.1} s), {} silent ticks, longest gap {} ms",
+                "mix: {sources} source(s), {} chunks ({:.1} s of audio in {secs:.1} s), {} silent ticks, longest gap {} ms, {} backlog trims ({} ms dropped)",
                 self.chunks,
                 self.frames as f64 / RATE as f64,
                 self.silent,
-                self.longest_gap.as_millis()
+                self.longest_gap.as_millis(),
+                self.trims,
+                self.trimmed * 1000 / RATE
             )
         });
         *self = Self::new();

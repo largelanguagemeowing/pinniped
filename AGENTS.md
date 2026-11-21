@@ -198,7 +198,10 @@ Fork changes on top of upstream Element Call:
   Windows 10 2004+) per remaining process tree, rescans every 200 ms on a thread of its own (the
   scan takes tens of ms, and in the mixing loop it stalled the audio once per rescan), mixes them
   to 48 kHz stereo and emits exactly the time that has passed as 20 ms 16-bit PCM chunks, paced by
-  a clock, as `audio` events (base64 in the JSON-lines protocol). Programs on the
+  a clock, as `audio` events (base64 in the JSON-lines protocol). A source whose backlog grows past
+  100 ms (after a mixer stall, or a device clock running fast) drops its oldest audio down to
+  40 ms with a 5 ms crossfade (`src/backlog.rs`), so each application stays within about 100 ms of
+  real time; the Helper Console logs each trim. Programs on the
   `callScreenShareAudioExcluded` list (Settings → Developer Tools; `Discord.exe` and
   `Pinniped.exe` by default) are never shared. The Helper Console switch there (`helperConsole`,
   or `PINNIPED_HELPER_CONSOLE=1`) starts the helper with `PINNIPED_HELPER_DEBUG=1`: its own console
