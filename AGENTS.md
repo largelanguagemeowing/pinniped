@@ -120,6 +120,11 @@ Fork changes on top of upstream Element Call:
 - **Call stats**: `Call` samples each SFU connection's `RTCPeerConnection` stats once a second
   (`engine/livekit/callStats.ts`) and keeps five minutes in `call.stats$`; clicking "Voice
   Connected" opens the ping popout and its Debug view (`src/app/features/call-status/stats/`).
+  The Debug view's graphs and the call report's rows come from `stats/metrics.ts`. Playout is
+  measured per sampling interval, not over the stream's lifetime: jitter buffer delay, and the
+  share of audio concealed (audible: made up for dropouts; silent: nothing arriving, as while the
+  sender is muted), slowed down or sped up. Lifetime totals count the time a sender was muted
+  as concealment.
 - **Participant activity** (speaking, muted, deafened, sharing a screen):
   `CallViewModel.participantActivity$` (`state/CallViewModel/participantActivity.ts`) gives Matrix
   user IDs and does not depend on which tiles are mounted; `useCallParticipantActivity` reads it.

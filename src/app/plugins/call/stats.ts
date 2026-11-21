@@ -37,6 +37,29 @@ export const rateSeries = (
   });
 };
 
+/**
+ * How much one cumulative counter grew per unit another grew, over each interval, scaled
+ * (`scale` 1000 for seconds -> ms). An interval where `per` did not grow, or a counter went
+ * back (a restarted stream), has no point.
+ */
+export const ratioSeries = (
+  samples: CallStatsSample[],
+  of: (s: CallStatsSample) => number | undefined,
+  per: (s: CallStatsSample) => number | undefined,
+  scale = 1
+): StatPoint[] => {
+  const counters = samples.flatMap((s) => {
+    const a = of(s);
+    const b = per(s);
+    return a === undefined || b === undefined ? [] : [{ time: s.time, of: a, per: b }];
+  });
+  return counters.slice(1).flatMap((c, i) => {
+    const grew = c.of - counters[i].of;
+    const base = c.per - counters[i].per;
+    return base > 0 && grew >= 0 ? [{ time: c.time, value: (grew * scale) / base }] : [];
+  });
+};
+
 export const findStream = (
   connection: CallStatsConnection | undefined,
   direction: 'outbound' | 'inbound',

@@ -11,7 +11,7 @@ import {
   outboundRows,
   Row,
   seriesFor,
-} from './StreamStats';
+} from './metrics';
 import { streamTitle } from './streams';
 
 type ReportContext = {
@@ -116,7 +116,9 @@ const streamSection = (
   const specs: ChartSpec[] = direction === 'outbound' ? OUTBOUND_CHARTS : INBOUND_CHARTS;
   const metrics = specs.flatMap((spec) => {
     const points = seriesFor(ctx.samples, idx, direction, stream.ssrc, spec);
-    return points.length > 0 ? [summary(spec.title, points, spec.format, spec.total)] : [];
+    return points.length > 0
+      ? [summary(spec.title, points, spec.format, spec.kind === 'total')]
+      : [];
   });
   return [
     `### ${streamTitle(stream, ctx.who)} (${direction}, ${stream.kind})`,
