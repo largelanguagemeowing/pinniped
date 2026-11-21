@@ -42,6 +42,7 @@ import { CutoutCard } from '../cutout-card';
 import { SettingTile } from '../setting-tile';
 import { Membership } from '../../../types/matrix/room';
 import { useRoom } from '../../hooks/useRoom';
+import { inviteUser } from '../../utils/matrix';
 
 type MutualRoomsData = {
   rooms: Room[];
@@ -302,7 +303,7 @@ export function OptionsChip({
     useCallback(
       async (action) => {
         const moderationReason = reason.trim() || undefined;
-        if (action === 'invite') await mx.invite(room.roomId, userId, moderationReason);
+        if (action === 'invite') await inviteUser(mx, room.roomId, userId, moderationReason);
         if (action === 'kick') await mx.kick(room.roomId, userId, moderationReason);
         if (action === 'ban') await mx.ban(room.roomId, userId, moderationReason);
         if (action === 'unban') await mx.unban(room.roomId, userId);

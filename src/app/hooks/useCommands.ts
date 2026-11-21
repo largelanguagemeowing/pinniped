@@ -15,6 +15,7 @@ import {
   addRoomIdToMDirect,
   getDMRoomFor,
   guessDmRoomUserId,
+  inviteUser,
   isRoomAlias,
   isRoomId,
   isServerName,
@@ -259,7 +260,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const users = parseUsers(content);
           const flagToContent = parseFlags(flags);
           const reason = flagToContent.r;
-          users.map((id) => mx.invite(room.roomId, id, reason));
+          users.map((id) => inviteUser(mx, room.roomId, id, reason));
         },
       },
       [Command.DisInvite]: {

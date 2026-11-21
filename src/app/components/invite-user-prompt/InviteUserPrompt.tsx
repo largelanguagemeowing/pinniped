@@ -34,7 +34,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '../../utils/keyboard';
 import { useDirectUsers } from '../../hooks/useDirectUsers';
-import { getMxIdLocalPart, getMxIdServer, isUserId } from '../../utils/matrix';
+import { getMxIdLocalPart, getMxIdServer, inviteUser, isUserId } from '../../utils/matrix';
 import { Membership } from '../../../types/matrix/room';
 import { useAsyncSearch, UseAsyncSearchOptions } from '../../hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '../../plugins/react-custom-html-parser';
@@ -83,7 +83,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
   const [inviteState, invite] = useAsyncCallback<void, Error, [string, string | undefined]>(
     useCallback(
       async (userId, reason) => {
-        await mx.invite(room.roomId, userId, reason);
+        await inviteUser(mx, room.roomId, userId, reason);
       },
       [mx, room]
     )
