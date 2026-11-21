@@ -250,13 +250,21 @@ Pinniped ships as a container image to a Kubernetes cluster. The app is a static
 ### Target
 
 - Registry: `repo.k8s.mreow.de` (Harbor)
-- Image: `repo.k8s.mreow.de/githubshit/cinny`
+- Image: `repo.k8s.mreow.de/githubshit/cinny`, tagged `sha-<commit>`, deployed by digest
 - Namespace: `githubshit`
 - Deployment: `cinny` (manifest in `k8s.yaml`)
 - Cluster: DUS, kubectl context `admin@alessandro-talos`
 - URL: `https://cinny.k8s.mreow.de/`
 
-The deployment uses `imagePullPolicy: Always` with the `:latest` tag, so a rollout restart pulls whatever `:latest` currently points to in the registry.
+`k8s.yaml` names the image by digest (`imagePullPolicy: IfNotPresent`), so every pod runs the same
+build, a rescheduled one too, and the file records what is deployed: a deploy writes the new
+digest into it, applies it and commits it. A manifest change ships the same way. To roll back,
+apply an earlier digest, e.g. by reverting a deploy commit. `:latest` is no longer pushed; in the
+registry it is still the last nginx build.
+
+The two pods are replaced one at a time and keep serving for 5 s into termination, so a deploy
+drops no requests. Their NetworkPolicy admits only Envoy Gateway (`envoy-gateway-system`) and
+lets nothing out; anything else that needs to reach the Service has to be added there.
 
 ### Base images
 
@@ -296,56 +304,68 @@ and always pass `--platform linux/amd64`. Docker Desktop and podman machine work
 
 ```bash
 SHA=$(git rev-parse --short HEAD)
+IMAGE=repo.k8s.mreow.de/githubshit/cinny
 docker --context orbstack build --platform linux/amd64 \
-  --build-arg APP_COMMIT=$SHA \
-  -t repo.k8s.mreow.de/githubshit/cinny:latest \
-  -t repo.k8s.mreow.de/githubshit/cinny:sha-$SHA \
-  -f Containerfile .
-docker --context orbstack push repo.k8s.mreow.de/githubshit/cinny:sha-$SHA
-docker --context orbstack push repo.k8s.mreow.de/githubshit/cinny:latest
+  --build-arg APP_COMMIT=$SHA -t "${IMAGE}:sha-${SHA}" -f Containerfile .
+docker --context orbstack push "${IMAGE}:sha-${SHA}"
+# $IMAGE@<the digest the registry stored>, recorded by the push
+REF=$(docker --context orbstack inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:sha-${SHA}")
 ```
 
-Then roll out and verify as below. When verifying against the pushed image, add
-`--platform linux/amd64` to `docker create`.
+Then continue with step 3 below (BSD `sed` needs `sed -i ''`) and verify. When verifying
+against the pushed image, add `--platform linux/amd64` to `docker create`.
 
 ### Deploy steps
 
 ```bash
 SHA=$(git rev-parse --short HEAD)
+# Write it as ${IMAGE}:sha-…: zsh reads $IMAGE:s as a substitution modifier.
+IMAGE=repo.k8s.mreow.de/githubshit/cinny
 
-# 1. Build. Use --format docker; tag latest plus a sha tag for traceability.
+# 1. Build. Use --format docker; the tag names the commit the image is built from.
 #    APP_COMMIT is shown in the app version and the Matrix device name (.git is not in the image).
-podman build --format docker \
-  --build-arg APP_COMMIT=$SHA \
-  -t repo.k8s.mreow.de/githubshit/cinny:latest \
-  -t repo.k8s.mreow.de/githubshit/cinny:sha-$SHA \
-  -f Containerfile .
+podman build --format docker --build-arg APP_COMMIT=$SHA -t "${IMAGE}:sha-${SHA}" -f Containerfile .
 
-# 2. Push both tags. The saved login in ~/.config/containers/auth.json has
-#    push rights to githubshit/cinny.
-podman push repo.k8s.mreow.de/githubshit/cinny:sha-$SHA
-podman push repo.k8s.mreow.de/githubshit/cinny:latest
+# 2. Push, keeping the digest the registry stored. The saved login in
+#    ~/.config/containers/auth.json has push rights to githubshit/cinny.
+digestfile=$(mktemp)
+podman push --digestfile "$digestfile" "${IMAGE}:sha-${SHA}"
+REF=${IMAGE}@$(cat "$digestfile")
 
-# 3. Roll out on DUS so k8s pulls the new :latest.
-kubectl --context admin@alessandro-talos -n githubshit rollout restart deployment/cinny
+# 3. Pin it and apply it on DUS. The diff shows the new image and any manifest change.
+sed -i -E "s|image: $IMAGE@sha256:[0-9a-f]{64}|image: $REF|" k8s.yaml
+kubectl --context admin@alessandro-talos diff -f k8s.yaml
+kubectl --context admin@alessandro-talos apply -f k8s.yaml
 kubectl --context admin@alessandro-talos -n githubshit rollout status deployment/cinny --timeout=240s
+
+# 4. Record what runs.
+git commit -m "Deploy sha-$SHA" k8s.yaml && git push
 ```
 
 ### Verifying a deploy
 
-Do not compare the local podman image digest to the cluster's `imageID`. They legitimately differ (local config digest vs registry manifest digest, and `--format docker` vs OCI). Verify by the **served bundle hash** instead:
+Every pod's `imageID` is `$REF`:
 
 ```bash
-# What the live site serves
+kubectl --context admin@alessandro-talos -n githubshit get pods -l app=cinny \
+  -o jsonpath='{range .items[*]}{.status.containerStatuses[0].imageID}{"\n"}{end}'
+```
+
+Compare it with the digest from the push, never with the local image ID: that is the image's config
+digest, while the registry and the cluster name the manifest's.
+
+The live site serves the image's bundle:
+
+```bash
 curl -sS https://cinny.k8s.mreow.de/ | grep -oE 'assets/index-[^"]+\.js' | head -1
 
-# What the pushed image serves (should match the live site). It has no shell: copy the file out.
-ctr=$(podman create repo.k8s.mreow.de/githubshit/cinny:latest)
+# the image has no shell: copy the file out
+ctr=$(podman create "$REF")
 podman cp "$ctr:/srv/index.html" - | tar -xO | grep -oE 'assets/index-[^"]+\.js' | head -1
 podman rm "$ctr"
 ```
 
-A successful deploy: the live hash changed from the previous deploy, and live == pushed image. The build runs inside the container (no local `dist/` is produced), and a local `npm run build` yields a different hash than the container build (different Node version), so do not use a local build to verify the deployed bundle. Compare against the pushed image's `index.html`.
+A successful deploy: both pods run `$REF`, the live hash changed from the previous deploy, and live == pushed image. The build runs inside the container (no local `dist/` is produced), and a local `npm run build` yields a different hash than the container build (different Node version), so do not use a local build to verify the deployed bundle. Compare against the pushed image's `index.html`.
 
 ## Desktop builds
 

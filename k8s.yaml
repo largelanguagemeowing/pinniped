@@ -44,8 +44,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: cinny
-          image: repo.k8s.mreow.de/githubshit/cinny:latest
-          imagePullPolicy: Always
+          # Pinned by digest, so every pod runs the same build; deploys rewrite it (AGENTS.md).
+          image: repo.k8s.mreow.de/githubshit/cinny@sha256:2cdc7bb6d68b2acfb433464313114d5482595d5bae79f695899d87e2ce4c8fdc
+          imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
