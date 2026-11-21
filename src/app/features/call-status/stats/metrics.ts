@@ -1,6 +1,10 @@
 import type { CallStatsSample } from '../../../plugins/call/Call';
-import type { CallStatsStream } from '../../../plugins/call/engine/livekit/callStats';
+import type {
+  CallStatsStream,
+  QualityLimitationReason,
+} from '../../../plugins/call/engine/livekit/callStats';
 import {
+  deltaSeries,
   findStream,
   formatBitrate,
   formatBytes,
@@ -23,11 +27,15 @@ export type ChartSpec = {
   | { kind: 'total'; pick: Pick }
   // A cumulative counter per second, scaled.
   | { kind: 'rate'; pick: Pick; scale: number }
+  // How much a cumulative counter grew over each interval.
+  | { kind: 'delta'; pick: Pick }
   // How much one cumulative counter grew per unit another grew over each interval, scaled.
   | { kind: 'ratio'; of: Pick; per: Pick; scale: number }
 );
 
 const count = (v: number) => `${Math.round(v)}`;
+/** Events in an interval: whole numbers, except in an average. */
+const events = (v: number) => `${+v.toFixed(2)}`;
 const fps = (v: number) => `${Math.round(v)}`;
 const ms = (v: number) => `${v.toFixed(1)} ms`;
 const percent = (v: number) => `${v.toFixed(2)}%`;
@@ -51,6 +59,16 @@ const audibleConcealed: Pick = (s) => {
 /** Every sample played out, concealed and stretched ones included. */
 const played = field('totalSamplesReceived');
 
+const limitedBy =
+  (reason: QualityLimitationReason): Pick =>
+  (s) =>
+    s.qualityLimitationDurations?.[reason];
+/** The time the encoder ran, limited or not. */
+const encoderTime: Pick = (s) => {
+  const d = s.qualityLimitationDurations;
+  return d && d.none + d.cpu + d.bandwidth + d.other;
+};
+
 export const OUTBOUND_CHARTS: ChartSpec[] = [
   { title: 'Bitrate', kind: 'rate', pick: field('bytesSent'), scale: 8, format: formatBitrate },
   { title: 'Bitrate (Target)', kind: 'value', pick: field('targetBitrate'), format: formatBitrate },
@@ -65,6 +83,29 @@ export const OUTBOUND_CHARTS: ChartSpec[] = [
   { title: 'Key Frames Encoded', kind: 'total', pick: field('keyFramesEncoded'), format: count },
   { title: 'Packets Sent', kind: 'total', pick: field('packetsSent'), format: count },
   { title: 'QP Sum', kind: 'total', pick: field('qpSum'), format: count },
+  // Shares of the encoder's time it lowered the resolution or frame rate for want of CPU or bandwidth.
+  {
+    title: 'Quality Limited (Bandwidth)',
+    kind: 'ratio',
+    of: limitedBy('bandwidth'),
+    per: encoderTime,
+    scale: 100,
+    format: percent,
+  },
+  {
+    title: 'Quality Limited (CPU)',
+    kind: 'ratio',
+    of: limitedBy('cpu'),
+    per: encoderTime,
+    scale: 100,
+    format: percent,
+  },
+  {
+    title: 'Resolution Changes (Limited)',
+    kind: 'delta',
+    pick: field('qualityLimitationResolutionChanges'),
+    format: events,
+  },
   {
     title: 'Packets Lost (Remote)',
     kind: 'total',
@@ -99,6 +140,17 @@ export const INBOUND_CHARTS: ChartSpec[] = [
   },
   { title: 'Frame Rate', kind: 'value', pick: field('framesPerSecond'), format: fps },
   { title: 'Frames Decoded', kind: 'total', pick: field('framesDecoded'), format: count },
+  { title: 'Freezes', kind: 'delta', pick: field('freezeCount'), format: events },
+  // Share of the video played that was frozen. The browser adds a freeze, and the gap between
+  // frames it was, when the frame that ends it arrives: a long freeze shows in the interval it ends.
+  {
+    title: 'Frozen',
+    kind: 'ratio',
+    of: field('totalFreezesDuration'),
+    per: field('totalInterFrameDelay'),
+    scale: 100,
+    format: percent,
+  },
   // Shares of the audio played: made up for audio that was missing (heard as dropouts), silence
   // while nothing arrives (a muted sender), and stretched to shrink or grow the jitter buffer.
   {
@@ -149,6 +201,8 @@ export const seriesFor = (
   switch (spec.kind) {
     case 'rate':
       return rateSeries(samples, at(spec.pick), spec.scale);
+    case 'delta':
+      return deltaSeries(samples, at(spec.pick));
     case 'ratio':
       return ratioSeries(samples, at(spec.of), at(spec.per), spec.scale);
     case 'value':
@@ -178,8 +232,17 @@ const stereo = (s: CallStatsStream): string | undefined => {
   return s.sdpFmtpLine?.includes('stereo=1') ? 'Yes' : 'No';
 };
 
+/** A reason the browser added since is shown as it reports it. */
+const LIMITATION_LABELS = new Map<string, string>([
+  ['none', 'None'],
+  ['cpu', 'CPU'],
+  ['bandwidth', 'Bandwidth'],
+  ['other', 'Other'],
+]);
+
 export const outboundRows = (s: CallStatsStream): Row[] => {
   const frames = statNumber(s.stats, 'framesEncoded');
+  const reason = str(s.stats.qualityLimitationReason);
   const encodeTime = statNumber(s.stats, 'totalEncodeTime');
   const power = s.stats.powerEfficientEncoder;
   const powerLabel = power ? 'Yes' : 'No';
@@ -201,7 +264,11 @@ export const outboundRows = (s: CallStatsStream): Row[] => {
     ['PLI', str(s.stats.pliCount)],
     ['Power Efficient Encoder', power === undefined ? undefined : powerLabel],
     ['Resolution', resolution(s)],
-    ['Quality Limitation', str(s.stats.qualityLimitationReason)],
+    [
+      'Quality Limitation',
+      reason && (LIMITATION_LABELS.get(reason) ?? reason),
+      reason !== undefined && reason !== 'none',
+    ],
     [
       'Input Resolution',
       statNumber(s.source, 'width') ? `${s.source?.width}x${s.source?.height}` : undefined,

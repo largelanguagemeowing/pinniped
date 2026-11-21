@@ -14,6 +14,10 @@ import { type Room as LivekitRoom, Track, type TrackPublication } from 'livekit-
  */
 export type StatValue = number | string | boolean;
 
+export type QualityLimitationReason = 'none' | 'cpu' | 'bandwidth' | 'other';
+/** Seconds spent in each quality limitation state; cumulative. */
+export type QualityLimitationDurations = Record<QualityLimitationReason, number>;
+
 /**
  * One RTP stream's `outbound-rtp` / `inbound-rtp` entry as the browser reports
  * it (counters are cumulative), plus its codec's MIME type and, for outbound
@@ -29,6 +33,11 @@ export interface CallStatsStream {
    */
   sdpFmtpLine?: string;
   stats: Record<string, StatValue>;
+  /**
+   * The `qualityLimitationDurations` record of an outbound video stream, which `stats` cannot
+   * hold. Absent when the browser does not report a number for every reason.
+   */
+  qualityLimitationDurations?: QualityLimitationDurations;
   remote?: Record<string, StatValue>;
   /** The capture source feeding an outbound stream (its input frame rate, resolution). */
   source?: Record<string, StatValue>;
@@ -116,6 +125,17 @@ function labelTracks(room: LivekitRoom, userIds: Record<string, string>): Map<st
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
 
+const limitationDurations = (v: unknown): QualityLimitationDurations | undefined => {
+  if (typeof v !== 'object' || v === null) return undefined;
+  const { none, cpu, bandwidth, other } = v as Record<string, unknown>;
+  return typeof none === 'number' &&
+    typeof cpu === 'number' &&
+    typeof bandwidth === 'number' &&
+    typeof other === 'number'
+    ? { none, cpu, bandwidth, other }
+    : undefined;
+};
+
 function entries(report: RTCStatsReport | undefined): Stat[] {
   const out: Stat[] = [];
   report?.forEach((s: Stat) => out.push(s));
@@ -184,6 +204,7 @@ export async function sampleConnection(
       codec: codec?.mimeType as string | undefined,
       sdpFmtpLine: codec?.sdpFmtpLine as string | undefined,
       stats: plain(s)!,
+      qualityLimitationDurations: limitationDurations(s.qualityLimitationDurations),
       remote: plain(remoteInbound.get(s.ssrc as number)),
       source: plain(source),
       participant: label?.participant,

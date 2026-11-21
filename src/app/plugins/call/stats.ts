@@ -38,6 +38,21 @@ export const rateSeries = (
 };
 
 /**
+ * How much a cumulative counter grew over each interval. An interval where it went back (a
+ * restarted stream) has no point.
+ */
+export const deltaSeries = (
+  samples: CallStatsSample[],
+  pick: (s: CallStatsSample) => number | undefined
+): StatPoint[] => {
+  const points = valueSeries(samples, pick);
+  return points.slice(1).flatMap((p, i) => {
+    const grew = p.value - points[i].value;
+    return grew >= 0 ? [{ time: p.time, value: grew }] : [];
+  });
+};
+
+/**
  * How much one cumulative counter grew per unit another grew, over each interval, scaled
  * (`scale` 1000 for seconds -> ms). An interval where `per` did not grow, or a counter went
  * back (a restarted stream), has no point.

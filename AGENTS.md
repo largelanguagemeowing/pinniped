@@ -124,7 +124,13 @@ Fork changes on top of upstream Element Call:
   measured per sampling interval, not over the stream's lifetime: jitter buffer delay, and the
   share of audio concealed (audible: made up for dropouts; silent: nothing arriving, as while the
   sender is muted), slowed down or sped up. Lifetime totals count the time a sender was muted
-  as concealment.
+  as concealment. Video is measured the same way: for inbound video, freezes per interval and
+  the share of the video played that was frozen (`totalFreezesDuration` over
+  `totalInterFrameDelay`, because the browser adds a freeze only when the frame ending it
+  arrives); for our outbound video, the share of encoder time limited by CPU and by bandwidth,
+  and the resolution changes this caused (`qualityLimitationDurations`, the one record
+  `callStats.ts` keeps outside `stats`). An interval in which a counter goes back (a replaced
+  stream or encoder) has no point.
 - **Participant activity** (speaking, muted, deafened, sharing a screen):
   `CallViewModel.participantActivity$` (`state/CallViewModel/participantActivity.ts`) gives Matrix
   user IDs and does not depend on which tiles are mounted; `useCallParticipantActivity` reads it.
