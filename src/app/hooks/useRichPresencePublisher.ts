@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import { useMatrixClient } from './useMatrixClient';
 import { useSetting } from '../state/hooks/settings';
@@ -50,6 +50,11 @@ export const useRichPresencePublisher = () => {
   const mx = useMatrixClient();
   const [enabled] = useSetting(settingsAtom, 'publishRichPresence');
   const setStatus = useSetAtom(richPresenceBridgeStatusAtom);
+  // Invisible shows nothing an offline person would not: the activity is kept, unpublished.
+  const [chosenPresence] = useSetting(settingsAtom, 'chosenPresence');
+  const hidden = chosenPresence === 'offline';
+  const hiddenRef = useRef(hidden);
+  const flushRef = useRef<() => void>(undefined);
 
   useEffect(() => {
     if (!enabled) {
@@ -86,13 +91,14 @@ export const useRichPresencePublisher = () => {
 
     const tick = async () => {
       if (stopped || inFlight) return;
+      const target = hiddenRef.current ? null : pending;
       if (
-        sameActivityPayload(pending, lastWritten) &&
-        (!pending || Date.now() - lastWriteAt < REFRESH_INTERVAL)
+        sameActivityPayload(target, lastWritten) &&
+        (!target || Date.now() - lastWriteAt < REFRESH_INTERVAL)
       )
         return;
       // Capture the write so an activity update during the request isn't lost.
-      const writing = pending;
+      const writing = target;
       inFlight = true;
       log('write', describe(writing));
       try {
@@ -169,6 +175,9 @@ export const useRichPresencePublisher = () => {
     const interval = setInterval(() => {
       tick();
     }, MIN_WRITE_INTERVAL);
+    flushRef.current = () => {
+      tick();
+    };
 
     const init = async () => {
       const result = await start();
@@ -185,6 +194,7 @@ export const useRichPresencePublisher = () => {
 
     return () => {
       stopped = true;
+      flushRef.current = undefined;
       clearInterval(interval);
       unsubscribe?.();
       // Leave no stale presence behind when disabling or tearing down.
@@ -193,6 +203,11 @@ export const useRichPresencePublisher = () => {
       setStatus({ state: 'stopped' });
     };
   }, [mx, enabled, setStatus]);
+
+  useEffect(() => {
+    hiddenRef.current = hidden;
+    flushRef.current?.();
+  }, [hidden]);
 };
 
 /** Renders nothing; exists to host the publisher hook inside the client tree. */

@@ -28,6 +28,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(startTime);
   state.mx = Object.assign(new EventEmitter(), {
+    getUser: () => null,
     setExtendedProfileProperty: vi.fn().mockResolvedValue(undefined),
     deleteExtendedProfileProperty: vi.fn().mockResolvedValue(undefined),
     getExtendedProfile: vi.fn(),

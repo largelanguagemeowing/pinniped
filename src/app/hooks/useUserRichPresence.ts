@@ -10,6 +10,7 @@ import {
 import { useMatrixClient } from './useMatrixClient';
 import { userRichPresenceAtomFamily } from '../state/richPresence';
 import { requestProfile } from '../utils/profileRequests';
+import { Presence, useUserPresence } from './useUserPresence';
 
 const hasRichPresenceField = (profile: Record<string, unknown>): boolean =>
   Object.prototype.hasOwnProperty.call(profile, MSC4320_RPC) ||
@@ -174,6 +175,7 @@ const subscribe = (
 export const useUserRichPresence = (userId: string): RichPresence | undefined => {
   const mx = useMatrixClient();
   const [richPresence, setRichPresence] = useAtom(userRichPresenceAtomFamily(userId));
+  const presence = useUserPresence(userId);
 
   useEffect(() => {
     if (!userId) {
@@ -235,6 +237,12 @@ export const useUserRichPresence = (userId: string): RichPresence | undefined =>
     };
   }, [mx, userId, richPresence, setRichPresence]);
 
+  // Someone shown as offline shows no activity, so that invisible looks like offline: their
+  // publisher takes it down, but a profile is looked at again only every few minutes, while
+  // presence arrives at once. A server without presence (no last activity) hides nothing.
+  if (presence && presence.lastActiveTs !== 0 && presence.presence === Presence.Offline) {
+    return undefined;
+  }
   return richPresence?.expiresAt !== undefined && richPresence.expiresAt <= Date.now()
     ? undefined
     : richPresence;
