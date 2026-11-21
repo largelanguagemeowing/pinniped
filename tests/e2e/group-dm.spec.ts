@@ -15,13 +15,18 @@ async function signIn(browser: Browser, credentials: Credentials): Promise<Page>
   return page;
 }
 
-/** Accepts the pending invite, from someone this person shares no room with (listed as Public). */
-async function acceptInvite(page: Page, roomId: string): Promise<void> {
+/**
+ * Accepts the pending DM invite, from someone this person shares no room with (listed as
+ * Public), which opens the conversation with the direct messages.
+ */
+async function acceptDirectInvite(page: Page, roomId: string): Promise<void> {
   await page.goto('/inbox/invites/');
   await page.getByRole('button', { name: /^Public\b/ }).click();
   await page.getByRole('button', { name: 'Accept', exact: true }).click();
-  // once joined, it opens the room
-  await page.waitForURL((url) => decodeURIComponent(url.pathname).includes(roomId));
+  await page.waitForURL(
+    (url) => decodeURIComponent(url.pathname).replace(/\/$/, '') === `/home/${roomId}`
+  );
+  await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
 }
 
 async function invite(page: Page, userId: string): Promise<void> {
@@ -80,12 +85,12 @@ test('a direct message stays one for everyone after a third person is invited', 
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
     roomId = currentRoomId(page);
-    await acceptInvite(peer, roomId);
+    await acceptDirectInvite(peer, roomId);
     await test.step('a direct message for the peer', () => expectDirectMessage(peer, roomId));
 
     // grows into a group
     await invite(page, thirdId);
-    await acceptInvite(third, roomId);
+    await acceptDirectInvite(third, roomId);
 
     const path = `/rooms/${encodeURIComponent(roomId)}/joined_members`;
     await expect

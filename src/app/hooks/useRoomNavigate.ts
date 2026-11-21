@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { NavigateOptions, useNavigate } from 'react-router-dom';
-import { useAtomValue } from 'jotai';
+import { useAtomCallback } from 'jotai/utils';
 import { getCanonicalAliasOrRoomId } from '../utils/matrix';
 import {
   getHomeRoomPath,
@@ -19,8 +19,10 @@ import { useSetting } from '../state/hooks/settings';
 export const useRoomNavigate = () => {
   const navigate = useNavigate();
   const mx = useMatrixClient();
-  const roomToParents = useAtomValue(roomToParentsAtom);
-  const mDirects = useAtomValue(mDirectAtom);
+  // Read when navigating, not when rendered: callers navigate after awaiting a join or an
+  // m.direct update, which a render's snapshot predates (an accepted DM invite opened as a room).
+  const getRoomToParents = useAtomCallback(useCallback((get) => get(roomToParentsAtom), []));
+  const getMDirects = useAtomCallback(useCallback((get) => get(mDirectAtom), []));
   const spaceSelectedId = useRouteSelectedSpace();
   const [developerTools] = useSetting(settingsAtom, 'developerTools');
 
@@ -37,7 +39,9 @@ export const useRoomNavigate = () => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
 
-      const orphanParents = openSpaceTimeline ? [roomId] : getOrphanParents(roomToParents, roomId);
+      const orphanParents = openSpaceTimeline
+        ? [roomId]
+        : getOrphanParents(getRoomToParents(), roomId);
       if (orphanParents.length > 0) {
         let parentSpace: string;
         if (spaceSelectedId && orphanParents.includes(spaceSelectedId)) {
@@ -57,13 +61,13 @@ export const useRoomNavigate = () => {
 
       // Direct messages open in the Home view; other rooms without a parent
       // space open in the Rooms pseudo-space.
-      if (mDirects.has(roomId)) {
+      if (getMDirects().has(roomId)) {
         navigate(getHomeRoomPath(roomIdOrAlias, eventId), opts);
         return;
       }
       navigate(getRoomsRoomPath(roomIdOrAlias, eventId), opts);
     },
-    [mx, navigate, spaceSelectedId, roomToParents, mDirects, developerTools]
+    [mx, navigate, spaceSelectedId, getRoomToParents, getMDirects, developerTools]
   );
 
   return {
