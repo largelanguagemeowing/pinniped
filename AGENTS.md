@@ -174,6 +174,17 @@ Fork changes on top of upstream Element Call:
   which `CallAudio` plays on the call's output. The mic track is untouched.
   Sounds go out at full level; the volume is each listener's own (`soundboardVolume`): it scales
   the local copy and the remote `soundboard` tracks. The picker is `src/app/features/soundboard/`.
+- **Screen share video** (the screen share dialog, `features/call/ScreenSharePicker.tsx`;
+  `engine/livekit/options.ts`, `screenShareLive.ts`): resolution and frame rate set a pixel budget
+  and a bitrate cap (`screenShareBudget`). The capture keeps the shared surface's aspect ratio at
+  the budget's pixel count (`fitToBudget`, from the source size Chromium reports as the track's
+  largest in `getCapabilities()`), so an ultrawide screen or a portrait window is not shrunk into
+  a 16:9 box; the `Publisher` re-fits it once a second, since nothing announces a resized window
+  or a switched surface. "Optimize For" (`callScreenShareContent`): motion keeps the frame rate
+  and sheds resolution under load (`contentHint` `motion`, `maintain-framerate`), text is treated
+  as screen content and keeps its sharpness (`text`, `maintain-resolution`). The share is encoded
+  at `priority: 'high'`, four times the camera's share of a constrained uplink. Changes apply to a
+  running share.
 - **Screen share audio** (Settings → Calls, `callScreenShareAudio`; the source follows the platform,
   `engine/livekit/screenShareAudio.ts`): `off`, `display` (what the browser offers with the
   capture), `device` (a microphone published as the share's audio; Linux, a PipeWire virtual mic

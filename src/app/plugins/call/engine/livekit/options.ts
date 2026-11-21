@@ -10,11 +10,13 @@ import {
   DefaultReconnectPolicy,
   type RoomOptions,
   type TrackPublishDefaults,
+  type VideoEncoding,
   type VideoPreset,
   VideoPresets,
 } from 'livekit-client';
 
 import {
+  type ScreenShareContent,
   type ScreenShareFps,
   type ScreenShareQuality,
   type ScreenShareResolution,
@@ -64,6 +66,28 @@ export const screenShareMaxBitrate = screenShareBudget({
   fps: 60,
 }).maxBitrate;
 
+/**
+ * The share's encoder caps. High priority: on a constrained uplink the share gets four times
+ * the bandwidth share of the camera, which only has the default (low).
+ */
+export function screenShareEncoding(q: ScreenShareQuality): VideoEncoding {
+  const budget = screenShareBudget(q);
+  return { maxBitrate: budget.maxBitrate, maxFramerate: budget.frameRate, priority: 'high' };
+}
+
+/**
+ * How the browser treats a share: motion keeps the frame rate and sheds resolution under load;
+ * text is treated as screen content and keeps its sharpness, shedding frame rate instead.
+ */
+export function screenShareContentHints(content: ScreenShareContent): {
+  contentHint: 'motion' | 'text';
+  degradationPreference: RTCDegradationPreference;
+} {
+  return content === 'text'
+    ? { contentHint: 'text', degradationPreference: 'maintain-resolution' }
+    : { contentHint: 'motion', degradationPreference: 'maintain-framerate' };
+}
+
 const defaultLiveKitPublishOptions: TrackPublishDefaults = {
   // 96 kbps mono: browser-WebRTC default voice bitrates sound noticeably
   // worse; bandwidth is cheap next to that.
@@ -79,14 +103,9 @@ const defaultLiveKitPublishOptions: TrackPublishDefaults = {
   // Overridden per room by the Publisher from the videoSimulcast setting.
   simulcast: false,
   videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360] as VideoPreset[],
-  // The chosen quality overrides this when a share starts (see LocalMember).
-  screenShareEncoding: {
-    maxBitrate: screenShareBudget(initialScreenShareQuality).maxBitrate,
-    maxFramerate: initialScreenShareQuality.fps,
-    priority: 'medium',
-  },
-  // Under congestion shed resolution, not frame rate (the capture hint is "motion").
-  degradationPreference: 'maintain-framerate',
+  // The chosen quality and content override these when a share starts (see LocalMember).
+  screenShareEncoding: screenShareEncoding(initialScreenShareQuality),
+  degradationPreference: screenShareContentHints('motion').degradationPreference,
   stopMicTrackOnMute: false,
   // H.264: hardware-encoded on many machines, and every browser decodes it.
   videoCodec: 'h264',

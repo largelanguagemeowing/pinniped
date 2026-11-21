@@ -64,7 +64,11 @@ import {
   NETWORK_ERROR_RETRY_MS,
   SYNC_DISCONNECT_GRACE_PERIOD_MS,
 } from '../../../config';
-import { screenShareBudget } from '../../../livekit/options';
+import {
+  screenShareBudget,
+  screenShareContentHints,
+  screenShareEncoding,
+} from '../../../livekit/options';
 import { callSettings } from '../../../settings';
 import {
   ConnectionState,
@@ -803,7 +807,9 @@ export const createLocalMembership$ = ({
   let toggleScreenSharing: (() => void) | null = null;
   if ('getDisplayMedia' in (navigator.mediaDevices ?? {})) {
     const applyScreenShare = (): void => {
-      const preset = screenShareBudget(callSettings.screenShareQuality$.value);
+      const quality = callSettings.screenShareQuality$.value;
+      const preset = screenShareBudget(quality);
+      const hints = screenShareContentHints(callSettings.screenShareContent$.value);
       const audioSource = callSettings.screenShareAudio$.value;
       const screenshareSettings: ScreenShareCaptureOptions = {
         // Screen share audio shouldn't have any filtering.
@@ -821,9 +827,9 @@ export const createLocalMembership$ = ({
                 ...({ suppressLocalAudioPlayback: true } as object),
               }
             : false,
-        // Ask for a smooth picture over a sharp one: "detail" makes WebRTC
-        // shed frame rate first when the encoder or network falls behind.
-        contentHint: 'motion',
+        // Motion or text: whether the share keeps its frame rate or its sharpness under load.
+        contentHint: hints.contentHint,
+        // The 16:9 box until the share runs; then the Publisher fits it to the source.
         resolution: {
           width: preset.width,
           height: preset.height,
@@ -845,12 +851,8 @@ export const createLocalMembership$ = ({
       // technical reason to disallow this. LiveKit will publish if it can.
       participant$.value
         ?.setScreenShareEnabled(targetScreenshareState, screenshareSettings, {
-          screenShareEncoding: {
-            maxBitrate: preset.maxBitrate,
-            maxFramerate: preset.frameRate,
-            priority: 'medium',
-          },
-          degradationPreference: 'maintain-framerate',
+          screenShareEncoding: screenShareEncoding(quality),
+          degradationPreference: hints.degradationPreference,
         })
         .then(() => {
           if (targetScreenshareState && audioSource.kind === 'pcm') return startPcmShareAudio();

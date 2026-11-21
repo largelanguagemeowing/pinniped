@@ -21,7 +21,11 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import type { Call } from '../../plugins/call/Call';
-import { screenShareFrameRates, screenShareResolutions } from '../../plugins/call/types';
+import {
+  screenShareContents,
+  screenShareFrameRates,
+  screenShareResolutions,
+} from '../../plugins/call/types';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import { stopPropagation } from '../../utils/keyboard';
@@ -121,11 +125,12 @@ type ScreenSharePickerProps = {
 
 /**
  * Before a screen share starts: what to share (on Windows, where Chromium has no picker of its
- * own), its resolution, frame rate and audio. The quality choices are remembered, and Go Live
- * starts the share with them.
+ * own), its resolution, frame rate, what it keeps under load (motion or text) and audio. The
+ * choices are remembered, and Go Live starts the share with them.
  */
 export function ScreenSharePicker({ call, open, requestClose }: ScreenSharePickerProps) {
   const [quality, setQuality] = useSetting(settingsAtom, 'callScreenShare');
+  const [content, setContent] = useSetting(settingsAtom, 'callScreenShareContent');
   const [shareAudio, setShareAudio] = useSetting(settingsAtom, 'callScreenShareAudio');
   const [source, setSource] = useState<string>();
   const picker = window.pinnipedDesktop?.screenSharePicker;
@@ -207,6 +212,14 @@ export function ScreenSharePicker({ call, open, requestClose }: ScreenSharePicke
                         label: `${fps} FPS`,
                       }))}
                       onChange={(fps) => setQuality({ ...quality, fps })}
+                    />
+                  </Box>
+                  <Box grow={picker ? undefined : 'Yes'} direction="Column" style={optionStyle}>
+                    <Dropdown
+                      title="Optimize For"
+                      value={content}
+                      options={screenShareContents.map((c) => ({ value: c.id, label: c.name }))}
+                      onChange={setContent}
                     />
                   </Box>
                   <Box grow={picker ? undefined : 'Yes'} direction="Column" style={optionStyle}>

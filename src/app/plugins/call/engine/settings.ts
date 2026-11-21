@@ -35,6 +35,7 @@ export const callSettings = {
   voiceTuning$: setting<VoiceTuning>((s) => normalizeVoiceTuning(s.callVoiceTuning)),
   simulcast$: setting((s) => s.callSimulcast),
   screenShareQuality$: setting<ScreenShareQuality>((s) => s.callScreenShare),
+  screenShareContent$: setting((s) => s.callScreenShareContent),
   screenShareAudio$: setting<ScreenShareAudioSource>((s) =>
     screenShareAudioSource(s.callScreenShareAudio)
   ),

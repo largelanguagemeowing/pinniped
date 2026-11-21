@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import { VoiceTuning } from '../plugins/call/voiceTuning';
-import type { ScreenShareQuality } from '../plugins/call/types';
+import type { ScreenShareContent, ScreenShareQuality } from '../plugins/call/types';
 import type { SoundKind } from '../sound/bundles';
 import { DEFAULT_MEDIA_EMBED_HOSTS } from '../utils/directGif';
 
@@ -47,6 +47,8 @@ export interface Settings {
   callSimulcast: boolean;
   // Screen share preset, picked when a share starts; see ScreenShareQuality.
   callScreenShare: ScreenShareQuality;
+  // Under load a share keeps its frame rate (motion) or its sharpness (text).
+  callScreenShareContent: ScreenShareContent;
   // Share the computer's audio with a screen share.
   callScreenShareAudio: boolean;
   /** Programs (executable file names) whose audio a screen share never carries, on Windows. */
@@ -140,6 +142,7 @@ const defaultSettings: Settings = {
   callVoiceTuning: {},
   callSimulcast: false,
   callScreenShare: { resolution: '720p', fps: 60 },
+  callScreenShareContent: 'motion',
   callScreenShareAudio: true,
   callScreenShareAudioExcluded: DEFAULT_SCREEN_SHARE_EXCLUDED,
   helperConsole: false,

@@ -14,7 +14,7 @@ import {
   RoomEvent,
   Track,
 } from 'livekit-client';
-import { map, NEVER, type Observable, type Subscription, switchMap } from 'rxjs';
+import { interval, map, NEVER, type Observable, type Subscription, switchMap } from 'rxjs';
 import { type Logger } from 'matrix-js-sdk/lib/logger';
 
 import type { MediaDevices, SelectedDevice } from '../../MediaDevices';
@@ -23,10 +23,16 @@ import { autoGainSync } from '../../../livekit/autoGain';
 import { voiceGateSync } from '../../../livekit/voiceGate';
 import { callSettings } from '../../../settings';
 import { Soundboard, type SoundboardLink } from '../../../livekit/soundboard';
-import { applyScreenShareQuality } from '../../../livekit/screenShareLive';
+import {
+  applyScreenShareContent,
+  applyScreenShareQuality,
+  fitScreenShare,
+} from '../../../livekit/screenShareLive';
 import { observeTrackReference$ } from '../../observeTrackReference';
 import { type Connection } from '../remoteMembers/Connection';
 import { ObservableScope } from '../../ObservableScope';
+
+const SCREEN_SHARE_SOURCE_CHECK_MS = 1000;
 
 /**
  * A wrapper for a Connection object.
@@ -82,6 +88,23 @@ export class Publisher {
         this.logger.error('Failed to apply screen share quality', e)
       );
     });
+    callSettings.screenShareContent$.pipe(this.scope.bind()).subscribe((content) => {
+      applyScreenShareContent(room, content).catch((e) =>
+        this.logger.error('Failed to apply screen share content', e)
+      );
+    });
+    // The capture follows its source's size (a resized window, a switched surface), which the
+    // track does not announce, so it is checked once a second.
+    callSettings.screenShareQuality$
+      .pipe(
+        switchMap((quality) => interval(SCREEN_SHARE_SOURCE_CHECK_MS).pipe(map(() => quality))),
+        this.scope.bind()
+      )
+      .subscribe((quality) => {
+        fitScreenShare(room, quality).catch((e) =>
+          this.logger.error('Failed to fit the screen share to its source', e)
+        );
+      });
     // Video is published as one layer or several, per the client's preference.
     // LiveKit copies its publish defaults at room creation, so apply the
     // setting to the live room; it takes effect for video published afterwards.

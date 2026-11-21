@@ -10,6 +10,12 @@ export const screenShareFrameRates = [15, 30, 60] as const;
 export type ScreenShareResolution = (typeof screenShareResolutions)[number]['id'];
 export type ScreenShareFps = (typeof screenShareFrameRates)[number];
 export type ScreenShareQuality = { resolution: ScreenShareResolution; fps: ScreenShareFps };
+/** What a screen share keeps when the encoder or network falls behind. */
+export const screenShareContents = [
+  { id: 'motion', name: 'Motion' },
+  { id: 'text', name: 'Text' },
+] as const;
+export type ScreenShareContent = (typeof screenShareContents)[number]['id'];
 
 /** The label of the virtual microphone the desktop app makes on Linux (electron/screenshare-audio.cjs). */
 export const SCREEN_SHARE_AUDIO_DEVICE = 'Pinniped Screen Share Audio';
