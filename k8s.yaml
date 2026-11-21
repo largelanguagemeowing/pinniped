@@ -86,6 +86,27 @@ spec:
       targetPort: http
       name: http
 ---
+# Only Envoy Gateway's proxies reach the pods, and only on the web port. justserve opens no
+# connections, so no egress is allowed; Cilium tracks connections, so replies still go out.
+# Kubelet probes come from the node, which Cilium admits.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cinny
+  namespace: githubshit
+spec:
+  podSelector:
+    matchLabels:
+      app: cinny
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - port: http
+---
 # TLS for pinniped.stablecat.club, issued over HTTP-01 through the gateway, so the DNS
 # record (A 185.255.121.170, AAAA 2a13:5681:1:c47::100) must exist first. The gateway
 # listener reads the secret from this namespace.
