@@ -2,6 +2,7 @@ import { MatrixClient, MatrixError, SetPresence } from 'matrix-js-sdk';
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { useAccountData } from '../hooks/useAccountData';
 import { useUserPresence } from '../hooks/useUserPresence';
+import type { PresenceChoice } from './settings';
 
 type StatusMessageContent = { status?: string };
 
@@ -11,13 +12,16 @@ export const getRememberedStatus = (mx: MatrixClient): string =>
   mx.getAccountData(AccountDataEvent.PinnipedStatusMessage)?.getContent<StatusMessageContent>()
     ?.status ?? '';
 
-type PresenceChoice = 'online' | 'unavailable' | 'offline';
-
 const SYNC_PRESENCE: Record<PresenceChoice, SetPresence> = {
   online: SetPresence.Online,
   unavailable: SetPresence.Unavailable,
   offline: SetPresence.Offline,
 };
+
+// A /sync without set_presence counts as online (Synapse), which would undo the presence at the
+// next request, so every sync carries it.
+export const setSyncPresence = (mx: MatrixClient, presence: PresenceChoice) =>
+  mx.setSyncPresence(SYNC_PRESENCE[presence]);
 
 // Synapse allows one presence update every 10 s by default; the server says how long to wait.
 const MAX_RATE_LIMIT_RETRIES = 3;
@@ -44,14 +48,13 @@ const putPresence = async (mx: MatrixClient, presence: PresenceChoice, statusMsg
   }
 };
 
-// A /sync without set_presence counts as online (Synapse), which would undo the choice at the next
-// request, so every sync carries it too; set first, so no sync starts in between without it.
+// The sync's presence is set first, so no sync starts in between without it.
 export const sendPresence = async (
   mx: MatrixClient,
   presence: PresenceChoice,
   statusMsg: string = getRememberedStatus(mx)
 ) => {
-  await mx.setSyncPresence(SYNC_PRESENCE[presence]);
+  await setSyncPresence(mx, presence);
   await putPresence(mx, presence, statusMsg);
 };
 

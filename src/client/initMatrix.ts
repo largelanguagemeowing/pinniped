@@ -13,6 +13,7 @@ import {
 import { cryptoCallbacks } from './secretStorageKeys';
 import { clearNavToActivePathStore } from '../app/state/navToActivePath';
 import { getSettings } from '../app/state/settings';
+import { setSyncPresence } from '../app/state/statusMessage';
 import { playEventSound } from '../app/sound/play';
 import { pushSessionToSW } from '../sw-session';
 import { compactServerAcls } from './compactServerAcl';
@@ -148,6 +149,10 @@ export const startClient = async (mx: MatrixClient) => {
   refreshWellKnownCache(mx);
   compactServerAcls(mx);
   await mx.startClient(createSyncOptions());
+  // The sync is set up but has not sent its first request (it fetches push rules and its filter
+  // first), so the chosen presence goes with every request from the first on: an invisible device
+  // never shows online while it starts.
+  await setSyncPresence(mx, getSettings().chosenPresence);
 };
 
 const clearPendingEvents = () => {

@@ -13,6 +13,11 @@ export type MessageSpacing = '0' | '100' | '200' | '300' | '400' | '500';
  * of the theme's text color, or none.
  */
 export type RoleColorMode = 'operator' | 'palette' | 'tone' | 'off';
+/** What the account menu offers: online, away (`unavailable`) or invisible (`offline`). */
+export type PresenceChoice = 'online' | 'unavailable' | 'offline';
+const isPresenceChoice = (value: unknown): value is PresenceChoice =>
+  value === 'online' || value === 'unavailable' || value === 'offline';
+
 export enum MessageLayout {
   Modern = 0,
   Compact = 1,
@@ -111,6 +116,8 @@ export interface Settings {
   autoJoinSpaceRooms: boolean;
   ignoreSpaceAutoJoin: boolean;
   idleDetection: boolean;
+  /** Chosen in the account menu, for this device; every sync carries it, from the first. */
+  chosenPresence: PresenceChoice;
 
   developerTools: boolean;
   /** Message range export, offered under Developer Tools. */
@@ -189,6 +196,7 @@ const defaultSettings: Settings = {
   autoJoinSpaceRooms: false,
   ignoreSpaceAutoJoin: false,
   idleDetection: true,
+  chosenPresence: 'online',
 
   developerTools: false,
   messageExport: false,
@@ -221,6 +229,9 @@ export const getSettings = () => {
     ...saved,
     notificationSoundBundle:
       MIGRATED_SOUND_BUNDLES[saved.notificationSoundBundle] ?? saved.notificationSoundBundle,
+    chosenPresence: isPresenceChoice(saved.chosenPresence)
+      ? saved.chosenPresence
+      : defaultSettings.chosenPresence,
   };
 };
 

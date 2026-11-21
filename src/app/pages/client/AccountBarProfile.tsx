@@ -27,6 +27,8 @@ import { UserBiography } from '../../components/user-profile/UserBiography';
 import { UserRichPresence } from '../../components/user-profile/UserRichPresence';
 import { Settings, SettingsPages } from '../../features/settings';
 import { settingsModalAtom } from '../../state/settingsModal';
+import { settingsAtom } from '../../state/settings';
+import { useSetting } from '../../state/hooks/settings';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { Presence, useUserPresence } from '../../hooks/useUserPresence';
@@ -75,8 +77,10 @@ function AccountMenu({ requestClose, openSettings }: AccountMenuProps) {
     .map((pronoun) => pronoun.summary)
     .join(', ');
   const status = useOwnStatus(userId);
+  const [, setChosenPresence] = useSetting(settingsAtom, 'chosenPresence');
 
   const setPresence = (next: Presence) => {
+    setChosenPresence(next);
     sendPresence(mx, next).catch(() => undefined);
     requestClose();
   };

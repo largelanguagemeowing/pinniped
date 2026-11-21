@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { setUserIdle } from '../state/idle';
 import { sendPresence } from '../state/statusMessage';
 import { useSetting } from '../state/hooks/settings';
@@ -11,12 +11,15 @@ const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchsta
 
 /**
  * Tracks user idleness (system-wide in the desktop app, in-window on the web)
- * and reflects it as `unavailable` presence, without overriding a presence the
- * user chose themselves.
+ * and reflects it as `unavailable` presence while the user has chosen to be online.
  */
 export function IdleDetector() {
   const mx = useMatrixClient();
   const [enabled] = useSetting(settingsAtom, 'idleDetection');
+  // The choice, not what the server reports: that is online while any other device is.
+  const [chosenPresence] = useSetting(settingsAtom, 'chosenPresence');
+  const chosenPresenceRef = useRef(chosenPresence);
+  chosenPresenceRef.current = chosenPresence;
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -27,7 +30,7 @@ export function IdleDetector() {
       const userId = mx.getUserId();
       if (!userId) return;
       if (idle) {
-        if (mx.getUser(userId)?.presence !== 'online') return;
+        if (chosenPresenceRef.current !== 'online') return;
         ownedAway = true;
         sendPresence(mx, 'unavailable').catch(() => {
           ownedAway = false;
