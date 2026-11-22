@@ -53,7 +53,9 @@ function firstFailing(lo: number, hi: number, holds: (n: number) => boolean): nu
  */
 export function arrangeGrid(width: number, height: number, tileCount: number): GridArrangement {
   const available = width - 2 * GRID_INSET;
-  if (tileCount < 1 || available < 1 || height < 1) {
+  // The speaking ring is drawn outside the tile, so the stage's edge must not touch the tiles.
+  const availableHeight = height - 2 * GRID_INSET;
+  if (tileCount < 1 || available < 1 || availableHeight < 1) {
     return { tileWidth: 0, tileHeight: 0, gap: GRID_GAP, columns: 1 };
   }
 
@@ -64,7 +66,7 @@ export function arrangeGrid(width: number, height: number, tileCount: number): G
     tileWidth = firstFailing(
       lo,
       available,
-      (w) => columnsFor(w, available) * rowsFor(w, height, Math.ceil) > GRID_MAX_VISIBLE
+      (w) => columnsFor(w, available) * rowsFor(w, availableHeight, Math.ceil) > GRID_MAX_VISIBLE
     );
   } else {
     // Largest tile for which everything still fits on screen.
@@ -72,7 +74,7 @@ export function arrangeGrid(width: number, height: number, tileCount: number): G
       firstFailing(
         lo,
         available,
-        (w) => columnsFor(w, available) * rowsFor(w, height, Math.floor) >= tileCount
+        (w) => columnsFor(w, available) * rowsFor(w, availableHeight, Math.floor) >= tileCount
       ) - 1;
   }
   tileWidth = Math.max(1, tileWidth);

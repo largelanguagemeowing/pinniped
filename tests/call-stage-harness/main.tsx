@@ -24,6 +24,7 @@ const call = fakeCall({
   shares: Number(params.get('shares') ?? 0),
   indicators: params.get('indicators') === '1',
   rich: params.get('rich') === '1',
+  everyoneSpeaks: params.get('everyoneSpeaks') === '1',
   reconnecting: params.get('reconnecting') === '1',
   undecryptable: (params.get('undecryptable') ?? '').split(',').filter(Boolean).map(Number),
 });

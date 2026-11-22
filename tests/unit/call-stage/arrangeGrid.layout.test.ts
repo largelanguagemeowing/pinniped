@@ -156,8 +156,9 @@ describe('GridLayout stylesheet in Chromium', () => {
       // Everything that is meant to fit on one screen does, with no scrolling.
       if (count <= GRID_MAX_VISIBLE && a.tileWidth > width / 25) {
         expect(m.scrollHeight, label).toBeLessThanOrEqual(height);
-        expect(m.firstTop, label).toBeGreaterThanOrEqual(0);
-        expect(m.lastBottom, label).toBeLessThanOrEqual(height + 0.5);
+        // The speaking ring sits outside the tiles; the scroller must not clip it.
+        expect(m.firstTop, label).toBeGreaterThanOrEqual(GRID_INSET - 0.5);
+        expect(m.lastBottom, label).toBeLessThanOrEqual(height - GRID_INSET + 0.5);
       }
     }
   );

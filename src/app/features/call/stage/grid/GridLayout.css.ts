@@ -25,6 +25,8 @@ export const scrolling = style({
   // The columns are counted in the width left after the inset.
   boxSizing: 'border-box',
   paddingInline: `${GRID_INSET}px`,
+  // Tiles draw their speaking ring outside themselves; the scroller clips it at its edge.
+  paddingBlock: `${GRID_INSET}px`,
 });
 
 export const slot = style({

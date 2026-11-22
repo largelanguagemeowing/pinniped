@@ -44,11 +44,12 @@ function footprint(
 describe('arrangeGrid', () => {
   it('matches the sizes measured in a real 2-tile call', () => {
     // A 904×701 stage whose overlay controls reserve 64px above and below the
-    // grid, so the grid itself gets 904×573. Two tiles stack at 502×282.
+    // grid, so the grid itself gets 904×573, less the inset kept free above and below
+    // for the speaking ring. Two tiles stack at 488×274.
     const a = arrangeGrid(904, 573, 2);
     expect(a.columns).toBe(1);
-    expect(a.tileWidth).toBe(502);
-    expect(a.tileHeight).toBe(282);
+    expect(a.tileWidth).toBe(488);
+    expect(a.tileHeight).toBe(274);
   });
 
   it('fills a lone tile as large as the stage allows', () => {
@@ -108,7 +109,7 @@ describe('arrangeGrid', () => {
           // minimum width (width / cap) can fit; below that it clamps.
           if (a.tileWidth > Math.max(1, Math.floor((width - 16) / 25))) {
             expect(f.w, label).toBeLessThanOrEqual(width - 2 * GRID_INSET);
-            expect(f.h, label).toBeLessThanOrEqual(height);
+            expect(f.h, label).toBeLessThanOrEqual(height - 2 * GRID_INSET);
           }
           expect(a.columns, label).toBeGreaterThanOrEqual(1);
           expect(a.tileHeight, label).toBe(Math.floor(a.tileWidth / GRID_TILE_ASPECT));
@@ -130,7 +131,7 @@ describe('arrangeGrid', () => {
       const available = width - 2 * GRID_INSET;
       const columns = Math.max(1, Math.floor((available - w) / (GRID_GAP + w)) + 1);
       const h = w / GRID_TILE_ASPECT;
-      const rows = Math.floor((height - h) / (GRID_GAP + h)) + 1;
+      const rows = Math.floor((height - 2 * GRID_INSET - h) / (GRID_GAP + h)) + 1;
       expect(columns * rows, `${width}x${height} n=${count}`).toBeLessThan(count);
     }
   });

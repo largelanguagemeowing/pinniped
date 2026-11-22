@@ -137,6 +137,8 @@ export interface Scenario {
   reconnecting: boolean;
   /** Tile indices whose media cannot be decrypted. */
   undecryptable: number[];
+  /** Every participant is speaking and has a camera, to check the speaking ring. */
+  everyoneSpeaks: boolean;
 }
 
 const richStates: Participant[] = [
@@ -153,7 +155,14 @@ const richStates: Participant[] = [
 
 export function fakeCall(s: Scenario): Call {
   const people = Array.from({ length: s.tiles }, (_, i) =>
-    userMedia(i, s.rich ? richStates[i % richStates.length] : {})
+    userMedia(
+      i,
+      s.everyoneSpeaks
+        ? { camera: true, speaking: true }
+        : s.rich
+          ? richStates[i % richStates.length]
+          : {}
+    )
   );
   const shares = Array.from({ length: s.shares }, (_, i) => screenShare(i + 1));
   const grid = people.map((m) => new GridTileViewModel(b(m)));

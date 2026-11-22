@@ -1,5 +1,6 @@
 // Usage: node tests/call-stage-harness/run.mjs [scenarios-json]   (prints a JSON report)
 //        node tests/call-stage-harness/run.mjs --screenshots [dir]   (default: out/screenshots)
+//        node tests/call-stage-harness/run.mjs --ring [dir]   (speaking rings that the stage clips)
 //        node tests/call-stage-harness/run.mjs --drag [scenarios-json]  (drags the DM call divider)
 //        node tests/call-stage-harness/run.mjs --strip-toggle   (when the Hide Members pill shows)
 //        node tests/call-stage-harness/run.mjs --pip [dir]   (the floating call window: drag, fling, resize, persistence)
@@ -462,6 +463,50 @@ async function stripToggleReport() {
   return report;
 }
 
+/**
+ * Every tile speaks on camera; the speaking ring (4px outside the tile) must lie within the stage,
+ * which clips what pokes out of it. Tiles flush against the stage's edge are where it shows.
+ */
+async function ringReport(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const cases = [
+    [1803, 160],
+    [1280, 400],
+    [1280, 800],
+    [900, 700],
+    [420, 760],
+  ].flatMap(([width, height]) =>
+    [1, 2, 4, 9].map((tiles) => ({
+      scenario: { layout: 'grid', tiles, everyoneSpeaks: 1 },
+      width,
+      height,
+    }))
+  );
+  const report = [];
+  for (const { scenario, width, height } of cases) {
+    const { page } = await open(scenario, { width, height });
+    const clipped = await page.evaluate(() => {
+      const stage = document.querySelector('[data-call-stage]').getBoundingClientRect();
+      const RING = 4;
+      return [...document.querySelectorAll('[data-testid="videoTile"]')].filter((e) => {
+        const r = e.getBoundingClientRect();
+        return (
+          r.width > 0 &&
+          (r.left - RING < stage.left - 0.5 ||
+            r.top - RING < stage.top - 0.5 ||
+            r.right + RING > stage.right + 0.5 ||
+            r.bottom + RING > stage.bottom + 0.5)
+        );
+      }).length;
+    });
+    const name = `ring-${scenario.tiles}-${width}x${height}`;
+    await page.screenshot({ path: path.join(dir, `${name}.png`) });
+    report.push({ name, clipped });
+    await page.close();
+  }
+  return report;
+}
+
 const args = process.argv.slice(2);
 let output;
 if (args[0] === '--drag') {
@@ -486,6 +531,8 @@ if (args[0] === '--drag') {
     ],
     path.resolve(args[2] ?? path.join(root, 'out', 'call-only'))
   );
+} else if (args[0] === '--ring') {
+  output = await ringReport(path.resolve(args[1] ?? path.join(root, 'out', 'ring')));
 } else if (args[0] === '--screenshots') {
   output = await screenshots(path.resolve(args[1] ?? path.join(root, 'out', 'screenshots')));
 } else {
