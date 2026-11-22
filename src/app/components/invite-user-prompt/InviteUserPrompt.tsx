@@ -34,7 +34,9 @@ import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '../../utils/keyboard';
 import { useDirectUsers } from '../../hooks/useDirectUsers';
-import { getMxIdLocalPart, getMxIdServer, inviteUser, isUserId } from '../../utils/matrix';
+import { getMxIdLocalPart, getMxIdServer, isUserId } from '../../utils/matrix';
+import { inviteUsers } from '../../utils/invite';
+import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { Membership } from '../../../types/matrix/room';
 import { useAsyncSearch, UseAsyncSearchOptions } from '../../hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '../../plugins/react-custom-html-parser';
@@ -58,6 +60,7 @@ type InviteUserProps = {
 export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
   const mx = useMatrixClient();
   const alive = useAlive();
+  const { navigateRoom } = useRoomNavigate();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const directUsers = useDirectUsers();
@@ -83,9 +86,11 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
   const [inviteState, invite] = useAsyncCallback<void, Error, [string, string | undefined]>(
     useCallback(
       async (userId, reason) => {
-        await inviteUser(mx, room.roomId, userId, reason);
+        const targetId = await inviteUsers(mx, room.roomId, [userId], reason);
+        // A direct message is not opened up: the invitees get a new group, which we move to.
+        if (targetId !== room.roomId) navigateRoom(targetId);
       },
-      [mx, room]
+      [mx, room, navigateRoom]
     )
   );
 

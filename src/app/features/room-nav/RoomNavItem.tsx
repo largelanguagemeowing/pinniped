@@ -72,6 +72,7 @@ import { RoomNotificationModeSwitcher } from '../../components/RoomNotificationS
 import { getRoomCreatorsForRoomId, useRoomCreators } from '../../hooks/useRoomCreators';
 import { getRoomPermissionsAPI, useRoomPermissions } from '../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
+import { startsNewGroup } from '../../utils/invite';
 import { useUserPresence } from '../../hooks/useUserPresence';
 import { useUserRichPresence } from '../../hooks/useUserRichPresence';
 import { AvatarPresence, PresenceBadge } from '../../components/presence';
@@ -106,7 +107,9 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
     const creators = useRoomCreators(room);
 
     const permissions = useRoomPermissions(creators, powerLevels);
-    const canInvite = permissions.action('invite', mx.getSafeUserId());
+    // inviting from a one-to-one chat starts a new group, which needs no invite right here
+    const canInvite =
+      permissions.action('invite', mx.getSafeUserId()) || startsNewGroup(mx, room.roomId);
     const openRoomSettings = useOpenRoomSettings();
     const space = useSpaceOptionally();
 

@@ -1,15 +1,20 @@
 import { Box, Button, color, config, Icon, Icons, Input, Spinner, Switch, Text } from 'folds';
 import React, { FormEventHandler, useCallback, useState } from 'react';
-import { ICreateRoomStateEvent, MatrixError, Preset, Visibility } from 'matrix-js-sdk';
+import { MatrixError } from 'matrix-js-sdk';
 import { useNavigate } from 'react-router-dom';
 import { SettingTile } from '../../components/setting-tile';
 import { SequenceCard } from '../../components/sequence-card';
-import { addRoomIdToMDirect, isUserId } from '../../utils/matrix';
+import { isUserId } from '../../utils/matrix';
+import {
+  createDirectChat,
+  DEFAULT_DIRECT_ROOM_VERSION,
+  DirectRoomVersion,
+} from '../../utils/directRoom';
+import { DirectRoomVersionSelect } from '../../components/direct-room-version';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { ErrorCode } from '../../cs-errorcode';
 import { millisecondsToMinutes } from '../../utils/common';
-import { createRoomEncryptionState } from '../../components/create-room';
 import { useAlive } from '../../hooks/useAlive';
 import { getHomeRoomPath } from '../../pages/pathUtils';
 
@@ -22,27 +27,17 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
   const navigate = useNavigate();
 
   const [encryption, setEncryption] = useState(true);
+  const [version, setVersion] = useState(DEFAULT_DIRECT_ROOM_VERSION);
   const [invalidUserId, setInvalidUserId] = useState(false);
 
-  const [createState, create] = useAsyncCallback<string, Error | MatrixError, [string, boolean]>(
+  const [createState, create] = useAsyncCallback<
+    string,
+    Error | MatrixError,
+    [string, boolean, DirectRoomVersion]
+  >(
     useCallback(
-      async (userId, encrypted) => {
-        const initialState: ICreateRoomStateEvent[] = [];
-
-        if (encrypted) initialState.push(createRoomEncryptionState());
-
-        const result = await mx.createRoom({
-          is_direct: true,
-          invite: [userId],
-          visibility: Visibility.Private,
-          preset: Preset.TrustedPrivateChat,
-          initial_state: initialState,
-        });
-
-        addRoomIdToMDirect(mx, result.room_id, userId);
-
-        return result.room_id;
-      },
+      (userId, encrypted, roomVersion) =>
+        createDirectChat(mx, userId, { version: roomVersion, encrypted }),
       [mx]
     )
   );
@@ -64,7 +59,7 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
       return;
     }
 
-    create(userId, encryption).then((roomId) => {
+    create(userId, encryption, version).then((roomId) => {
       if (alive()) {
         userIdInput.value = '';
         navigate(getHomeRoomPath(roomId));
@@ -96,6 +91,10 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
             </Text>
           </Box>
         )}
+      </Box>
+      <Box shrink="No" direction="Column" gap="100">
+        <Text size="L400">Room Version</Text>
+        <DirectRoomVersionSelect value={version} onChange={setVersion} disabled={disabled} />
       </Box>
       <Box shrink="No" direction="Column" gap="100">
         <Text size="L400">Options</Text>

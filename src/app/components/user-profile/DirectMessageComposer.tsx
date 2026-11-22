@@ -1,11 +1,16 @@
 import React, { FormEventHandler, useCallback, useState } from 'react';
-import { ICreateRoomStateEvent, MsgType, Preset, Visibility } from 'matrix-js-sdk';
+import { MsgType } from 'matrix-js-sdk';
 import { Box, color, Icon, IconButton, Icons, Input, Spinner, Text } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
-import { addRoomIdToMDirect, getDMRoomFor, getMxIdLocalPart } from '../../utils/matrix';
-import { createRoomEncryptionState } from '../create-room';
+import { getDMRoomFor, getMxIdLocalPart } from '../../utils/matrix';
+import {
+  createDirectChat,
+  DEFAULT_DIRECT_ROOM_VERSION,
+  DirectRoomVersion,
+} from '../../utils/directRoom';
+import { DirectRoomVersionSelect } from '../direct-room-version';
 import { getHomeRoomPath } from '../../pages/pathUtils';
 import { useCloseUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { BreakWord } from '../../styles/Text.css';
@@ -19,6 +24,10 @@ export function DirectMessageComposer({ userId }: DirectMessageComposerProps) {
   const navigate = useNavigate();
   const closeProfile = useCloseUserRoomProfile();
   const [message, setMessage] = useState('');
+  const [version, setVersion] = useState<DirectRoomVersion>(DEFAULT_DIRECT_ROOM_VERSION);
+  const [choosingVersion, setChoosingVersion] = useState(false);
+  // the version is only chosen for a chat that does not exist yet
+  const newChat = !getDMRoomFor(mx, userId);
   const username = getMxIdLocalPart(userId) ?? userId;
 
   const [sendState, send] = useAsyncCallback<string, Error, [string]>(
@@ -26,22 +35,13 @@ export function DirectMessageComposer({ userId }: DirectMessageComposerProps) {
       async (body) => {
         let roomId = getDMRoomFor(mx, userId)?.roomId;
         if (!roomId) {
-          const initialState: ICreateRoomStateEvent[] = [createRoomEncryptionState()];
-          const result = await mx.createRoom({
-            is_direct: true,
-            invite: [userId],
-            visibility: Visibility.Private,
-            preset: Preset.TrustedPrivateChat,
-            initial_state: initialState,
-          });
-          roomId = result.room_id;
-          await addRoomIdToMDirect(mx, roomId, userId);
+          roomId = await createDirectChat(mx, userId, { version });
         }
 
         await mx.sendMessage(roomId, { msgtype: MsgType.Text, body });
         return roomId;
       },
-      [mx, userId]
+      [mx, userId, version]
     )
   );
 
@@ -76,6 +76,19 @@ export function DirectMessageComposer({ userId }: DirectMessageComposerProps) {
             disabled={sending}
           />
         </Box>
+        {newChat && (
+          <IconButton
+            type="button"
+            aria-label="Room version"
+            aria-pressed={choosingVersion}
+            variant="SurfaceVariant"
+            size="400"
+            radii="300"
+            onClick={() => setChoosingVersion(!choosingVersion)}
+          >
+            <Icon src={Icons.Setting} size="100" />
+          </IconButton>
+        )}
         <IconButton
           type="submit"
           aria-label="Send direct message"
@@ -91,6 +104,9 @@ export function DirectMessageComposer({ userId }: DirectMessageComposerProps) {
           )}
         </IconButton>
       </Box>
+      {newChat && choosingVersion && (
+        <DirectRoomVersionSelect value={version} onChange={setVersion} disabled={sending} />
+      )}
       {sendState.status === AsyncStatus.Error && (
         <Text className={BreakWord} size="T200" style={{ color: color.Critical.Main }}>
           {sendState.error.message}

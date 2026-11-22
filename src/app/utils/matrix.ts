@@ -19,7 +19,7 @@ import {
 import to from 'await-to-js';
 import { IImageInfo, IThumbnailContent, IVideoInfo } from '../../types/matrix/common';
 import { AccountDataEvent } from '../../types/matrix/accountData';
-import { getMDirects, getStateEvent } from './room';
+import { getStateEvent } from './room';
 import { Membership, StateEvent } from '../../types/matrix/room';
 import { getFallbackSession } from '../state/sessions';
 
@@ -348,30 +348,6 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
   });
 
   await mx.setAccountData(AccountDataEvent.Direct, userIdToRoomIds);
-};
-
-/**
- * Invites a user. An invite into one of our direct messages is marked `is_direct`, so accepting
- * it makes the room a direct message for them too (a group DM). /invite cannot mark it; the
- * member event can.
- */
-export const inviteUser = async (
-  mx: MatrixClient,
-  roomId: string,
-  userId: string,
-  reason?: string
-): Promise<void> => {
-  const mDirectEvent = mx.getAccountData(AccountDataEvent.Direct);
-  if (mDirectEvent && getMDirects(mDirectEvent).has(roomId)) {
-    await mx.sendStateEvent(
-      roomId,
-      StateEvent.RoomMember,
-      { membership: Membership.Invite, is_direct: true, ...(reason ? { reason } : {}) },
-      userId
-    );
-    return;
-  }
-  await mx.invite(roomId, userId, reason);
 };
 
 export const mxcUrlToHttp = (

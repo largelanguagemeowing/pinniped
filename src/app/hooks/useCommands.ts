@@ -4,10 +4,8 @@ import {
   IContextResponse,
   MatrixClient,
   Method,
-  Preset,
   Room,
   RoomMember,
-  Visibility,
 } from 'matrix-js-sdk';
 import { RoomMemberEventContent, RoomServerAclEventContent } from 'matrix-js-sdk/lib/types';
 import { useMemo } from 'react';
@@ -15,7 +13,6 @@ import {
   addRoomIdToMDirect,
   getDMRoomFor,
   guessDmRoomUserId,
-  inviteUser,
   isRoomAlias,
   isRoomId,
   isServerName,
@@ -24,10 +21,11 @@ import {
   removeRoomIdFromMDirect,
 } from '../utils/matrix';
 import { useRoomNavigate } from './useRoomNavigate';
+import { inviteUsers } from '../utils/invite';
+import { createDirectChat, createDirectGroup, DirectRoomVersion } from '../utils/directRoom';
 import { Membership, StateEvent } from '../../types/matrix/room';
 import { getStateEvent } from '../utils/room';
 import { splitWithSpace } from '../utils/common';
-import { createRoomEncryptionState } from '../components/create-room';
 import { leaveRoomExplicitly } from '../state/leftRooms';
 
 export const SHRUG = '¯\\_(ツ)_/¯';
@@ -203,10 +201,13 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.StartDm]: {
         name: Command.StartDm,
-        description: 'Start direct message with user. Example: /startdm userId1',
+        description:
+          'Start direct message with user; -v 11 makes it a room nobody can add people to. Example: /startdm userId1 [-v 11]',
         exe: async (payload) => {
-          const rawIds = splitWithSpace(payload);
-          const userIds = rawIds.filter((id) => isUserId(id) && id !== mx.getSafeUserId());
+          const [content, flags] = splitPayloadContentAndFlags(payload);
+          const userIds = splitWithSpace(content).filter(
+            (id) => isUserId(id) && id !== mx.getSafeUserId()
+          );
           if (userIds.length === 0) return;
           if (userIds.length === 1) {
             const dmRoomId = getDMRoomFor(mx, userIds[0])?.roomId;
@@ -215,15 +216,12 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               return;
             }
           }
-          const result = await mx.createRoom({
-            is_direct: true,
-            invite: userIds,
-            visibility: Visibility.Private,
-            preset: Preset.TrustedPrivateChat,
-            initial_state: [createRoomEncryptionState()],
-          });
-          addRoomIdToMDirect(mx, result.room_id, userIds[0]);
-          navigateRoom(result.room_id);
+          const version: DirectRoomVersion = parseFlags(flags).v === '11' ? '11' : '12';
+          const roomId =
+            userIds.length === 1
+              ? await createDirectChat(mx, userIds[0], { version })
+              : await createDirectGroup(mx, userIds, userIds[0]);
+          navigateRoom(roomId);
         },
       },
       [Command.Join]: {
@@ -254,13 +252,15 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Invite]: {
         name: Command.Invite,
-        description: 'Invite user to room. Example: /invite userId1 userId2 [-r reason]',
+        description:
+          'Invite users to room; a direct message becomes a new group. Example: /invite userId1 userId2 [-r reason]',
         exe: async (payload) => {
           const [content, flags] = splitPayloadContentAndFlags(payload);
           const users = parseUsers(content);
           const flagToContent = parseFlags(flags);
           const reason = flagToContent.r;
-          users.map((id) => inviteUser(mx, room.roomId, id, reason));
+          const targetId = await inviteUsers(mx, room.roomId, users, reason);
+          if (targetId !== room.roomId) navigateRoom(targetId);
         },
       },
       [Command.DisInvite]: {

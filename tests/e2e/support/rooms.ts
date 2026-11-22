@@ -57,23 +57,39 @@ export async function createRoom(page: Page, room: NewRoom): Promise<string> {
   return currentRoomId(page);
 }
 
-/** Starts a one-to-one chat with `userId` from Home and returns its room ID. */
-export async function createDirectMessage(page: Page, userId: string): Promise<string> {
+/** The room version choices of the Create Chat form, by their accessible names. */
+const directVersionChoice = { '12': 'Both of you are creators', '11': 'Nobody can add people' };
+
+/**
+ * Starts a one-to-one chat with `userId` from Home and returns its room ID; `version` is the
+ * room version picked in the form (its default is 12).
+ */
+export async function createDirectMessage(
+  page: Page,
+  userId: string,
+  { version }: { version?: '12' | '11' } = {}
+): Promise<string> {
   await page.goto('/home/');
   await page.getByRole('button', { name: 'Create Chat', exact: true }).first().click();
   await page.locator('input[name="userIdInput"]').fill(userId);
+  if (version) await page.getByRole('radio', { name: directVersionChoice[version] }).click();
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
   return currentRoomId(page);
 }
 
 /**
- * Accepts the pending DM invite, from someone this person shares no room with (listed as
- * Public), which opens the conversation with the direct messages.
+ * Accepts the pending DM invite, which opens the conversation with the direct messages. The
+ * inviter is someone this person shares no room with (listed as Public), or with `known` one
+ * they already share a room with (Primary).
  */
-export async function acceptDirectInvite(page: Page, roomId: string): Promise<void> {
+export async function acceptDirectInvite(
+  page: Page,
+  roomId: string,
+  { known = false }: { known?: boolean } = {}
+): Promise<void> {
   await page.goto('/inbox/invites/');
-  await page.getByRole('button', { name: /^Public\b/ }).click();
+  await page.getByRole('button', { name: known ? /^Primary\b/ : /^Public\b/ }).click();
   await page.getByRole('button', { name: 'Accept', exact: true }).click();
   await page.waitForURL(
     (url) => decodeURIComponent(url.pathname).replace(/\/$/, '') === `/home/${roomId}`
