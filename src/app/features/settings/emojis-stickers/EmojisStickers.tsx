@@ -5,6 +5,7 @@ import { GlobalPacks } from './GlobalPacks';
 import { UserPack } from './UserPack';
 import { ImagePack } from '../../../plugins/custom-emoji';
 import { ImagePackView } from '../../../components/image-pack-view';
+import { GlobalSoundPacks } from '../../soundboard/GlobalSoundPacks';
 
 type EmojisStickersProps = {
   requestClose: () => void;
@@ -42,6 +43,7 @@ export function EmojisStickers({ requestClose }: EmojisStickersProps) {
             <Box direction="Column" gap="700">
               <UserPack onViewPack={setImagePack} />
               <GlobalPacks onViewPack={setImagePack} />
+              <GlobalSoundPacks />
             </Box>
           </PageContent>
         </Scroll>

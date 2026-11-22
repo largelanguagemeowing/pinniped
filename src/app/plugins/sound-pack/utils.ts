@@ -3,10 +3,14 @@ import { AccountDataEvent } from '../../../types/matrix/accountData';
 import { StateEvent } from '../../../types/matrix/room';
 import { getAccountData, getStateEvent } from '../../utils/room';
 import { randomStr } from '../../utils/common';
+import { EmoteRoomsContent } from '../custom-emoji';
 import { SoundPack } from './SoundPack';
 import { MAX_SOUND_BYTES, MAX_SOUND_MS, PackSound, SoundPackContent } from './types';
 
 export const USER_PACK_ID = 'user';
+
+/** A room's pack is its `room_sounds` event with this state key. */
+export const ROOM_SOUND_PACK_STATE_KEY = '';
 
 export const getUserSoundPack = (mx: MatrixClient): SoundPack => {
   const content = getAccountData(
@@ -20,9 +24,24 @@ export const getUserSoundPack = (mx: MatrixClient): SoundPack => {
 export const getRoomSoundPack = (room: Room): SoundPack => {
   const content = getStateEvent(
     room,
-    StateEvent.PinnipedRoomSounds
+    StateEvent.PinnipedRoomSounds,
+    ROOM_SOUND_PACK_STATE_KEY
   )?.getContent<SoundPackContent>();
   return new SoundPack(room.roomId, content ?? {}, { roomId: room.roomId });
+};
+
+/** The packs of the rooms the user enabled everywhere that are still joined, empty ones included. */
+export const getGlobalSoundPacks = (mx: MatrixClient): SoundPack[] => {
+  const { rooms } =
+    getAccountData(mx, AccountDataEvent.PinnipedSoundRooms)?.getContent<EmoteRoomsContent>() ?? {};
+  if (typeof rooms !== 'object' || rooms === null) return [];
+
+  return Object.entries(rooms).flatMap(([roomId, stateKeys]) => {
+    if (typeof stateKeys !== 'object' || stateKeys === null) return [];
+    if (!Object.prototype.hasOwnProperty.call(stateKeys, ROOM_SOUND_PACK_STATE_KEY)) return [];
+    const room = mx.getRoom(roomId);
+    return room ? [getRoomSoundPack(room)] : [];
+  });
 };
 
 export const withSound = (

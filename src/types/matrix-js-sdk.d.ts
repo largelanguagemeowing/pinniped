@@ -30,6 +30,7 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'club.stablecat.pinniped.status_message': { status?: string };
     'club.stablecat.pinniped.user_sounds': Record<string, unknown>;
     'club.stablecat.pinniped.sound_favorites': Record<string, unknown>;
+    'club.stablecat.pinniped.sound_rooms': Record<string, unknown>;
     'club.stablecat.pinniped.space_notifications': { spaces?: Record<string, string> };
     'club.stablecat.pinniped.inherited_notifications': { rooms?: Record<string, string> };
     'm.recent_emoji': Record<string, unknown>;

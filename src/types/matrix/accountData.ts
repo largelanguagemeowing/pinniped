@@ -16,6 +16,8 @@ export const AccountDataEvent = {
   PinnipedStatusMessage: 'club.stablecat.pinniped.status_message',
   PinnipedUserSounds: 'club.stablecat.pinniped.user_sounds',
   PinnipedSoundFavorites: 'club.stablecat.pinniped.sound_favorites',
+  /** Rooms whose soundboard is usable in every call; shaped like `ImagePackRooms`. */
+  PinnipedSoundRooms: 'club.stablecat.pinniped.sound_rooms',
   PinnipedSpaceNotifications: 'club.stablecat.pinniped.space_notifications',
   PinnipedInheritedNotifications: 'club.stablecat.pinniped.inherited_notifications',
 

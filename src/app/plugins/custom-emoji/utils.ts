@@ -82,8 +82,8 @@ export function getGlobalImagePacks(mx: MatrixClient): ImagePack[] {
  */
 export function updateGlobalPackList(
   content: EmoteRoomsContent,
-  added: PackAddress[],
-  removed: PackAddress[]
+  added: Pick<PackAddress, 'roomId' | 'stateKey'>[],
+  removed: Pick<PackAddress, 'roomId' | 'stateKey'>[]
 ): EmoteRoomsContent {
   const updated = structuredClone(content);
   const rooms: RoomIdToStateKey =
