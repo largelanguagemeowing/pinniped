@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { logger } from 'matrix-js-sdk/lib/logger';
 
@@ -72,10 +72,23 @@ export function useCallAudioContext(outputId: string): AudioContext | undefined 
 
   useEffect(() => () => setPlayback(undefined), [setPlayback]);
 
+  // Output changes go one at a time, each to the latest wanted output. Chromium can leave a
+  // context that is still starting with a stopped clock (state `running`, no sound) when a second
+  // `setSinkId` overlaps the first; the device list is unknown at first, so the output is `''`
+  // and then the real default within moments.
+  const wanted = useRef(outputId);
+  wanted.current = outputId;
+  const queue = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
-    (ctx as SinkContext | undefined)
-      ?.setSinkId?.(outputId)
-      .catch((e: unknown) => log.warn(`Unable to play the call on output ${outputId}`, e));
+    const target = ctx as SinkContext | undefined;
+    if (target?.setSinkId === undefined) return;
+    queue.current = queue.current.then(async () => {
+      const id = wanted.current;
+      if (target.state === 'closed' || target.sinkId === id) return;
+      await target.setSinkId?.(id).catch((e: unknown) => {
+        log.warn(`Unable to play the call on output ${id}`, e);
+      });
+    });
   }, [ctx, outputId]);
 
   return ctx;

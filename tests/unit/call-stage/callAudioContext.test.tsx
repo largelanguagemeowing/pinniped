@@ -18,6 +18,14 @@ const { FakeContext } = vi.hoisted(() => {
 
     sinks: string[] = [];
 
+    /** Output changes in progress, at most; Chromium stalls a starting context if they overlap. */
+    active = 0;
+
+    maxActive = 0;
+
+    /** While set, `setSinkId` waits for it. */
+    hold: Promise<void> | undefined;
+
     constructor() {
       super();
       Fake.made.push(this);
@@ -32,6 +40,10 @@ const { FakeContext } = vi.hoisted(() => {
 
     async setSinkId(id: string): Promise<void> {
       this.sinks.push(id);
+      this.active += 1;
+      this.maxActive = Math.max(this.maxActive, this.active);
+      await this.hold;
+      this.active -= 1;
       this.sinkId = id;
       this.dispatchEvent(new Event('sinkchange'));
     }
@@ -108,7 +120,31 @@ describe("the call's audio context", () => {
   it('plays on the system default when no output is chosen', async () => {
     mount('');
     await flush();
-    expect(latest().sinks).toEqual(['']);
+    expect(latest().sinks).toEqual([]);
+  });
+
+  it('changes the output one at a time, to the latest choice, while the context starts', async () => {
+    // the output is '' until the device list is known, then the real default, then a choice
+    const { rerender } = mount('');
+    await flush();
+    const ctx = latest();
+    let release!: () => void;
+    ctx.hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    rerender('default');
+    await flush();
+    expect(ctx.active).toBe(1);
+    rerender('headphones');
+    rerender('speakers');
+    await flush();
+    expect(ctx.sinks).toEqual(['default']);
+    release();
+    ctx.hold = undefined;
+    await flush();
+    expect(ctx.maxActive).toBe(1);
+    expect(ctx.sinks).toEqual(['default', 'speakers']);
+    expect(ctx.sinkId).toBe('speakers');
   });
 
   it('replaces the context, on the same output, when its output fails', async () => {
