@@ -8,7 +8,10 @@ const isMac = process.platform === 'darwin';
 function buildAppMenu() {
   const template = [
     ...(isMac ? [{ role: 'appMenu' }] : []),
-    { role: 'fileMenu' },
+    // No Close item anywhere (the stock File and Window menus have one on Ctrl/Cmd+W): a stray
+    // keypress would close the window and, with it, leave the call. The window has its own
+    // close button.
+    ...(isMac ? [] : [{ label: 'File', submenu: [{ role: 'quit' }] }]),
     { role: 'editMenu' },
     {
       label: 'View',
@@ -29,7 +32,14 @@ function buildAppMenu() {
         { role: 'togglefullscreen' },
       ],
     },
-    { role: 'windowMenu' },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        ...(isMac ? [{ type: 'separator' }, { role: 'front' }] : []),
+      ],
+    },
   ];
 
   return Menu.buildFromTemplate(template);
