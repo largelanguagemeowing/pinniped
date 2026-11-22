@@ -8,6 +8,7 @@ Please see LICENSE in the repository root for full details.
 import { createContainer, globalStyle, style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
 
+import { FULLSCREEN_CONTROLS_INSET } from '../../styles.css';
 import { grid as gridRoot } from './Grid.css';
 import { GRID_TILE_ASPECT, STRIP_GAP, STRIP_HEIGHT } from './arrangeGrid';
 import { cssVar, stripVars } from './vars';
@@ -117,3 +118,34 @@ export const stripToggle = style({
     '&:focus-visible': { outline: `${toRem(2)} solid ${color.Primary.Main}` },
   },
 });
+
+// Fullscreen: the stream always fills the screen. The strip floats over its bottom edge above
+// the call controls, and fades with them while the pointer rests.
+const fullscreen = '[data-call-stage][data-fullscreen="true"]';
+const fullscreenIdle = `${fullscreen}[data-idle="true"]`;
+
+globalStyle(`${fullscreen} ${layer}`, { gridTemplateRows: 'minmax(0, 1fr)' });
+
+globalStyle(`${fullscreen} ${layer} > ${grid}`, {
+  position: 'absolute',
+  insetInline: 0,
+  insetBlockEnd: FULLSCREEN_CONTROLS_INSET,
+  blockSize: `${STRIP_HEIGHT}px`,
+});
+
+globalStyle(`${fullscreen} ${stripToggle}`, {
+  insetBlockEnd: `calc(${FULLSCREEN_CONTROLS_INSET} + ${STRIP_HEIGHT - STRIP_GAP - TOGGLE_HEIGHT}px)`,
+});
+
+globalStyle(`${fullscreen} ${stripHidden} ${stripToggle}`, {
+  insetBlockEnd: `calc(${FULLSCREEN_CONTROLS_INSET} + 8px)`,
+});
+
+// The tiles are drawn beside the layout (inline opacity from their animations), so the fade
+// needs !important; the strip's tiles are the ones with a user id or a screen share preview.
+const stripTiles = `${fullscreen}:has(${stripToggle}) :is([data-pinniped-user-id], [data-testid="screenSharePreview"])`;
+globalStyle(stripTiles, { transition: 'opacity 0.2s ease' });
+globalStyle(
+  `${fullscreenIdle}:has(${stripToggle}) :is([data-pinniped-user-id], [data-testid="screenSharePreview"])`,
+  { opacity: '0 !important', pointerEvents: 'none' }
+);

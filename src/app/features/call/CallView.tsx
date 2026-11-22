@@ -22,7 +22,12 @@ import { getMxIdLocalPart } from '../../utils/matrix';
 import { type Room } from 'matrix-js-sdk';
 import { type CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import type { Call } from '../../plugins/call/Call';
-import { callFailureAtom, callIdleAtom, callStreamHeightAtom } from '../../state/call';
+import {
+  callFailureAtom,
+  callFullscreenAtom,
+  callIdleAtom,
+  callStreamHeightAtom,
+} from '../../state/call';
 import { type ElementCallError } from '../../plugins/call/engine/utils/errors';
 import { stopPropagation } from '../../utils/keyboard';
 import { CallMemberMenu } from './CallMemberMenu';
@@ -177,6 +182,7 @@ type CallJoinedProps = {
 function CallJoined({ call }: CallJoinedProps) {
   const mx = useMatrixClient();
   const idle = useAtomValue(callIdleAtom);
+  const fullscreen = useAtomValue(callFullscreenAtom);
   const setStreamHeight = useSetAtom(callStreamHeightAtom);
   const [menu, setMenu] = useState<{ userId: string; cords: RectCords }>();
 
@@ -189,7 +195,7 @@ function CallJoined({ call }: CallJoinedProps) {
   );
 
   return (
-    <Box grow="Yes" direction="Column">
+    <Box grow="Yes" direction="Column" style={{ position: 'relative' }}>
       <Box grow="Yes" direction="Column" style={{ minHeight: 0 }}>
         <CallStage
           call={call}
@@ -198,7 +204,10 @@ function CallJoined({ call }: CallJoinedProps) {
           onStreamHeightChange={setStreamHeight}
         />
       </Box>
-      <CallControls call={call} />
+      {/* Fullscreen gives the stream the whole screen; the controls float over its bottom edge. */}
+      <div className={fullscreen ? css.FullscreenControls : undefined}>
+        <CallControls call={call} />
+      </div>
       <PopOut
         anchor={menu?.cords}
         offset={0}

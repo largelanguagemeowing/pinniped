@@ -15,6 +15,10 @@ export const stage = style({
   height: '100%',
   overflow: 'hidden',
   outline: 'none',
+  selectors: {
+    // Fullscreen with the pointer at rest: nothing is on screen, so no cursor either.
+    '&[data-fullscreen="true"][data-idle="true"]': { cursor: 'none' },
+  },
 });
 
 /** Scrolls the scrolling layer; the fixed layer is positioned against the stage instead. */

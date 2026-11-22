@@ -13,6 +13,17 @@ export const CallMemberCard = style({
   padding: config.space.S300,
 });
 
+/** Room the floating fullscreen controls take at the bottom of the stream. */
+export const FULLSCREEN_CONTROLS_INSET = toRem(72);
+
+/** Fullscreen: the controls float over the bottom of the stream instead of taking a bar of their own. */
+export const FullscreenControls = style({
+  position: 'absolute',
+  insetInline: 0,
+  insetBlockEnd: 0,
+  zIndex: 4,
+});
+
 export const CallControlContainer = style({
   // ~18px under the participant strip, ~11px under the bar.
   padding: `${toRem(18)} ${config.space.S400} ${toRem(11)}`,

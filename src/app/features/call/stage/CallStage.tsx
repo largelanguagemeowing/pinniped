@@ -16,10 +16,10 @@ import React, {
 import classNames from 'classnames';
 import { type RectCords, Scroll, Spinner, Text } from 'folds';
 import { BehaviorSubject } from 'rxjs';
-import { useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 
 import { type Call } from '../../../plugins/call/Call';
-import { callStageMountsAtom } from '../../../state/call';
+import { callFullscreenAtom, callStageMountsAtom } from '../../../state/call';
 import { type Layout } from '../../../plugins/call/engine/state/layout-types';
 import { useBehavior } from '../../../plugins/call/engine/useBehavior';
 import { Grid } from './grid/Grid';
@@ -84,6 +84,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
 
   // The call is in view while this stage is mounted, so the floating picture-in-picture hides.
   const setStageMounts = useSetAtom(callStageMountsAtom);
+  const fullscreen = useAtomValue(callFullscreenAtom);
   useEffect(() => {
     setStageMounts((n) => n + 1);
     return () => setStageMounts((n) => n - 1);
@@ -230,6 +231,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
             className={css.stage}
             data-call-stage
             data-idle={idle}
+            data-fullscreen={fullscreen}
             tabIndex={-1}
             onPointerUp={onPointerUp}
             onPointerMove={onPointerMove}

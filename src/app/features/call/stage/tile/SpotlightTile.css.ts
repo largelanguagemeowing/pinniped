@@ -8,6 +8,7 @@ Please see LICENSE in the repository root for full details.
 import { style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
 
+import { FULLSCREEN_CONTROLS_INSET } from '../../styles.css';
 import { mediaVars } from './MediaView.css';
 
 export const tile = style({});
@@ -29,6 +30,7 @@ export const contents = style({
   // animates to another one.
   selectors: {
     [`${maximised} &`]: { borderRadius: 0 },
+    '[data-call-stage][data-fullscreen="true"] &': { borderRadius: 0 },
   },
 });
 
@@ -44,6 +46,10 @@ export const item = style({
         [mediaVars.fgInset]:
           'calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 10px)',
       },
+    },
+    // The call controls float over the stream's bottom edge; its tags stay above them.
+    '[data-call-stage][data-fullscreen="true"] &': {
+      vars: { [mediaVars.fgInset]: `10px 10px calc(10px + ${FULLSCREEN_CONTROLS_INSET}) 10px` },
     },
   },
 });
@@ -98,6 +104,11 @@ export const bottomRightButtons = style({
   insetBlockEnd: config.space.S100,
   insetInlineEnd: config.space.S100,
   zIndex: 1,
+  selectors: {
+    '[data-call-stage][data-fullscreen="true"] &': {
+      insetBlockEnd: `calc(${config.space.S100} + ${FULLSCREEN_CONTROLS_INSET})`,
+    },
+  },
 });
 
 /** Stream volume: a speaker button; hovering it raises a vertical slider. */
