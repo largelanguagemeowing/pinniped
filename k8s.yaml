@@ -45,7 +45,7 @@ spec:
       containers:
         - name: cinny
           # Pinned by digest, so every pod runs the same build; deploys rewrite it (AGENTS.md).
-          image: repo.k8s.mreow.de/githubshit/cinny@sha256:e8b8e782e30c7cc990efe85d08a1f4cbd335f1f0a9eb8436e6e3533aa8aa6a61
+          image: repo.k8s.mreow.de/githubshit/cinny@sha256:4dda6fda7f7584aa0a3a9b99df99f8aea4864bae6654fa6073753d5b3e11432a
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
