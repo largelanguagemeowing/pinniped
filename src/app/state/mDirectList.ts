@@ -21,13 +21,11 @@ export const useBindMDirectAtom = (mx: MatrixClient, mDirect: typeof mDirectAtom
   const setMDirect = useSetAtom(mDirect);
 
   useEffect(() => {
-    const mDirectEvent = getAccountData(mx, AccountDataEvent.Direct);
-    if (mDirectEvent) {
-      setMDirect({
-        type: 'INITIALIZE',
-        rooms: getMDirects(mDirectEvent),
-      });
-    }
+    // an account without m.direct has no direct rooms; the atom must not keep another account's set
+    setMDirect({
+      type: 'INITIALIZE',
+      rooms: getMDirects(getAccountData(mx, AccountDataEvent.Direct)),
+    });
 
     const handleAccountData = (event: MatrixEvent) => {
       if (event.getType() === AccountDataEvent.Direct) {

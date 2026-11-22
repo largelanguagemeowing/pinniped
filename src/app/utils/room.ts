@@ -55,7 +55,7 @@ export const getAccountData = (
   eventType: AccountDataEvent
 ): MatrixEvent | undefined => mx.getAccountData(eventType);
 
-export const getMDirects = (mDirectEvent: MatrixEvent): Set<string> => {
+export const getMDirects = (mDirectEvent: MatrixEvent | undefined): Set<string> => {
   const roomIds = new Set<string>();
   const userIdToDirects = mDirectEvent?.getContent();
 
