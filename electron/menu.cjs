@@ -1,17 +1,28 @@
 // Standard application menu. Kept hidden via the window's autoHideMenuBar, but
 // its accelerators still fire (Ctrl+Shift+I / F12 devtools, reload, zoom, etc.).
 
-const { Menu } = require('electron');
+const { app, Menu } = require('electron');
 
 const isMac = process.platform === 'darwin';
 
-function buildAppMenu() {
+/**
+ * `quitShortcut`: whether File > Quit answers to Ctrl+Q (the platform's standard). Off, Quit is
+ * still in the menu but has no key. macOS keeps Cmd+Q in its app menu.
+ */
+function buildAppMenu({ quitShortcut = false } = {}) {
   const template = [
     ...(isMac ? [{ role: 'appMenu' }] : []),
     // No Close item anywhere (the stock File and Window menus have one on Ctrl/Cmd+W): a stray
     // keypress would close the window and, with it, leave the call. The window has its own
     // close button.
-    ...(isMac ? [] : [{ label: 'File', submenu: [{ role: 'quit' }] }]),
+    ...(isMac
+      ? []
+      : [
+          {
+            label: 'File',
+            submenu: [quitShortcut ? { role: 'quit' } : { label: 'Quit', click: () => app.quit() }],
+          },
+        ]),
     { role: 'editMenu' },
     {
       label: 'View',

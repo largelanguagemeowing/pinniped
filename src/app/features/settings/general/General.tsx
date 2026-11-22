@@ -421,6 +421,49 @@ function Startup() {
   );
 }
 
+/** Desktop only (not macOS): whether Ctrl+Q quits the app. */
+function QuitShortcut() {
+  const bridge = window.pinnipedDesktop?.quitShortcut;
+  const [enabled, setEnabled] = useState<boolean>();
+
+  useEffect(() => {
+    let cancelled = false;
+    bridge?.get().then((value) => {
+      if (!cancelled) setEnabled(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bridge]);
+
+  if (!bridge) return null;
+
+  const update = (value: boolean) => {
+    setEnabled(value);
+    bridge.set(value).then(setEnabled);
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Shortcuts</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Quit with Ctrl+Q"
+          description="Quitting also leaves your call, so a stray keypress is not allowed to do it unless this is on. File → Quit always works."
+          after={
+            <Switch
+              variant="Primary"
+              value={enabled === true}
+              disabled={enabled === undefined}
+              onChange={update}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
 function DateAndTime() {
   const [hour24Clock, setHour24Clock] = useSetting(settingsAtom, 'hour24Clock');
 
@@ -645,6 +688,7 @@ export function General({ requestClose }: GeneralProps) {
           <PageContent>
             <Box direction="Column" gap="700">
               <Startup />
+              <QuitShortcut />
               <DateAndTime />
               <Editor />
               <Sidebar />

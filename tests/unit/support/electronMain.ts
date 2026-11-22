@@ -122,6 +122,9 @@ export const loadElectronMain = async (
     powerMonitor: { getSystemIdleTime: () => 0 },
   };
 
+  const buildAppMenu = vi.fn();
+  const quitShortcutPreference = { readEnabled: vi.fn(() => false), writeEnabled: vi.fn() };
+
   runInNewContext(readFileSync(new URL('../../../electron/main.cjs', import.meta.url), 'utf8'), {
     __dirname: '/app/electron',
     // A bare context has none of Node's globals; the main process reads its own origin on load.
@@ -141,7 +144,8 @@ export const loadElectronMain = async (
           registerAppHandler: vi.fn(),
           APP_ORIGIN: 'app://cinny',
         };
-      if (name === './menu.cjs') return { buildAppMenu: vi.fn() };
+      if (name === './menu.cjs') return { buildAppMenu };
+      if (name === './quit-shortcut.cjs') return quitShortcutPreference;
       if (name === './updater.cjs') return { startUpdater: vi.fn(() => null) };
       if (name === './webrtc-tuning.cjs')
         return { applyFieldTrials: vi.fn(() => ''), readEnabled: vi.fn(), writeEnabled: vi.fn() };
@@ -164,5 +168,16 @@ export const loadElectronMain = async (
     senderFrame: { url },
   });
 
-  return { electron, app, ipcMain, handlers, windows, permissions, fromPage, screenShareAudio };
+  return {
+    electron,
+    app,
+    ipcMain,
+    handlers,
+    windows,
+    permissions,
+    fromPage,
+    screenShareAudio,
+    buildAppMenu,
+    quitShortcutPreference,
+  };
 };

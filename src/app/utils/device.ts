@@ -58,6 +58,11 @@ declare global {
       getAutostart?: () => Promise<AutostartState>;
       /** Resolves to the resulting state. */
       setAutostart?: (enabled: boolean, minimized: boolean) => Promise<AutostartState>;
+      /** Whether Ctrl+Q quits the app; resolves to the resulting state. Absent on macOS. */
+      quitShortcut?: {
+        get: () => Promise<boolean>;
+        set: (enabled: boolean) => Promise<boolean>;
+      };
       getSystemIdleTime?: () => Promise<number>;
       /**
        * Other applications' audio, for screen shares: on Linux a virtual microphone, on Windows

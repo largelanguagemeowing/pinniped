@@ -394,6 +394,13 @@ A successful deploy: both pods run `$REF`, the live hash changed from the previo
 
 On Linux everything is named after the app ID: the desktop entry (`club.stablecat.pinniped.desktop`), the icon (`hicolor/512x512/apps/club.stablecat.pinniped.png`), its `Icon=` and `StartupWMClass=`, in the rpm (`electron/linux/`), the Nix package and the autostart entry `main.cjs` writes. `app.setDesktopName` makes it the window's Wayland app ID and X11 `WM_CLASS`, and Electron names the audio streams' icon after it (`application.icon_name`, which pavucontrol shows). The AppImage keeps electron-builder's naming (`pinniped`), which AppImage tooling expects.
 
+### Keyboard shortcuts that end the session
+
+The desktop app's menu (`electron/menu.cjs`, hidden but its accelerators work) has no Close item: Ctrl/Cmd+W would
+close the window, which leaves the call first. File → Quit (Linux and Windows) has no key unless Settings → General →
+"Quit with Ctrl+Q" is on, saved in `quit-shortcut.json` in userData (`electron/quit-shortcut.cjs`; the
+`quit-shortcut:get/set` IPC rebuilds the menu at once, so no restart). macOS keeps Cmd+Q in its app menu.
+
 ### Windows auto-update
 
 The Windows build is a per-user one-click NSIS installer (not MSI: `electron-updater` cannot

@@ -16,6 +16,7 @@ const fs = require('fs');
 const os = require('os');
 const { registerAppScheme, registerAppHandler, APP_ORIGIN } = require('./app-protocol.cjs');
 const { buildAppMenu } = require('./menu.cjs');
+const quitShortcut = require('./quit-shortcut.cjs');
 const { createRichPresenceServer } = require('./rich-presence.cjs');
 const screenShareAudio = require('./screenshare-audio.cjs');
 const {
@@ -139,6 +140,14 @@ handleFromApp('webrtc-tuning:set', (_event, enabled) => {
 handleFromApp('webrtc-tuning:restart', () => {
   app.relaunch();
   app.quit();
+});
+
+// Settings → General: whether Ctrl+Q quits. Rebuilds the menu, so it applies at once.
+handleFromApp('quit-shortcut:get', () => quitShortcut.readEnabled(app.getPath('userData')));
+handleFromApp('quit-shortcut:set', (_event, enabled) => {
+  quitShortcut.writeEnabled(app.getPath('userData'), enabled === true);
+  Menu.setApplicationMenu(buildAppMenu({ quitShortcut: enabled === true }));
+  return enabled === true;
 });
 
 let mainWindow = null;
@@ -733,7 +742,9 @@ if (!app.requestSingleInstanceLock()) {
     log(
       DEV_SERVER_URL ? `Dev server: ${DEV_SERVER_URL}` : `Loading ${APP_ORIGIN}/ from ${DIST_DIR}`
     );
-    Menu.setApplicationMenu(buildAppMenu());
+    Menu.setApplicationMenu(
+      buildAppMenu({ quitShortcut: quitShortcut.readEnabled(app.getPath('userData')) })
+    );
     registerAppHandler(DIST_DIR);
     log('App protocol registered');
     restrictPermissions();

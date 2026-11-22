@@ -32,6 +32,14 @@ contextBridge.exposeInMainWorld('pinnipedDesktop', {
   setMediaAuth: (baseUrl, accessToken) => ipcRenderer.send('media-auth:set', baseUrl, accessToken),
   getAutostart: () => ipcRenderer.invoke('startup:get'),
   setAutostart: (enabled, minimized) => ipcRenderer.invoke('startup:set', enabled, minimized),
+  // Whether Ctrl+Q quits the app (off by default); not on macOS, whose Cmd+Q is the platform's.
+  quitShortcut:
+    process.platform === 'darwin'
+      ? undefined
+      : {
+          get: () => ipcRenderer.invoke('quit-shortcut:get'),
+          set: (enabled) => ipcRenderer.invoke('quit-shortcut:set', enabled),
+        },
   getSystemIdleTime: () => ipcRenderer.invoke('system:idle-time'),
   bindHotkeys: (shortcuts) => ipcRenderer.invoke('hotkeys:bind', shortcuts),
   onHotkey: (callback) => {
