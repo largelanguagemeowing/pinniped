@@ -23,6 +23,7 @@ import { Connection } from './Connection';
 import type { OpenIDClientParts, SFUConfig } from '../../../livekit/openIDSFU';
 import type { MediaDevices } from '../../MediaDevices';
 import { defaultLiveKitOptions } from '../../../livekit/options';
+import { callSettings } from '../../../settings';
 
 // TODO evaluate if this should be done like the Publisher Factory
 export interface ConnectionFactory {
@@ -117,8 +118,7 @@ function generateRoomOption({
 }): RoomOptions {
   // The mic is always captured raw: the browser's noise suppression and AGC
   // both sound bad and gate noise on/off (automatic gain is an opt-in setting,
-  // see autoGainSync). Echo cancellation stays with the browser, which has the
-  // far-end reference signal.
+  // see captureConstraintsSync); echo cancellation is an opt-in setting too.
   return {
     ...defaultLiveKitOptions,
     videoCaptureDefaults: {
@@ -128,7 +128,7 @@ function generateRoomOption({
     audioCaptureDefaults: {
       ...defaultLiveKitOptions.audioCaptureDefaults,
       deviceId: devices.audioInput.selected$.value?.id,
-      echoCancellation: true,
+      echoCancellation: callSettings.echoCancellation$.value,
       autoGainControl: false,
       noiseSuppression: false,
     },

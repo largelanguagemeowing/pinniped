@@ -161,6 +161,10 @@ function DeviceSelect({ value, devices, fallbackName, onChange }: DeviceSelectPr
 
 function CallAudio() {
   const [callAutoGain, setCallAutoGain] = useSetting(settingsAtom, 'callAutoGain');
+  const [callEchoCancellation, setCallEchoCancellation] = useSetting(
+    settingsAtom,
+    'callEchoCancellation'
+  );
   const [voiceGate, setVoiceGate] = useSetting(settingsAtom, 'callVoiceGate');
   const [voiceGateAuto, setVoiceGateAuto] = useSetting(settingsAtom, 'callVoiceGateAuto');
   const [voiceGateThreshold, setVoiceGateThreshold] = useSetting(
@@ -236,6 +240,19 @@ function CallAudio() {
           title="Automatic Gain"
           description="Level your microphone automatically, boosting a quiet voice and taming a loud one. Off sends your microphone untouched."
           after={<Switch variant="Primary" value={callAutoGain} onChange={setCallAutoGain} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Echo Cancellation"
+          description="Remove what comes out of your speakers from your microphone. Turn it on if you use speakers instead of headphones; off keeps your voice untouched."
+          after={
+            <Switch
+              variant="Primary"
+              value={callEchoCancellation}
+              onChange={setCallEchoCancellation}
+            />
+          }
         />
       </SequenceCard>
       <SequenceCard

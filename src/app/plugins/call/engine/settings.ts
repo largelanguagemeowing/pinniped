@@ -28,6 +28,7 @@ const deviceId = (id: string): string | undefined => (id === '' ? undefined : id
 /** The settings the call reads while it runs; changing one in Pinniped applies it mid-call. */
 export const callSettings = {
   autoGain$: setting((s) => s.callAutoGain),
+  echoCancellation$: setting((s) => s.callEchoCancellation),
   voiceGate$: setting((s) => s.callVoiceGate),
   voiceGateAuto$: setting((s) => s.callVoiceGateAuto),
   /** 0-1: how loud speech must be to open the gate when not automatic. */
