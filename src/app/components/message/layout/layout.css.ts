@@ -85,6 +85,8 @@ export const MessageBase = recipe({
     DefaultReset,
     {
       marginTop: SpacingVar,
+      WebkitUserSelect: 'text',
+      userSelect: 'text',
       padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       selectors: {
@@ -129,6 +131,8 @@ export const CompactHeader = style([
 ]);
 
 export const AvatarBase = style({
+  WebkitUserSelect: 'none',
+  userSelect: 'none',
   paddingTop: toRem(4),
   transition: 'transform 200ms cubic-bezier(0, 0.8, 0.67, 0.97)',
   display: 'flex',

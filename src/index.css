@@ -56,6 +56,17 @@ body {
 
   /*Why font-variant-ligatures => https://github.com/rsms/inter/issues/222 */
   font-variant-ligatures: no-contextual;
+
+  /* Chrome is unselectable so a stray drag cannot paint the whole UI; content
+     (message rows, fields, viewers) opts back in with user-select: text. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable]:not([contenteditable='false']) {
+  -webkit-user-select: text;
+  user-select: text;
 }
 #root {
   width: 100%;

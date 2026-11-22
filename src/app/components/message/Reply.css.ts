@@ -19,6 +19,8 @@ export const ThreadIndicator = style({
 });
 
 export const Reply = style({
+  WebkitUserSelect: 'none',
+  userSelect: 'none',
   marginBottom: toRem(1),
   minWidth: 0,
   maxWidth: '100%',

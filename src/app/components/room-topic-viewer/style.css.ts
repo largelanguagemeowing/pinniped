@@ -18,6 +18,8 @@ export const ModalContent = style({
   paddingBottom: config.space.S700,
 });
 export const ModalTopic = style({
+  WebkitUserSelect: 'text',
+  userSelect: 'text',
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
 });

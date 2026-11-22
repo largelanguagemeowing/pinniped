@@ -17,6 +17,8 @@ export const MessageBaseBubbleCollapsed = style({
 export const MessageOptionsBase = style([
   DefaultReset,
   {
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
     position: 'absolute',
     top: toRem(-30),
     right: 0,

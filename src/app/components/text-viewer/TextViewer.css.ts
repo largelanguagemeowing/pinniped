@@ -31,6 +31,8 @@ export const TextViewerContent = style([
 export const TextViewerPre = style([
   DefaultReset,
   {
+    WebkitUserSelect: 'text',
+    userSelect: 'text',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
   },
