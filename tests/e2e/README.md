@@ -12,7 +12,7 @@ The suite runs against either a throwaway local homeserver (what CI does) or a d
 - LiveKit and lk-jwt-service, wired as in [matrix-installer](https://github.com/largelanguagemeowing/matrix-installer): lk-jwt-service is an application service (MSC4502/MSC4512), and Synapse's `/.well-known/matrix/client` announces it
 - justserve serving `dist/` with the production settings: the `Containerfile`'s `server` stage, which is the production image without the bundle
 
-The containers share the host network, so the browser, the SFU and the services meet on loopback and WebRTC needs no NAT traversal. Each `up` generates fresh secrets, a certificate and three accounts (`e2e-user`, `e2e-peer`, `e2e-third`), and writes their credentials to `playwright/.stack/e2e.env`.
+The containers share the host network, so the browser, the SFU and the services meet on loopback and WebRTC needs no NAT traversal. Each `up` generates fresh secrets, a certificate and four accounts (`e2e-user`, `e2e-peer`, `e2e-third`, `e2e-fourth`), and writes their credentials to `playwright/.stack/e2e.env`.
 
 ```sh
 npm run build              # the stack serves dist/; rebuild after changing src/
@@ -41,7 +41,7 @@ Required variables:
 - `E2E_USERNAME`: Matrix account username
 - `E2E_PASSWORD`: Matrix account password
 
-Optional: `E2E_PEER_USERNAME`/`E2E_PEER_PASSWORD` and `E2E_THIRD_USERNAME`/`E2E_THIRD_PASSWORD`, more accounts on the same homeserver for the tests with several people (`call.spec.ts`, `group-dm.spec.ts`, `presence.spec.ts`); without them those tests are skipped.
+Optional: `E2E_PEER_USERNAME`/`E2E_PEER_PASSWORD` and `E2E_THIRD_*` and `E2E_FOURTH_*`, more accounts on the same homeserver for the tests with several people (`call.spec.ts`, `group-dm.spec.ts`, `presence.spec.ts`); without them those tests are skipped.
 
 `.env.e2e` and the generated authentication state are ignored by Git. Never commit either file.
 

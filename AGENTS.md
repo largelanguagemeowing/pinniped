@@ -238,7 +238,7 @@ The Playwright suite (`tests/e2e/`, see its README) runs in CI (`.github/workflo
 throwaway homeserver on the runner: `tests/e2e/stack/stack.mjs` starts Synapse, LiveKit and
 lk-jwt-service (as an application service, wired like
 [matrix-installer](https://github.com/largelanguagemeowing/matrix-installer)) on the host network,
-serves `dist/` with the production image's justserve settings (the `Containerfile`'s `server` stage), and registers three accounts. Locally:
+serves `dist/` with the production image's justserve settings (the `Containerfile`'s `server` stage), and registers four accounts. Locally:
 `npm run build && npm run e2e:stack:up && npm run test:e2e:stack`. Tests drive the UI the way a person
 would (rooms are created, invites sent and calls joined through Pinniped itself); the API is for
 cleanup and for content the UI cannot produce. `call.spec.ts` signs two people in, meets them in a new

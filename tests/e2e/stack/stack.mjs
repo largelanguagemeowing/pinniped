@@ -3,7 +3,7 @@
 // A throwaway Matrix stack for the e2e suite, on this machine's loopback: Synapse, LiveKit and
 // lk-jwt-service (an application service, as matrix-installer runs it), plus justserve serving
 // dist/ with the production settings. `up` does not build the app: run `npm run build` first. It registers
-// three accounts and writes their credentials to playwright/.stack/e2e.env, which
+// four accounts and writes their credentials to playwright/.stack/e2e.env, which
 // `npm run test:e2e:stack` reads. Secrets and the TLS certificate are generated per `up`.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHmac, randomBytes } from 'node:crypto';
@@ -39,7 +39,12 @@ const PORTS = {
 const SERVER_NAME = `localhost:${PORTS.homeserver}`;
 const HOMESERVER_URL = `https://${SERVER_NAME}`;
 // env prefix (see tests/e2e/support/env.ts) -> username
-const ACCOUNTS = { E2E: 'e2e-user', E2E_PEER: 'e2e-peer', E2E_THIRD: 'e2e-third' };
+const ACCOUNTS = {
+  E2E: 'e2e-user',
+  E2E_PEER: 'e2e-peer',
+  E2E_THIRD: 'e2e-third',
+  E2E_FOURTH: 'e2e-fourth',
+};
 const LABEL = 'club.stablecat.pinniped.e2e-stack';
 
 const runtime = process.env.E2E_CONTAINER_RUNTIME ?? (hasCommand('podman') ? 'podman' : 'docker');

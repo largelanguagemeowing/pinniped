@@ -23,3 +23,4 @@ const otherAccount = (prefix: string): Credentials => ({
 /** More accounts on the same homeserver, for tests with several people in them. */
 export const peerCredentials = (): Credentials => otherAccount('E2E_PEER');
 export const thirdCredentials = (): Credentials => otherAccount('E2E_THIRD');
+export const fourthCredentials = (): Credentials => otherAccount('E2E_FOURTH');
