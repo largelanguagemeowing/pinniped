@@ -9,12 +9,11 @@ import { stripUnsafeTextChars } from '../utils/sanitize';
 export const useRoomAvatar = (room: Room, dm?: boolean): string | undefined => {
   const avatarEvent = useStateEvent(room, StateEvent.RoomAvatar);
 
-  if (dm) {
-    return room.getAvatarFallbackMember()?.getMxcAvatarUrl();
-  }
   const content = avatarEvent?.getContent();
   const avatarMxc = content && typeof content.url === 'string' ? content.url : undefined;
 
+  // A chat with one other person shows their picture; a group has no such member, so it shows its own icon.
+  if (dm) return room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? avatarMxc;
   return avatarMxc;
 };
 

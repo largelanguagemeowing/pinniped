@@ -26,13 +26,7 @@ import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { NavItem, NavItemContent, NavItemOptions, NavLink } from '../../components/nav';
 import { UnreadBadge, UnreadBadgeCenter } from '../../components/unread-badge';
 import { RoomAvatar, RoomIcon } from '../../components/room-avatar';
-import {
-  getDirectRoomAvatarUrl,
-  getMemberAvatarMxc,
-  getMemberDisplayName,
-  getRoomAvatarUrl,
-  getStateEvent,
-} from '../../utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName, getStateEvent } from '../../utils/room';
 import { nameInitials } from '../../utils/common';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useRoomUnread } from '../../state/hooks/unread';
@@ -77,7 +71,7 @@ import { useUserPresence } from '../../hooks/useUserPresence';
 import { useUserRichPresence } from '../../hooks/useUserRichPresence';
 import { AvatarPresence, PresenceBadge } from '../../components/presence';
 import { PresenceStatus } from '../../components/presence/PresenceStatus';
-import { useRoomName } from '../../hooks/useRoomMeta';
+import { useRoomAvatar, useRoomName } from '../../hooks/useRoomMeta';
 import { useStateEvent } from '../../hooks/useStateEvent';
 import { UnencryptedIcon } from '../../components/unencrypted-indicator';
 import { useCall, useCallMembers, useCallSession } from '../../hooks/useCall';
@@ -448,6 +442,7 @@ export function RoomNavItem({
   );
 
   const roomName = useRoomName(room);
+  const avatarMxc = useRoomAvatar(room, direct);
   const encrypted = !!useStateEvent(room, StateEvent.RoomEncryption);
   const unencryptedDm = !!direct && !encrypted;
 
@@ -535,9 +530,9 @@ export function RoomNavItem({
         roomId={room.roomId}
         colorId={direct ? guessDmRoomUserId(room, mx.getSafeUserId()) : undefined}
         src={
-          direct
-            ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-            : getRoomAvatarUrl(mx, room, 96, useAuthentication)
+          avatarMxc
+            ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
+            : undefined
         }
         alt={displayName}
         renderFallback={() => (
