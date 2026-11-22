@@ -427,7 +427,7 @@ function CallButton() {
             aria-label="Call"
             aria-pressed={!!menuAnchor}
           >
-            <Icon size="400" src={Icons.VideoCamera} filled={!!menuAnchor} />
+            <Icon size="400" src={Icons.Phone} filled={!!menuAnchor} />
           </IconButton>
         )}
       </TooltipProvider>
