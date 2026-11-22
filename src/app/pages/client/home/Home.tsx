@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Avatar,
@@ -15,7 +15,6 @@ import {
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import * as css from './Home.css';
-import { factoryRoomIdByActivity } from '../../../utils/sort';
 import {
   NavCategory,
   NavCategoryHeader,
@@ -40,6 +39,9 @@ import {
 } from '../../../hooks/router/useHomeSelected';
 import { useDirectRooms } from '../direct/useDirectRooms';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
+import { useRoomsByActivity } from '../../../hooks/useRoomsByActivity';
+import { useRoomsFilteredByName } from '../../../hooks/useRoomsFilteredByName';
+import { useScrollMargin } from '../../../hooks/useScrollMargin';
 import { VirtualTile } from '../../../components/virtualizer';
 import { RoomNavItem } from '../../../features/room-nav';
 import { useNavToActivePathMapper } from '../../../hooks/useNavToActivePathMapper';
@@ -87,6 +89,43 @@ function HomeHeader({ filter, onFilterChange }: HomeHeaderProps) {
   );
 }
 
+function HomeLinks() {
+  const homeIndexSelected = useHomeIndexSelected();
+  const invitesSelected = useHomeInvitesSelected();
+
+  return (
+    <NavCategory>
+      <NavItem variant="Background" radii="400" aria-selected={homeIndexSelected}>
+        <NavLink to={getHomePath()}>
+          <NavItemContent>
+            <Box as="span" grow="Yes" alignItems="Center" gap="200">
+              <Avatar size="200" radii="400">
+                <Icon src={Icons.Home} size="100" filled={homeIndexSelected} />
+              </Avatar>
+              <Box as="span" grow="Yes">
+                <Text as="span" size="Inherit" truncate>
+                  Home
+                </Text>
+              </Box>
+            </Box>
+          </NavItemContent>
+        </NavLink>
+      </NavItem>
+      <InvitesNavItem to={getHomeInvitesPath()} selected={invitesSelected} />
+    </NavCategory>
+  );
+}
+
+function HomeNoMatches() {
+  return (
+    <Box style={{ padding: `${config.space.S200} ${config.space.S200}` }}>
+      <Text size="T300" priority="300">
+        No conversations match
+      </Text>
+    </Box>
+  );
+}
+
 function HomeEmpty() {
   const navigate = useNavigate();
 
@@ -126,53 +165,32 @@ export function Home() {
 
   const selectedRoomId = useSelectedRoom();
   const createDirectSelected = useDirectCreateSelected();
-  const homeIndexSelected = useHomeIndexSelected();
-  const invitesSelected = useHomeInvitesSelected();
   const noRoomToDisplay = directs.length === 0;
 
   const [dmFilter, setDmFilter] = useState('');
-  const sortedDirects = useMemo(() => {
-    const sorted = Array.from(directs).sort(factoryRoomIdByActivity(mx));
-    const term = dmFilter.trim().toLowerCase();
-    if (!term) return sorted;
-    return sorted.filter((roomId) => mx.getRoom(roomId)?.name.toLowerCase().includes(term));
-  }, [mx, directs, dmFilter]);
+  const activeDirects = useRoomsByActivity(mx, directs);
+  const sortedDirects = useRoomsFilteredByName(mx, activeDirects, dmFilter);
 
+  const [directList, setDirectList] = useState<HTMLDivElement | null>(null);
+  const scrollMargin = useScrollMargin(scrollRef, directList);
   const directVirtualizer = useVirtualizer({
     count: sortedDirects.length,
     getItemKey: (index) => sortedDirects[index] ?? index,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 32,
     overscan: 10,
+    scrollMargin,
   });
 
   return (
     <PageNav>
       <HomeHeader filter={noRoomToDisplay ? undefined : dmFilter} onFilterChange={setDmFilter} />
-      {noRoomToDisplay ? (
-        <HomeEmpty />
-      ) : (
-        <PageNavContent scrollRef={scrollRef}>
-          <Box direction="Column" gap="200">
-            <NavCategory>
-              <NavItem variant="Background" radii="400" aria-selected={homeIndexSelected}>
-                <NavLink to={getHomePath()}>
-                  <NavItemContent>
-                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                      <Avatar size="200" radii="400">
-                        <Icon src={Icons.Home} size="100" filled={homeIndexSelected} />
-                      </Avatar>
-                      <Box as="span" grow="Yes">
-                        <Text as="span" size="Inherit" truncate>
-                          Home
-                        </Text>
-                      </Box>
-                    </Box>
-                  </NavItemContent>
-                </NavLink>
-              </NavItem>
-              <InvitesNavItem to={getHomeInvitesPath()} selected={invitesSelected} />
-            </NavCategory>
+      <PageNavContent scrollRef={scrollRef}>
+        <Box direction="Column" gap="200">
+          <HomeLinks />
+          {noRoomToDisplay ? (
+            <HomeEmpty />
+          ) : (
             <NavCategory>
               <NavCategoryHeader>
                 <Box grow="Yes" style={{ padding: `0 ${config.space.S200}` }}>
@@ -207,6 +225,7 @@ export function Home() {
                 </Box>
               </NavCategoryHeader>
               <div
+                ref={setDirectList}
                 style={{
                   position: 'relative',
                   height: directVirtualizer.getTotalSize(),
@@ -221,6 +240,7 @@ export function Home() {
                   return (
                     <VirtualTile
                       virtualItem={vItem}
+                      style={{ top: vItem.start - scrollMargin }}
                       key={roomId}
                       ref={directVirtualizer.measureElement}
                     >
@@ -239,10 +259,11 @@ export function Home() {
                   );
                 })}
               </div>
+              {sortedDirects.length === 0 && <HomeNoMatches />}
             </NavCategory>
-          </Box>
-        </PageNavContent>
-      )}
+          )}
+        </Box>
+      </PageNavContent>
     </PageNav>
   );
 }
