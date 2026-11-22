@@ -148,6 +148,7 @@ export function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareBu
           onClick={() => onToggle()}
           outlined
           disabled={disabled}
+          aria-label={enabled ? 'Stop Screenshare' : 'Start Screenshare'}
         >
           <Icon size="400" src={Icons.ScreenShare} filled={enabled} />
         </IconButton>
