@@ -43,7 +43,14 @@ export function Slider({
 // Loudness is perceived roughly as a power of amplitude, so the slider travels
 // in perceptual space and the volume is its square.
 const VOLUME_EXPONENT = 2;
-const VOLUME_STEPS = 100;
+// Steps along the travel; 0.1% resolution, so the low end is not coarse.
+const VOLUME_STEPS = 1000;
+
+/** Where a linear gain sits on the slider's travel, 0..100 (percent of the track). */
+export function volumeSliderPercent(value: number, max = 1): number {
+  const position = Math.min(1, Math.max(0, value / max)) ** (1 / VOLUME_EXPONENT);
+  return Math.round(position * VOLUME_STEPS) / (VOLUME_STEPS / 100);
+}
 
 type VolumeSliderProps = Omit<SliderProps, 'min' | 'max' | 'step' | 'value' | 'onChange'> & {
   /** Linear gain, 0..max. */
@@ -51,7 +58,7 @@ type VolumeSliderProps = Omit<SliderProps, 'min' | 'max' | 'step' | 'value' | 'o
   max?: number;
   onChange: (volume: number) => void;
 };
-/** A slider for a linear volume/gain with 1% steps along a power curve. */
+/** A slider for a linear volume/gain with 0.1% steps along a power curve. */
 export function VolumeSlider({ value, max = 1, onChange, ...props }: VolumeSliderProps) {
   const position = Math.round(
     Math.min(1, Math.max(0, value / max)) ** (1 / VOLUME_EXPONENT) * VOLUME_STEPS
@@ -64,7 +71,7 @@ export function VolumeSlider({ value, max = 1, onChange, ...props }: VolumeSlide
       step={1}
       value={position}
       onChange={(next) =>
-        onChange(Math.round(max * (next / VOLUME_STEPS) ** VOLUME_EXPONENT * 100) / 100)
+        onChange(Math.round(max * (next / VOLUME_STEPS) ** VOLUME_EXPONENT * 1e4) / 1e4)
       }
     />
   );

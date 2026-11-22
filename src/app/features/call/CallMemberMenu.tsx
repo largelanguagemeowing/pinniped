@@ -5,7 +5,7 @@ import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
-import { VolumeSlider } from '../../components/slider';
+import { VolumeSlider, volumeSliderPercent } from '../../components/slider';
 import { getDMRoomFor } from '../../utils/matrix';
 import { getHomeRoomPath } from '../../pages/pathUtils';
 import type { Call } from '../../plugins/call/Call';
@@ -135,7 +135,7 @@ export function CallMemberMenu({ roomId, userId, cords, call, requestClose }: Ca
             <Box justifyContent="SpaceBetween">
               <Text size="L400">User Volume</Text>
               <Text size="T200" priority="300">
-                {Math.round(volume * 100)}%
+                {volumeSliderPercent(volume, MAX_USER_VOLUME).toFixed(1)}%
               </Text>
             </Box>
             <VolumeSlider
