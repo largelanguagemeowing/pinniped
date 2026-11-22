@@ -16,6 +16,7 @@ import { type ScreenShareViewModel } from '../../../../plugins/call/engine/state
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import { type CallLayout, useLayoutBounds } from './CallLayout';
 import { planStrip, type StripPlan } from './arrangeGrid';
+import { useStripPeople } from './useStripPeople';
 import * as css from './SpotlightLandscapeLayout.css';
 import { useUpdateLayout, useVisibleTiles } from './Grid';
 import { ScreenSharePreview } from './ScreenSharePreview';
@@ -115,6 +116,7 @@ export const makeSpotlightLandscapeLayout: CallLayout<SpotlightLandscapeLayoutMo
         stripScreenShares,
       });
       const plan = planStrip(width, stripScreenShares.length, model.grid.length);
+      const people = useStripPeople(model.grid, plan.people);
       const toggleLabel = hidden ? 'Show Members' : 'Hide Members';
 
       return (
@@ -128,7 +130,7 @@ export const makeSpotlightLandscapeLayout: CallLayout<SpotlightLandscapeLayoutMo
             {stripScreenShares.slice(0, plan.shares).map((m) => (
               <ScreenSharePreview key={m.id} vm={m} />
             ))}
-            {model.grid.slice(0, plan.people).map((m) => (
+            {people.map((m) => (
               <Slot key={m.id} className={css.slot} id={m.id} model={m} />
             ))}
           </div>

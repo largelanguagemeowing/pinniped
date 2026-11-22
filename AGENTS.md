@@ -115,6 +115,9 @@ Fork changes on top of upstream Element Call:
 - **Call controls**: Pinniped's call bar (`features/call/CallControls.tsx`) and status panel
   (`features/call-status/`) call `Call`'s methods and read `call.controlState$`. Microphone and
   sound toggles the user makes are remembered for the next call (`call.userToggles$`).
+- **Strip order** (`stage/grid/stripOrder.ts`, `useStripPeople.ts`): the spotlight's participant strip puts
+  people talking now, then those who spoke in the last 10 s (latest first), ahead of the call's own order;
+  a shown person keeps their slot until they drop out of the picked set.
 - **Deafen** lives in `MuteStates` (`deafened$`, `setDeafened`): it mutes the microphone, silences
   the call's audio in `CallAudio` (shared-screen audio stays audible), and is shared with the other
   participants as the client-reported `club.stablecat.pinniped.deafened` LiveKit attribute,
