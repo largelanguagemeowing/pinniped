@@ -28,11 +28,14 @@ type DmCallSplitProps = {
   chat: ReactNode;
   /** The call takes the whole height; the chat is hidden but stays mounted, keeping its place. */
   callOnly: boolean;
+  /** The call is an overview that has to show in full: the pane never gets smaller than it. */
+  fitCall: boolean;
 };
 
 /** DM layout: call on top, chat below, draggable divider between them. */
-export function DmCallSplit({ call, chat, callOnly }: DmCallSplitProps) {
+export function DmCallSplit({ call, chat, callOnly, fitCall }: DmCallSplitProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const callPaneRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(loadHeight);
   const [dragging, setDragging] = useState(false);
 
@@ -62,8 +65,9 @@ export function DmCallSplit({ call, chat, callOnly }: DmCallSplitProps) {
   const handlePointerUp: PointerEventHandler<HTMLDivElement> = (evt) => {
     evt.currentTarget.releasePointerCapture(evt.pointerId);
     setDragging(false);
-    // The last move may still be pending; the release is where the divider ends up.
-    const final = heightAt(evt.clientY) ?? height;
+    // The last move may still be pending; the release is where the divider ends up. The pane
+    // may be taller than that when the overview needs the room.
+    const final = Math.max(heightAt(evt.clientY) ?? height, callPaneRef.current?.offsetHeight ?? 0);
     setHeight(final);
     try {
       localStorage.setItem(STORAGE_KEY, String(Math.round(final)));
@@ -75,12 +79,17 @@ export function DmCallSplit({ call, chat, callOnly }: DmCallSplitProps) {
   return (
     <Box ref={containerRef} grow="Yes" direction="Column" style={{ minHeight: 0 }}>
       <Box
+        ref={callPaneRef}
         shrink="No"
         direction="Column"
         style={
           callOnly
             ? { flexGrow: 1, minHeight: 0 }
-            : { height: toRem(height), maxHeight: `calc(100% - ${toRem(MIN_CHAT_HEIGHT)})` }
+            : {
+                height: toRem(height),
+                maxHeight: `calc(100% - ${toRem(MIN_CHAT_HEIGHT)})`,
+                minHeight: fitCall ? 'min-content' : undefined,
+              }
         }
       >
         <Box grow="Yes" style={{ minHeight: 0 }}>

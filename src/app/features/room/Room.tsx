@@ -83,6 +83,7 @@ export function Room() {
                   call={<CallView />}
                   chat={<RoomView eventId={eventId} />}
                   callOnly={fullscreen}
+                  fitCall={!inCall}
                 />
               ) : (
                 <Box grow="Yes">
