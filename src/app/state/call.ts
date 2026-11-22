@@ -56,3 +56,9 @@ export const callPlaybackAtom = atom<CallPlayback | undefined>(undefined);
 
 /** Height in pixels of the screen share the call view shows, or null when it shows none. */
 export const callStreamHeightAtom = atom<number | null>(null);
+
+/**
+ * How many call views (the call's video stage) are on screen. While one is, the call is in view
+ * and the floating picture-in-picture does not show.
+ */
+export const callStageMountsAtom = atom<number>(0);

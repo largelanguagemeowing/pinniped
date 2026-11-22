@@ -2,6 +2,7 @@
 // Driven by run.mjs, which resizes a real Chromium window and measures the tiles.
 import React, { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { RouterProvider, createMemoryRouter, useLocation } from 'react-router-dom';
 import { type MatrixClient } from 'matrix-js-sdk';
 import '@fontsource/inter/variable.css';
 import 'folds/dist/style.css';
@@ -13,6 +14,7 @@ import { DmCallSplit } from '../../src/app/features/room/DmCallSplit';
 import { MatrixClientProvider } from '../../src/app/hooks/useMatrixClient';
 import { SpecVersionsProvider } from '../../src/app/hooks/useSpecVersions';
 import { DarkTheme } from '../../src/app/hooks/useTheme';
+import { CallPictureInPicture } from '../../src/app/features/call-pip';
 import { fakeCall } from './fakeCall';
 
 const params = new URLSearchParams(location.search);
@@ -58,11 +60,34 @@ function Split() {
   );
 }
 
+function Location() {
+  return <div data-harness-location>{useLocation().pathname}</div>;
+}
+
+/** The floating call window over a stand-in for the rest of the app; `stage=1` also opens the call view. */
+function PipPage() {
+  return (
+    <>
+      <Location />
+      <div style={{ height: '100%', background: '#181818' }}>
+        {params.get('stage') === '1' && stage}
+      </div>
+      <CallPictureInPicture call={call} />
+    </>
+  );
+}
+
+// useRoomNavigate reads the route, which needs a data router.
+const pipRouter = createMemoryRouter([{ path: '*', element: <PipPage /> }]);
+
+const client = { getRoom: () => null } as unknown as MatrixClient;
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MatrixClientProvider value={{} as MatrixClient}>
+    <MatrixClientProvider value={client}>
       <SpecVersionsProvider value={{ versions: ['v1.11'] }}>
-        {params.get('split') === '1' ? <Split /> : stage}
+        {params.get('pip') === '1' && <RouterProvider router={pipRouter} />}
+        {params.get('pip') !== '1' && (params.get('split') === '1' ? <Split /> : stage)}
       </SpecVersionsProvider>
     </MatrixClientProvider>
   </StrictMode>

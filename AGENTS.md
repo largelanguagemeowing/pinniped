@@ -115,6 +115,22 @@ Fork changes on top of upstream Element Call:
 - **Call controls**: Pinniped's call bar (`features/call/CallControls.tsx`) and status panel
   (`features/call-status/`) call `Call`'s methods and read `call.controlState$`. Microphone and
   sound toggles the user makes are remembered for the next call (`call.userToggles$`).
+- **Picture-in-picture** (`src/app/features/call-pip/`): while a call runs and no call view is on screen
+  (`callStageMountsAtom` counts mounted `CallStage`s), someone has a camera on (yours counts) or a screen
+  share exists, a floating window shows one participant over the rest of the app (`CallPictureInPicture`,
+  mounted by `ActiveCall`). It renders the call's own media in a `SpotlightTile`. Who it shows
+  (`pickPipMedia`, followed by `observePipMedia$` from `vm.userMedia$`, `vm.screenShares$` and
+  `vm.focusedMediaId$`): the focused media if it has video, else the newest remote screen share, else the
+  other camera user who began speaking most recently (the previous pick while nobody speaks), else your
+  own camera or share. The window is 16:9, 200-960 px wide (320 default), dragged anywhere and released
+  into the corner chosen by projecting the release velocity 200 ms ahead (`releaseCorner`), resized from
+  the handle at the opposite corner in 40 px steps; corner and width are remembered
+  (`pipCornerAtom`, `pipWidthAtom`, localStorage). Controls (back to the call, name outside DMs, leave)
+  fade after 1.8 s; a double click or the title goes to the call's room. `pipGeometry.ts` and `pipMedia.ts`
+  are pure and tested in `tests/unit/call-pip/`; `node tests/call-stage-harness/run.mjs --pip` drives it in
+  Chromium (drag, fling, resize, reload, going back to the call). Not done: a menu to switch between
+  watched streams, popping the call into its own window, lowering the requested video quality while it
+  shows (adaptive streams are off), and hiding for open dialogs (they cover it by z-index instead).
 - **Strip order** (`stage/grid/stripOrder.ts`, `useStripPeople.ts`): the spotlight's participant strip puts
   people talking now, then those who spoke in the last 10 s (latest first), ahead of the call's own order;
   a shown person keeps their slot until they drop out of the picked set.

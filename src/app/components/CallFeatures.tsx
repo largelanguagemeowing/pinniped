@@ -37,6 +37,7 @@ import {
 } from '../hooks/useActiveCall';
 import { CallHotkeys } from '../features/call-hotkeys';
 import { CallAudio } from '../features/call/stage';
+import { CallPictureInPicture } from '../features/call-pip';
 import type { Call } from '../plugins/call/Call';
 import { callAtom } from '../state/call';
 import { useMatrixClient } from '../hooks/useMatrixClient';
@@ -374,7 +375,12 @@ function ActiveCall({ call }: { call: Call }) {
   // The desktop app leaves the call before it closes or reloads the window.
   useEffect(() => window.pinnipedDesktop?.onLeaveCallRequest?.(() => call.hangup()), [call]);
 
-  return <CallAudio call={call} />;
+  return (
+    <>
+      <CallAudio call={call} />
+      <CallPictureInPicture call={call} />
+    </>
+  );
 }
 
 /** Calls app-wide: the incoming call prompt, the call hotkeys and the call this client is in. */

@@ -210,6 +210,8 @@ export function fakeCall(s: Scenario): Call {
     showNameTags$: b(true),
     reconnecting$: b(s.reconnecting),
     screenShares$: b(shares),
+    userMedia$: b(people),
+    focusedMediaId$: b<string | null>(null),
     focusMedia: () => undefined,
     showGrid: () => undefined,
     tapScreen: () => undefined,
@@ -222,6 +224,8 @@ export function fakeCall(s: Scenario): Call {
   };
   return {
     vm,
+    roomId: '!room:example.org',
+    hangup: () => console.info('hangup'),
     undecryptable$: b(new Set(s.undecryptable.map((i) => `identity-${i}`))),
     muteStates: { audio: { setEnabled$: b(null) } },
     toggleMicrophone: () => undefined,

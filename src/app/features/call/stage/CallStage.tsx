@@ -16,8 +16,10 @@ import React, {
 import classNames from 'classnames';
 import { type RectCords, Scroll, Spinner, Text } from 'folds';
 import { BehaviorSubject } from 'rxjs';
+import { useSetAtom } from 'jotai';
 
 import { type Call } from '../../../plugins/call/Call';
+import { callStageMountsAtom } from '../../../state/call';
 import { type Layout } from '../../../plugins/call/engine/state/layout-types';
 import { useBehavior } from '../../../plugins/call/engine/useBehavior';
 import { Grid } from './grid/Grid';
@@ -79,6 +81,13 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
   const reconnecting = useBehavior(vm.reconnecting$);
   // While reconnecting, the tiles are covered: out of the tab order and the accessibility tree.
   const contentObscured = reconnecting;
+
+  // The call is in view while this stage is mounted, so the floating picture-in-picture hides.
+  const setStageMounts = useSetAtom(callStageMountsAtom);
+  useEffect(() => {
+    setStageMounts((n) => n + 1);
+    return () => setStageMounts((n) => n - 1);
+  }, [setStageMounts]);
 
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const gridBounds = useScrollerSize(scroller);

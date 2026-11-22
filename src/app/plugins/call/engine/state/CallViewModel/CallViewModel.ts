@@ -358,6 +358,10 @@ export interface CallViewModel {
   showGrid: () => void;
   /** Pinniped: every screen share in the call, for the strip's stream previews. */
   screenShares$: Behavior<ScreenShareViewModel[]>;
+  /** Pinniped: every participant's media (yourself included), for views outside the call view. */
+  userMedia$: Behavior<UserMediaViewModel[]>;
+  /** Pinniped: the media the user clicked to focus, or null when focus follows the call. */
+  focusedMediaId$: Behavior<string | null>;
   /**
    * Pinniped: who is speaking, muted or sharing their screen, whatever the layout
    * shows. Reported to the embedding client, which shows it next to the
@@ -1657,6 +1661,8 @@ export function createCallViewModel$(
     focusMedia,
     showGrid,
     screenShares$,
+    userMedia$,
+    focusedMediaId$,
     participantActivity$: scope.behavior(
       observeParticipantActivity$(userMedia$, screenShares$),
       emptyParticipantActivity

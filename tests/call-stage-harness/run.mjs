@@ -1,6 +1,7 @@
 // Usage: node tests/call-stage-harness/run.mjs [scenarios-json]   (prints a JSON report)
 //        node tests/call-stage-harness/run.mjs --screenshots [dir]   (default: out/screenshots)
 //        node tests/call-stage-harness/run.mjs --drag [scenarios-json]  (drags the DM call divider)
+//        node tests/call-stage-harness/run.mjs --pip [dir]   (the floating call window: drag, fling, resize, persistence)
 //        node tests/call-stage-harness/run.mjs --call-only [scenarios-json] [dir]
 //          (switches the DM call split to call-only, as in fullscreen, and back; screenshots in dir)
 // Mounts the real CallStage around a fake call in real Chromium windows and checks the tile
@@ -305,6 +306,125 @@ async function callOnlyReport(scenarios, dir) {
   return report;
 }
 
+/**
+ * The floating call window over a stand-in app: where it rests, a slow drag, a fling, a resize,
+ * what survives a reload, going back to the call on a double click, and when it stays away.
+ */
+async function pipReport(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const viewport = { width: 1280, height: 800 };
+  const scenario = { pip: 1, tiles: 6, rich: 1 };
+  const rect = (page) =>
+    page.evaluate(() => {
+      const el = document.querySelector('[data-testid="callPip"]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {
+        x: Math.round(r.x),
+        y: Math.round(r.y),
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+      };
+    });
+  const shot = (page, name) => page.screenshot({ path: path.join(dir, `${name}.png`) });
+  const steps = {};
+  const { page, errors } = await open(scenario, viewport);
+  await page.waitForTimeout(800);
+  steps.initial = await rect(page);
+  await shot(page, 'pip-initial');
+  await page.mouse.move(steps.initial.x + 160, steps.initial.y + 90);
+  await page.waitForTimeout(400);
+  await shot(page, 'pip-hover');
+
+  // A slow drag to the top-left, released after a pause: no fling.
+  const centre = (r) => [r.x + r.w / 2, r.y + r.h / 2];
+  let [cx, cy] = centre(steps.initial);
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  for (let i = 1; i <= 20; i++)
+    await page.mouse.move(cx - (i * (cx - 200)) / 20, cy - (i * (cy - 150)) / 20);
+  await page.waitForTimeout(250);
+  steps.duringDrag = await rect(page);
+  await shot(page, 'pip-dragging');
+  await page.mouse.up();
+  // The snap into the corner settles with a light overshoot (about 7% of the way travelled,
+  // not a wobble): sample the position as it settles.
+  const settle = [];
+  for (let i = 0; i < 25; i++) {
+    settle.push(await rect(page));
+    await page.waitForTimeout(30);
+  }
+  // The drag is released short of the corner at (80, 80), so overshoot is going past it.
+  steps.snapOvershoot = {
+    x: Math.max(0, Math.max(...settle.map((r) => r.x)) - 80),
+    y: Math.max(0, Math.max(...settle.map((r) => r.y)) - 80),
+  };
+  await page.waitForTimeout(800);
+  steps.afterSlowDrag = await rect(page);
+
+  // A fling to the right along the top edge.
+  [cx, cy] = centre(steps.afterSlowDrag);
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(cx + i * 40, cy, { steps: 1 });
+  await page.mouse.up();
+  await page.waitForTimeout(1500);
+  steps.afterFling = await rect(page);
+
+  // Resize with the handle (at the corner away from the one it rests in).
+  const r0 = steps.afterFling;
+  const handle = await page.evaluate(() => {
+    const h = document.querySelector('[data-testid="callPip"] [data-corner]');
+    const r = h.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2, corner: h.getAttribute('data-corner') };
+  });
+  await page.mouse.move(handle.x, handle.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(handle.x - i * 9, handle.y);
+  await page.waitForTimeout(100);
+  steps.duringResize = await rect(page);
+  await page.mouse.up();
+  await page.waitForTimeout(800);
+  steps.afterResize = { ...(await rect(page)), handle: handle.corner, before: r0 };
+  await shot(page, 'pip-resized');
+
+  // What is remembered.
+  steps.stored = await page.evaluate(() => ({
+    corner: localStorage.getItem('pipCorner'),
+    width: localStorage.getItem('pipWidth'),
+  }));
+  await page.reload();
+  await page.waitForTimeout(1000);
+  steps.afterReload = await rect(page);
+
+  // Back to the call.
+  const r1 = steps.afterReload;
+  await page.mouse.dblclick(r1.x + r1.w / 2, r1.y + r1.h / 2);
+  await page.waitForTimeout(300);
+  steps.locationAfterDoubleClick = await page.evaluate(
+    () => document.querySelector('[data-harness-location]').textContent
+  );
+
+  // Small viewport: the stored width shrinks to fit.
+  await page.setViewportSize({ width: 600, height: 700 });
+  await page.waitForTimeout(1200);
+  steps.smallViewport = await rect(page);
+  await shot(page, 'pip-small');
+  await page.close();
+
+  // Away while the call view is open, or when nobody has video.
+  const withStage = await open({ ...scenario, stage: 1 }, viewport);
+  steps.withCallView = await rect(withStage.page);
+  errors.push(...withStage.errors);
+  await withStage.page.close();
+  const noVideo = await open({ pip: 1, tiles: 3 }, viewport);
+  steps.nobodyHasVideo = await rect(noVideo.page);
+  errors.push(...noVideo.errors);
+  await noVideo.page.close();
+
+  return { dir, errors: [...new Set(errors)].slice(0, 8), steps };
+}
+
 const args = process.argv.slice(2);
 let output;
 if (args[0] === '--drag') {
@@ -317,6 +437,8 @@ if (args[0] === '--drag') {
       { layout: 'auto', tiles: 9, shares: 2, rich: 1 },
     ]
   );
+} else if (args[0] === '--pip') {
+  output = await pipReport(path.resolve(args[1] ?? path.join(root, 'out', 'pip')));
 } else if (args[0] === '--call-only') {
   output = await callOnlyReport(
     JSON.parse(args[1] ?? 'null') ?? [
