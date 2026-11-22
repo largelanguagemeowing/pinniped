@@ -114,8 +114,9 @@ const defaultLiveKitPublishOptions: TrackPublishDefaults = {
 } as const;
 
 export const defaultLiveKitOptions: RoomOptions = {
-  // automatically manage subscribed video quality
-  adaptiveStream: true,
+  // Off: adaptive streams ask the server for a lower layer (and, for shares, a lower frame rate)
+  // when a tile is small or hidden; we always want the full-quality stream.
+  adaptiveStream: false,
 
   // optimize publishing bandwidth and CPU for published tracks
   dynacast: true,
