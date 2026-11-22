@@ -1,6 +1,7 @@
 // Usage: node tests/call-stage-harness/run.mjs [scenarios-json]   (prints a JSON report)
 //        node tests/call-stage-harness/run.mjs --screenshots [dir]   (default: out/screenshots)
 //        node tests/call-stage-harness/run.mjs --drag [scenarios-json]  (drags the DM call divider)
+//        node tests/call-stage-harness/run.mjs --strip-toggle   (when the Hide Members pill shows)
 //        node tests/call-stage-harness/run.mjs --pip [dir]   (the floating call window: drag, fling, resize, persistence)
 //        node tests/call-stage-harness/run.mjs --call-only [scenarios-json] [dir]
 //          (switches the DM call split to call-only, as in fullscreen, and back; screenshots in dir)
@@ -425,6 +426,42 @@ async function pipReport(dir) {
   return { dir, errors: [...new Set(errors)].slice(0, 8), steps };
 }
 
+/**
+ * The "Hide Members" pill: out of sight until a strip tile is hovered; once the strip is hidden
+ * it stays while the user is active and fades when they are idle, and hovering it brings it back.
+ */
+async function stripToggleReport() {
+  const report = {};
+  for (const idle of [0, 1]) {
+    const { page, errors } = await open(
+      { layout: 'spotlight-landscape', tiles: 4, rich: 1, idle },
+      { width: 1280, height: 800 }
+    );
+    const opacity = () =>
+      page.evaluate(() =>
+        Number(getComputedStyle(document.querySelector('button[aria-pressed]')).opacity)
+      );
+    const settle = () => page.waitForTimeout(350);
+    await page.mouse.move(5, 5);
+    await settle();
+    const stripShown = { awayFromStrip: await opacity() };
+    await page.hover('[data-pinniped-user-id]');
+    await settle();
+    stripShown.overStripTile = await opacity();
+    await page.hover('button[aria-pressed]');
+    await page.click('button[aria-pressed]');
+    await page.mouse.move(5, 5);
+    await settle();
+    const stripHidden = { pointerAway: await opacity() };
+    await page.hover('button[aria-pressed]');
+    await settle();
+    stripHidden.overPill = await opacity();
+    report[idle ? 'idle' : 'active'] = { errors, stripShown, stripHidden };
+    await page.close();
+  }
+  return report;
+}
+
 const args = process.argv.slice(2);
 let output;
 if (args[0] === '--drag') {
@@ -437,6 +474,8 @@ if (args[0] === '--drag') {
       { layout: 'auto', tiles: 9, shares: 2, rich: 1 },
     ]
   );
+} else if (args[0] === '--strip-toggle') {
+  output = await stripToggleReport();
 } else if (args[0] === '--pip') {
   output = await pipReport(path.resolve(args[1] ?? path.join(root, 'out', 'pip')));
 } else if (args[0] === '--call-only') {

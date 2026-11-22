@@ -106,8 +106,11 @@ export const stripToggle = style({
   opacity: 0,
   transition: 'opacity 0.15s',
   selectors: {
+    // With the strip hidden the pill is the only way back, so it stays up while the pointer is
+    // active and fades with the rest of the call controls once the user is idle.
     [`${stripHidden} &`]: { insetBlockEnd: '8px', opacity: 1 },
-    '&:hover, &:focus-visible': { opacity: 1 },
+    [`[data-call-stage][data-idle="true"] ${stripHidden} &`]: { opacity: 0 },
+    '&:hover, &:focus-visible, [data-call-stage][data-idle="true"] &:hover': { opacity: 1 },
     // Strip tiles are drawn beside the layout in the same grid, so match hover on them from there.
     [`${gridRoot}:has([data-pinniped-user-id]:hover, [data-testid="screenSharePreview"]:hover) &`]:
       { opacity: 1 },
