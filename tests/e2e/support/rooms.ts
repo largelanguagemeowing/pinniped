@@ -119,3 +119,43 @@ export async function leaveRooms(page: Page, roomIds: string[]): Promise<void> {
     await matrixRequest(page, { method: 'POST', path: `${path}/forget`, body: {} });
   }
 }
+
+/** Sends an invite from the room's menu; what follows depends on the room. */
+export async function invite(page: Page, userId: string): Promise<void> {
+  await page.getByRole('banner').getByRole('button', { name: 'More Options', exact: true }).click();
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
+  const userIdInput = page.locator('input[name="userIdInput"]');
+  await userIdInput.fill(userId);
+  await page
+    .locator('form', { has: userIdInput })
+    .getByRole('button', { name: 'Invite', exact: true })
+    .click();
+}
+
+export const roomPath = (roomId: string) => `/rooms/${encodeURIComponent(roomId)}`;
+
+export const joinedMembers = async (page: Page, roomId: string): Promise<string[]> =>
+  Object.keys(
+    (
+      await matrixRequest<{ joined: object }>(page, {
+        method: 'GET',
+        path: `${roomPath(roomId)}/joined_members`,
+      })
+    )?.joined ?? {}
+  ).sort();
+
+/**
+ * The chat the invitee lands in after an invite from a one-to-one chat: opened for us, the
+ * original left alone.
+ */
+export async function inviteFromOneToOne(
+  page: Page,
+  dmId: string,
+  userId: string
+): Promise<string> {
+  await invite(page, userId);
+  await expect.poll(() => currentRoomId(page)).not.toBe(dmId);
+  const groupId = currentRoomId(page);
+  await page.keyboard.press('Escape');
+  return groupId;
+}

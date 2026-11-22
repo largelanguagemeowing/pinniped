@@ -1,23 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
+import { solidPng } from './support/images';
 import { matrixRequest, uploadMedia } from './support/matrix';
 import { createRoom, leaveRooms, sendMessage } from './support/rooms';
-
-/** A 64x64 PNG drawn in the page. */
-const pngBytes = (page: Page): Promise<number[]> =>
-  page.evaluate(async () => {
-    const canvas = new OffscreenCanvas(64, 64);
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('No 2D canvas');
-    context.fillStyle = '#c0392b';
-    context.fillRect(0, 0, 64, 64);
-    const blob = await canvas.convertToBlob({ type: 'image/png' });
-    return Array.from(new Uint8Array(await blob.arrayBuffer()));
-  });
 
 /** A sticker pack in the room's state, as a room's own pack is shared. */
 async function addRoomStickerPack(page: Page, roomId: string): Promise<void> {
   const url = await uploadMedia(page, {
-    bytes: await pngBytes(page),
+    bytes: await solidPng(page, '#c0392b'),
     contentType: 'image/png',
     filename: 'gadsen.png',
   });
