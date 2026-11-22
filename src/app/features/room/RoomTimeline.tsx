@@ -1981,8 +1981,27 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       const end = Number(endAttr);
       if (Number.isNaN(start) || Number.isNaN(end)) return;
 
-      const itemFrom = Math.min(start, end);
-      const itemTo = Math.max(start, end);
+      // A range can touch a row without taking in any of its text: a double-click
+      // on the blank space after a short message selects the line break, which
+      // ends at the start of the next row. Such a row is not part of the copy.
+      let first = start;
+      let last = end;
+      if (startEl !== endEl) {
+        const startText = document.createRange();
+        startText.setStart(range.startContainer, range.startOffset);
+        startText.setEnd(startEl, startEl.childNodes.length);
+        if (startText.toString() === '') first += 1;
+
+        const endText = document.createRange();
+        endText.setStart(endEl, 0);
+        endText.setEnd(range.endContainer, range.endOffset);
+        if (endText.toString() === '') last -= 1;
+        // nothing but the break between rows is selected: native copy
+        if (first > last) return;
+      }
+
+      const itemFrom = first;
+      const itemTo = last;
 
       // Selecting inside a single message keeps native copy unless the whole
       // message row is covered, so raw text snippets stay copyable. Selections
