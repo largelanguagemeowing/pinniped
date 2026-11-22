@@ -1,9 +1,8 @@
-/** Prefilled Media Embeds hosts: file hosts, Klipy media, and the OOYE (Discord) bridge. */
+/** Prefilled Media Embeds hosts: file hosts and GIF providers. */
 export const DEFAULT_MEDIA_EMBED_HOSTS = [
   'nyafiles.de',
   'pissdichal.de',
   'static.klipy.com',
-  'bridge.agiadn.org',
   'tenor.com',
 ];
 

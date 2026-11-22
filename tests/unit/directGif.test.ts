@@ -15,8 +15,8 @@ describe('direct GIF URLs', () => {
     expect(isMediaAutoEmbedUrl('https://pissdichal.de/a.gif', HOSTS)).toBe(true);
   });
 
-  it('embeds OOYE bridge media by default', () => {
-    expect(isMediaAutoEmbedUrl(bridgeUrl, HOSTS)).toBe(true);
+  it('does not embed bridge media by default', () => {
+    expect(isMediaAutoEmbedUrl(bridgeUrl, HOSTS)).toBe(false);
   });
 
   it('does not auto-load GIFs from other hosts', () => {
