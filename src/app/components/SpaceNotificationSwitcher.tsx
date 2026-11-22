@@ -1,5 +1,5 @@
 import { Box, config, Icon, Menu, MenuItem, PopOut, RadioButton, RectCords, Text } from 'folds';
-import React, { MouseEventHandler, ReactNode, useState } from 'react';
+import React, { CSSProperties, MouseEventHandler, ReactNode, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { Room } from 'matrix-js-sdk';
 import { stopPropagation } from '../utils/keyboard';
@@ -24,6 +24,14 @@ const MODE_ICON: Record<SpaceNotificationMode, RoomNotificationMode> = {
 };
 
 const MODES: SpaceNotificationMode[] = ['all', 'mentions', 'nothing'];
+
+/** For a menu item with a summary under its title; the fixed one-line height crowds both lines against the edges. */
+export const summaryMenuItemStyle: CSSProperties = {
+  height: 'auto',
+  minHeight: '2.25rem',
+  paddingTop: config.space.S100,
+  paddingBottom: config.space.S100,
+};
 
 type SpaceNotificationModeSwitcherProps = {
   space: Room;

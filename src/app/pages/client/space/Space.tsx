@@ -88,7 +88,10 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '../../../hooks/useRoomsNotificationPreferences';
-import { SpaceNotificationModeSwitcher } from '../../../components/SpaceNotificationSwitcher';
+import {
+  SpaceNotificationModeSwitcher,
+  summaryMenuItemStyle,
+} from '../../../components/SpaceNotificationSwitcher';
 import { useOpenSpaceSettings } from '../../../state/hooks/spaceSettings';
 import { useRoomNavigate } from '../../../hooks/useRoomNavigate';
 import { getRoomCreatorsForRoomId, useRoomCreators } from '../../../hooks/useRoomCreators';
@@ -195,6 +198,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
               radii="300"
               aria-pressed={opened}
               onClick={handleOpen}
+              style={summaryMenuItemStyle}
             >
               <Box grow="Yes" direction="Column">
                 <Text as="span" size="T300" truncate>

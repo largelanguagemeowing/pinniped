@@ -97,7 +97,10 @@ import { useOpenSpaceSettings } from '../../../state/hooks/spaceSettings';
 import { useRoomCreators } from '../../../hooks/useRoomCreators';
 import { useRoomPermissions } from '../../../hooks/useRoomPermissions';
 import { InviteUserPrompt } from '../../../components/invite-user-prompt';
-import { SpaceNotificationModeSwitcher } from '../../../components/SpaceNotificationSwitcher';
+import {
+  SpaceNotificationModeSwitcher,
+  summaryMenuItemStyle,
+} from '../../../components/SpaceNotificationSwitcher';
 import { RoomsTab } from './RoomsTab';
 
 type SpaceMenuProps = {
@@ -189,6 +192,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
                 radii="300"
                 aria-pressed={opened}
                 onClick={handleOpen}
+                style={summaryMenuItemStyle}
               >
                 <Box grow="Yes" direction="Column">
                   <Text as="span" size="T300" truncate>
