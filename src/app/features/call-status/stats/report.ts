@@ -1,5 +1,6 @@
 import type { CallStatsSample } from '../../../plugins/call/Call';
 import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/callStats';
+import type { EncryptionEvent } from '../../../plugins/call/engine/livekit/encryptionLog';
 import type { CallPlayback } from '../../../state/call';
 import { formatBitrate, formatBytes, StatPoint, valueSeries } from '../../../plugins/call/stats';
 import { APP_VERSION, isDesktop } from '../../../utils/device';
@@ -20,6 +21,8 @@ type ReportContext = {
   roomName: string;
   roomId: string;
   encrypted: boolean;
+  /** Key arrivals and decryption failures of the call, oldest first. */
+  encryptionEvents: EncryptionEvent[];
   playback: CallPlayback | undefined;
   /** The name of an output device, by ID ('' is the system default). */
   outputName: (sinkId: string) => string;
@@ -131,6 +134,30 @@ const streamSection = (
   ].join('\n');
 };
 
+const clock = (time: number): string => new Date(time).toISOString().slice(11, 23);
+
+/**
+ * When keys arrived and media failed to decrypt. Frames that fail to decrypt are dropped, which
+ * the jitter buffer sees as a gap in arrivals (dropouts and a large buffer target while the
+ * packet loss and jitter counters stay clean), so a failure here explains such a stretch and the
+ * next key for the same participant usually ends it.
+ */
+const encryptionSection = (ctx: ReportContext): string => {
+  const rows = ctx.encryptionEvents.map((e) => {
+    const name = e.local ? 'You' : ctx.who(e.participant ?? e.identity ?? '') || 'unknown';
+    return e.kind === 'key'
+      ? [clock(e.time), name, 'key received', e.keyIndex === undefined ? '' : `index ${e.keyIndex}`]
+      : [clock(e.time), name, `failure: ${e.reason}`, e.message];
+  });
+  return [
+    '## Encryption events',
+    '',
+    rows.length > 0
+      ? table(['Time (UTC)', 'Participant', 'Event', 'Detail'], rows)
+      : '_No key arrivals or decryption failures in the history._',
+  ].join('\n');
+};
+
 /** The whole debug view as Markdown, for pasting into a chat or an issue. */
 export const buildCallReport = (ctx: ReportContext): string => {
   const { samples } = ctx;
@@ -156,5 +183,6 @@ export const buildCallReport = (ctx: ReportContext): string => {
     ...c.outbound.map((st) => streamSection(ctx, idx, 'outbound', st)),
     ...c.inbound.map((st) => streamSection(ctx, idx, 'inbound', st)),
   ]);
-  return `${[header, ...sections].join('\n\n')}\n`;
+  const encryption = ctx.encrypted ? [encryptionSection(ctx)] : [];
+  return `${[header, ...encryption, ...sections].join('\n\n')}\n`;
 };

@@ -25,6 +25,11 @@ import { roomEncryptionSystem } from './engine/e2ee/encryptionSystem';
 import { installBitrateHints } from './engine/livekit/bitrateHints';
 import { type CallStatsConnection, sampleConnection } from './engine/livekit/callStats';
 import { undecryptableParticipants$ } from './engine/livekit/decryptionHealth';
+import {
+  type EncryptionEvent,
+  encryptionEvents$,
+  retainEncryptionEvents,
+} from './engine/livekit/encryptionLog';
 import { ReactionsReader } from './engine/reactions/ReactionsReader';
 import { type AutoLeaveReason } from './engine/state/CallViewModel/CallNotificationLifecycle';
 import {
@@ -49,6 +54,9 @@ export type CallStatsSample = { time: number; connections: CallStatsConnection[]
 export const STATS_WINDOW_MS = 5 * 60 * 1000;
 
 const STATS_INTERVAL_MS = 1000;
+
+/** The most encryption events kept; a key rotation or a failing stream can make many. */
+const ENCRYPTION_LOG_LIMIT = 500;
 
 /** What Pinniped's call buttons show. The microphone shows as off while deafened. */
 export type CallControlState = {
@@ -99,6 +107,9 @@ export class Call {
 
   /** WebRTC stats of the last {@link STATS_WINDOW_MS}, oldest first. */
   public readonly stats$ = new BehaviorSubject<CallStatsSample[]>([]);
+
+  /** Key arrivals and decryption failures of the last {@link STATS_WINDOW_MS}, oldest first. */
+  public readonly encryptionLog$ = new BehaviorSubject<EncryptionEvent[]>([]);
 
   /** Resolves with how the call ended, once it has; the call is disposed by then. */
   public readonly left: Promise<CallEnd>;
@@ -162,6 +173,7 @@ export class Call {
 
     this.playCallSounds();
     this.sampleStats();
+    this.logEncryption();
     this.undecryptable$ = this.scope.behavior(
       undecryptableParticipants$(
         this.vm.livekitRoomItems$.pipe(map((items) => items.map((item) => item.livekitRoom))),
@@ -280,6 +292,27 @@ export class Call {
       stopRinging = ringing ? loopCallSound('ringback', 'callStart') : undefined;
     });
     this.scope.onEnd(() => stopRinging?.());
+  }
+
+  /** Keeps the call's key arrivals and decryption failures, naming the participants by Matrix user. */
+  private logEncryption(): void {
+    const rooms$ = this.vm.livekitRoomItems$.pipe(
+      map((items) => items.map((item) => item.livekitRoom))
+    );
+    encryptionEvents$(rooms$)
+      .pipe(this.scope.bind())
+      .subscribe((event) => {
+        const participant = this.vm.livekitRoomItems$.value
+          .map((item) => (event.identity === undefined ? undefined : item.userIds[event.identity]))
+          .find((userId) => userId !== undefined);
+        this.encryptionLog$.next(
+          retainEncryptionEvents(
+            [...this.encryptionLog$.value, { ...event, participant }],
+            event.time - STATS_WINDOW_MS,
+            ENCRYPTION_LOG_LIMIT
+          )
+        );
+      });
   }
 
   /** Samples every SFU connection once a second, naming remote streams by Matrix user. */

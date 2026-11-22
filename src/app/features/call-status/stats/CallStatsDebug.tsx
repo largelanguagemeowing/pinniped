@@ -83,6 +83,7 @@ export function CallStatsDebug({ call, requestClose }: CallStatsDebugProps) {
         roomName: room.name,
         roomId: call.roomId,
         encrypted: room.hasEncryptionStateEvent(),
+        encryptionEvents: call.encryptionLog$.value,
         playback,
         outputName,
       })

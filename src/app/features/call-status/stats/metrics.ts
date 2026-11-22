@@ -169,6 +169,12 @@ export const INBOUND_CHARTS: ChartSpec[] = [
     scale: 100,
     format: percent,
   },
+  // How often audio went missing, whatever the share of it: many short dropouts and one long one
+  // can conceal the same amount.
+  { title: 'Concealment Events', kind: 'delta', pick: field('concealmentEvents'), format: events },
+  // Packets the jitter buffer threw away (late, or for audio already played): they arrived, so
+  // the network delivered them, but too late to use.
+  { title: 'Packets Discarded', kind: 'total', pick: field('packetsDiscarded'), format: count },
   {
     title: 'Slowed Down',
     kind: 'ratio',

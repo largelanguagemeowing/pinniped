@@ -13,6 +13,7 @@ import {
   outboundRows,
   seriesFor,
 } from '../../src/app/features/call-status/stats/metrics';
+import type { EncryptionEvent } from '../../src/app/plugins/call/engine/livekit/encryptionLog';
 import { buildCallReport } from '../../src/app/features/call-status/stats/report';
 
 vi.mock('../../src/app/utils/device', () => ({ APP_VERSION: 'v0 (test)', isDesktop: () => false }));
@@ -376,13 +377,14 @@ describe('outbound video quality limitation', () => {
 });
 
 describe('call report', () => {
-  const report = (samples: CallStatsSample[]) =>
+  const report = (samples: CallStatsSample[], encryptionEvents: EncryptionEvent[] = []) =>
     buildCallReport({
       samples,
       who: () => 'Alice',
       roomName: 'Room',
       roomId: '!room:example.org',
       encrypted: true,
+      encryptionEvents,
       playback: undefined,
       outputName: () => 'Default',
     });
@@ -417,6 +419,71 @@ describe('call report', () => {
     expect(row(text, 'Bitrate')).toEqual([64, 64, 64, 64]);
     expect(row(text, 'Bytes Received')?.[0]).toBe(32);
     expect(row(text, 'Bytes Received')?.slice(1).every(Number.isNaN)).toBe(true);
+  });
+
+  it('counts concealment episodes and discarded packets of an inbound audio stream', () => {
+    const text = report(
+      samplesOf('audio', [
+        { concealmentEvents: 0, packetsDiscarded: 0 },
+        { concealmentEvents: 3, packetsDiscarded: 1 },
+        { concealmentEvents: 3, packetsDiscarded: 4 },
+      ])
+    );
+    expect(row(text, 'Concealment Events')).toEqual([0, 1.5, 0, 3]);
+    expect(row(text, 'Packets Discarded')?.[0]).toBe(4);
+  });
+
+  it('lists encryption events of an encrypted call, oldest first', () => {
+    const events: EncryptionEvent[] = [
+      {
+        kind: 'failure',
+        time: Date.UTC(2026, 0, 1, 12, 0, 1, 250),
+        identity: 'x',
+        participant: '@alice:example.org',
+        local: false,
+        reason: 'MissingKey',
+        message: 'missing key at index 11',
+      },
+      {
+        kind: 'key',
+        time: Date.UTC(2026, 0, 1, 12, 0, 3),
+        identity: 'x',
+        participant: '@alice:example.org',
+        local: false,
+        keyIndex: 12,
+      },
+      {
+        kind: 'key',
+        time: Date.UTC(2026, 0, 1, 12, 0, 4),
+        identity: 'me',
+        local: true,
+        keyIndex: 0,
+      },
+    ];
+    const text = report(samplesOf('audio', audioCounters([{}])), events);
+    const section = text.slice(text.indexOf('## Encryption events'), text.indexOf('## Connection'));
+    expect(section).toContain(
+      '| 12:00:01.250 | Alice | failure: MissingKey | missing key at index 11 |'
+    );
+    expect(section).toContain('| 12:00:03.000 | Alice | key received | index 12 |');
+    expect(section).toContain('| 12:00:04.000 | You | key received | index 0 |');
+    expect(section.indexOf('12:00:01')).toBeLessThan(section.indexOf('12:00:03'));
+  });
+
+  it('says when an encrypted call had no encryption events, and omits the section without encryption', () => {
+    const samples = samplesOf('audio', audioCounters([{}]));
+    expect(report(samples)).toContain('No key arrivals or decryption failures');
+    const plain = buildCallReport({
+      samples,
+      who: () => 'Alice',
+      roomName: 'Room',
+      roomId: '!room:example.org',
+      encrypted: false,
+      encryptionEvents: [],
+      playback: undefined,
+      outputName: () => 'Default',
+    });
+    expect(plain).not.toContain('Encryption events');
   });
 
   it('summarises the freezes of an inbound video stream', () => {
