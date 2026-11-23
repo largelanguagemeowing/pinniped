@@ -413,35 +413,40 @@ export const downloadEncryptedMedia = async (
   return decryptedContent;
 };
 
+export type RateLimitedFailure<T> = { item: T; index: number; error: unknown };
+
+// Runs the callbacks one at a time, waiting out 429s; returns the items that
+// still failed (any other error, or 429 retries used up) so callers can report them.
 export const rateLimitedActions = async <T, R = void>(
   data: T[],
   callback: (item: T, index: number) => Promise<R>,
   maxRetryCount?: number
-) => {
+): Promise<RateLimitedFailure<T>[]> => {
   let retryCount = 0;
 
   let actionInterval = 0;
+  const failures: RateLimitedFailure<T>[] = [];
 
   const sleepForMs = (ms: number) =>
     new Promise((resolve) => {
       setTimeout(resolve, ms);
     });
 
-  const performAction = async (dataItem: T, index: number) => {
+  const performAction = async (dataItem: T, index: number): Promise<void> => {
     const [err] = await to<R, MatrixError>(callback(dataItem, index));
+    if (!err) return;
 
-    if (err?.httpStatus === 429) {
-      if (retryCount === maxRetryCount) {
-        return;
-      }
-
+    if (err.httpStatus === 429 && retryCount < (maxRetryCount ?? Infinity)) {
       const waitMS = err.getRetryAfterMs() ?? 3000;
       actionInterval = waitMS * 1.5;
       await sleepForMs(waitMS);
       retryCount += 1;
 
       await performAction(dataItem, index);
+      return;
     }
+
+    failures.push({ item: dataItem, index, error: err });
   };
 
   for (let i = 0; i < data.length; i += 1) {
@@ -453,6 +458,15 @@ export const rateLimitedActions = async <T, R = void>(
       await sleepForMs(actionInterval);
     }
   }
+
+  return failures;
+};
+
+export const assertAllSucceeded = (failures: RateLimitedFailure<unknown>[]): void => {
+  if (failures.length === 0) return;
+  const { error } = failures[0];
+  const reason = error instanceof Error ? error.message : String(error);
+  throw new Error(`${failures.length} action${failures.length === 1 ? '' : 's'} failed: ${reason}`);
 };
 
 export const knockSupported = (version: string): boolean => {

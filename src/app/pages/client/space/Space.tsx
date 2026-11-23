@@ -39,7 +39,12 @@ import {
   NavLink,
 } from '../../../components/nav';
 import { getSpaceLobbyPath, getSpaceRoomPath, getSpaceSearchPath } from '../../pathUtils';
-import { getCanonicalAliasOrRoomId, isRoomAlias, rateLimitedActions } from '../../../utils/matrix';
+import {
+  assertAllSucceeded,
+  getCanonicalAliasOrRoomId,
+  isRoomAlias,
+  rateLimitedActions,
+} from '../../../utils/matrix';
 import { useSelectedRoom } from '../../../hooks/router/useSelectedRoom';
 import {
   useSpaceLobbySelected,
@@ -596,12 +601,14 @@ export function Space() {
           .map((orderKey, index) => ({ item: reorderedItems[index], orderKey }))
           .filter(({ orderKey }, index) => orderKey !== currentOrders[index]);
 
-        await rateLimitedActions(reorders, ({ item, orderKey }) =>
-          mx.sendStateEvent(
-            parentId,
-            StateEvent.SpaceChild,
-            { ...item.content, order: orderKey },
-            item.roomId
+        assertAllSucceeded(
+          await rateLimitedActions(reorders, ({ item, orderKey }) =>
+            mx.sendStateEvent(
+              parentId,
+              StateEvent.SpaceChild,
+              { ...item.content, order: orderKey },
+              item.roomId
+            )
           )
         );
       },

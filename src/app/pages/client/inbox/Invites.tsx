@@ -52,13 +52,14 @@ import {
   addRoomIdToMDirect,
   getMxIdLocalPart,
   guessDmRoomUserId,
+  assertAllSucceeded,
   rateLimitedActions,
 } from '../../../utils/matrix';
 import { Time } from '../../../components/message';
 import { useElementSizeObserver } from '../../../hooks/useElementSizeObserver';
 import { onEnterOrSpace, stopPropagation } from '../../../utils/keyboard';
 import { RoomTopicViewer } from '../../../components/room-topic-viewer';
-import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
+import { AsyncState, AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { useRoomNavigate } from '../../../hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { BackRouteHandler } from '../../../components/BackRouteHandler';
@@ -490,6 +491,16 @@ function KnownInvites({
   );
 }
 
+function ActionFailure({ status, what }: { status: AsyncState<unknown, unknown>; what: string }) {
+  if (status.status !== AsyncStatus.Error) return null;
+  const reason = status.error instanceof Error ? status.error.message : String(status.error);
+  return (
+    <Text role="alert" size="T300" style={{ color: color.Critical.Main }}>
+      {what} failed. {reason}
+    </Text>
+  );
+}
+
 type UnknownInvitesProps = {
   invites: InviteData[];
   handleNavigate: NavigateHandler;
@@ -510,7 +521,7 @@ function UnknownInvites({
     useCallback(async () => {
       const roomIds = invites.map((invite) => invite.roomId);
 
-      await rateLimitedActions(roomIds, (roomId) => mx.leave(roomId));
+      assertAllSucceeded(await rateLimitedActions(roomIds, (roomId) => mx.leave(roomId)));
     }, [mx, invites])
   );
 
@@ -541,6 +552,7 @@ function UnknownInvites({
           {declineConfirm.dialog}
         </Box>
       </Box>
+      <ActionFailure status={declineAllStatus} what="Declining the invites" />
       {invites.length > 0 ? (
         <Box direction="Column">
           {invites.map((invite) => (
@@ -593,7 +605,7 @@ function SpamInvites({
     useCallback(async () => {
       const roomIds = invites.map((invite) => invite.roomId);
 
-      await rateLimitedActions(roomIds, (roomId) => mx.leave(roomId));
+      assertAllSucceeded(await rateLimitedActions(roomIds, (roomId) => mx.leave(roomId)));
     }, [mx, invites])
   );
 
@@ -601,7 +613,9 @@ function SpamInvites({
     useCallback(async () => {
       const roomIds = invites.map((invite) => invite.roomId);
 
-      await rateLimitedActions(roomIds, (roomId) => mx.reportRoom(roomId, 'Spam Invite'));
+      assertAllSucceeded(
+        await rateLimitedActions(roomIds, (roomId) => mx.reportRoom(roomId, 'Spam Invite'))
+      );
     }, [mx, invites])
   );
 
@@ -690,6 +704,8 @@ function SpamInvites({
                     </Button>
                   )}
                 </Box>
+                <ActionFailure status={declineAllStatus} what="Declining the invites" />
+                <ActionFailure status={reportAllStatus} what="Reporting the invites" />
 
                 <span data-spacing-node />
 

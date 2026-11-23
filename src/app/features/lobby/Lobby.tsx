@@ -35,7 +35,11 @@ import { makeLobbyCategoryId } from '../../state/closedLobbyCategories';
 import { useCategoryHandler } from '../../hooks/useCategoryHandler';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { allRoomsAtom } from '../../state/room-list/roomList';
-import { getCanonicalAliasOrRoomId, rateLimitedActions } from '../../utils/matrix';
+import {
+  assertAllSucceeded,
+  getCanonicalAliasOrRoomId,
+  rateLimitedActions,
+} from '../../utils/matrix';
 import { getSpaceRoomPath } from '../../pages/pathUtils';
 import { StateEvent } from '../../../types/matrix/room';
 import { CanDropCallback, useDnDMonitor } from './DnD';
@@ -269,15 +273,17 @@ export function Lobby() {
           });
 
         if (reorders) {
-          await rateLimitedActions(reorders, async (reorder) => {
-            if (!reorder.item.parentId) return;
-            await mx.sendStateEvent(
-              reorder.item.parentId,
-              StateEvent.SpaceChild,
-              { ...reorder.item.content, order: reorder.orderKey },
-              reorder.item.roomId
-            );
-          });
+          assertAllSucceeded(
+            await rateLimitedActions(reorders, async (reorder) => {
+              if (!reorder.item.parentId) return;
+              await mx.sendStateEvent(
+                reorder.item.parentId,
+                StateEvent.SpaceChild,
+                { ...reorder.item.content, order: reorder.orderKey },
+                reorder.item.roomId
+              );
+            })
+          );
         }
       },
       [mx, hierarchy, lex, roomsPowerLevels]
@@ -357,14 +363,16 @@ export function Lobby() {
           .filter((reorder, index) => reorder.item && reorder.orderKey !== currentOrders[index]);
 
         if (reorders) {
-          await rateLimitedActions(reorders, async (reorder) => {
-            await mx.sendStateEvent(
-              containerParentId,
-              StateEvent.SpaceChild,
-              { ...reorder.item.content, order: reorder.orderKey },
-              reorder.item.roomId
-            );
-          });
+          assertAllSucceeded(
+            await rateLimitedActions(reorders, async (reorder) => {
+              await mx.sendStateEvent(
+                containerParentId,
+                StateEvent.SpaceChild,
+                { ...reorder.item.content, order: reorder.orderKey },
+                reorder.item.roomId
+              );
+            })
+          );
         }
       },
       [mx, hierarchy, lex]

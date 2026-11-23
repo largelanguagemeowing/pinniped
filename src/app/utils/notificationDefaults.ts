@@ -15,7 +15,7 @@ import {
   setRoomNotificationPreference,
 } from '../hooks/useRoomsNotificationPreferences';
 import { getRoomToParents, getStateEvent } from './room';
-import { rateLimitedActions } from './matrix';
+import { assertAllSucceeded, rateLimitedActions } from './matrix';
 import {
   getInheritedNotifications,
   InheritedNotifications,
@@ -193,8 +193,10 @@ const reconcileNow = async (mx: MatrixClient): Promise<void> => {
   // user's own choice. Rules are written one at a time because they share an
   // account data event.
   await setInheritedNotifications(mx, plan.inherited);
-  await rateLimitedActions(plan.changes, ({ roomId, previous, mode }) =>
-    setRoomNotificationPreference(mx, roomId, mode, previous)
+  assertAllSucceeded(
+    await rateLimitedActions(plan.changes, ({ roomId, previous, mode }) =>
+      setRoomNotificationPreference(mx, roomId, mode, previous)
+    )
   );
 };
 

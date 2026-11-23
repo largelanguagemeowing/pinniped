@@ -31,7 +31,7 @@ import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { getNotificationModeActions, NotificationMode } from '../../../hooks/useNotificationMode';
 import { stopPropagation } from '../../../utils/keyboard';
-import { rateLimitedActions } from '../../../utils/matrix';
+import { assertAllSucceeded, rateLimitedActions } from '../../../utils/matrix';
 import { AccountDataEvent } from '../../../../types/matrix/accountData';
 
 type DefaultRuleActions = {
@@ -152,7 +152,9 @@ const deleteAllPushRules = async (mx: MatrixClient): Promise<void> => {
       .map((rule) => ({ kind, ruleId: rule.rule_id }))
   );
   // One at a time: the rules share a single account data event.
-  await rateLimitedActions(rules, ({ kind, ruleId }) => mx.deletePushRule('global', kind, ruleId));
+  assertAllSucceeded(
+    await rateLimitedActions(rules, ({ kind, ruleId }) => mx.deletePushRule('global', kind, ruleId))
+  );
 };
 
 type ResetPromptProps = {

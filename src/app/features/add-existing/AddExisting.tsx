@@ -52,7 +52,7 @@ import { highlightText, makeHighlightRegex } from '../../plugins/react-custom-ht
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { StateEvent } from '../../../types/matrix/room';
 import { getViaServers } from '../../plugins/via-servers';
-import { rateLimitedActions } from '../../utils/matrix';
+import { assertAllSucceeded, rateLimitedActions } from '../../utils/matrix';
 import { useAlive } from '../../hooks/useAlive';
 
 const SEARCH_OPTS: UseAsyncSearchOptions = {
@@ -131,20 +131,22 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
   const [applyState, applyChanges] = useAsyncCallback<undefined, Error, [Room[]]>(
     useCallback(
       async (selectedRooms) => {
-        await rateLimitedActions(selectedRooms, async (room) => {
-          const via = getViaServers(room);
+        assertAllSucceeded(
+          await rateLimitedActions(selectedRooms, async (room) => {
+            const via = getViaServers(room);
 
-          await mx.sendStateEvent(
-            parentId,
-            StateEvent.SpaceChild,
-            {
-              auto_join: false,
-              suggested: false,
-              via,
-            },
-            room.roomId
-          );
-        });
+            await mx.sendStateEvent(
+              parentId,
+              StateEvent.SpaceChild,
+              {
+                auto_join: false,
+                suggested: false,
+                via,
+              },
+              room.roomId
+            );
+          })
+        );
       },
       [mx, parentId]
     )
