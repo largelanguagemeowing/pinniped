@@ -8,6 +8,9 @@ import { getMemberDisplayName } from '../../utils/room';
 import { eventWithShortcode, getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 import { isMxcUrl } from '../../utils/mxc';
 
+// the key is chosen by whoever reacted; show a thumbnail, never the original
+const REACTION_THUMBNAIL_PX = 64;
+
 export const Reaction = as<
   'button',
   {
@@ -30,7 +33,16 @@ export const Reaction = as<
       {isMxcUrl(reaction) ? (
         <img
           className={css.ReactionImg}
-          src={mxcUrlToHttp(mx, reaction, useAuthentication) ?? reaction}
+          src={
+            mxcUrlToHttp(
+              mx,
+              reaction,
+              useAuthentication,
+              REACTION_THUMBNAIL_PX,
+              REACTION_THUMBNAIL_PX,
+              'scale'
+            ) ?? reaction
+          }
           alt={reaction}
         />
       ) : (

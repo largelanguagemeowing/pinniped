@@ -310,6 +310,10 @@ export function CodeBlock({
   );
 }
 
+// custom emoji show at about 1.5em; twice that covers high-density screens
+const EMOTICON_THUMBNAIL_PX = 64;
+const INLINE_IMAGE_THUMBNAIL_PX = 600;
+
 export const getReactCustomHtmlParser = (
   mx: MatrixClient,
   roomId: string | undefined,
@@ -483,7 +487,10 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'img') {
-          const htmlSrc = mxcUrlToHttp(mx, attribs.src, params.useAuthentication);
+          // thumbnails only: the original of an image a stranger chose can be any size
+          const emoticon = 'data-mx-emoticon' in props;
+          const px = emoticon ? EMOTICON_THUMBNAIL_PX : INLINE_IMAGE_THUMBNAIL_PX;
+          const htmlSrc = mxcUrlToHttp(mx, attribs.src, params.useAuthentication, px, px, 'scale');
           if (htmlSrc && !isMxcUrl(attribs.src)) {
             return (
               <a href={htmlSrc} target="_blank" rel="noreferrer noopener">
@@ -491,7 +498,7 @@ export const getReactCustomHtmlParser = (
               </a>
             );
           }
-          if (htmlSrc && 'data-mx-emoticon' in props) {
+          if (htmlSrc && emoticon) {
             return (
               <span className={css.EmoticonBase}>
                 <span className={css.Emoticon()}>

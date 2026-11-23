@@ -128,8 +128,13 @@ const transformImgTag: Transformer = (tagName, attribs) => {
   };
 };
 
-export const sanitizeCustomHtml = (customHtml: string): string =>
-  sanitizeHtml(customHtml, {
+// A small event can reference many large files; every mxc image is a request to the
+// homeserver, so a message gets a bounded number (custom emoji included).
+export const MAX_MXC_IMAGES_PER_MESSAGE = 32;
+
+export const sanitizeCustomHtml = (customHtml: string): string => {
+  let mxcImages = 0;
+  return sanitizeHtml(customHtml, {
     allowedTags: permittedHtmlTags,
     allowedAttributes: permittedTagToAttributes,
     disallowedTagsMode: 'discard',
@@ -156,7 +161,13 @@ export const sanitizeCustomHtml = (customHtml: string): string =>
     },
     nonTextTags: ['style', 'script', 'textarea', 'option', 'noscript', 'mx-reply'],
     nestingLimit: MAX_TAG_NESTING,
+    exclusiveFilter: (frame) => {
+      if (frame.tag !== 'img' || !isMxcUrl(frame.attribs.src ?? '')) return false;
+      mxcImages += 1;
+      return mxcImages > MAX_MXC_IMAGES_PER_MESSAGE;
+    },
   });
+};
 
 /**
  * Removes characters that change how text is displayed without being visible: bidi embedding,

@@ -30,9 +30,8 @@ export function RenderBody({
     [htmlReactParserOptions, readable]
   );
 
-  if (body === '') <MessageEmptyContent />;
+  if (body === '' && !customBody) return <MessageEmptyContent />;
   if (customBody) {
-    if (customBody === '') <MessageEmptyContent />;
     return parse(
       sanitizeCustomHtml(unwrapEmbedUrlsHtml(stripUnsafeTextChars(customBody))),
       parserOptions
