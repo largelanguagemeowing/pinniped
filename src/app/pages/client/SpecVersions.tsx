@@ -3,6 +3,7 @@ import { Box, Dialog, config, Text, Button, Spinner } from 'folds';
 import { SpecVersionsLoader } from '../../components/SpecVersionsLoader';
 import { SpecVersionsProvider } from '../../hooks/useSpecVersions';
 import { SplashScreen } from '../../components/splash-screen';
+import { clearLoginData } from '../../../client/initMatrix';
 
 export function SpecVersions({ baseUrl, children }: { baseUrl: string; children: ReactNode }) {
   return (
@@ -33,6 +34,11 @@ export function SpecVersions({ baseUrl, children }: { baseUrl: string; children:
                 <Button variant="Critical" onClick={ignore} fill="Soft">
                   <Text as="span" size="B400">
                     Continue
+                  </Text>
+                </Button>
+                <Button variant="Critical" onClick={clearLoginData} fill="None">
+                  <Text as="span" size="B400">
+                    Log out and delete local data
                   </Text>
                 </Button>
               </Box>
