@@ -18,7 +18,7 @@ import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { AutoDiscovery } from 'matrix-js-sdk/lib/autodiscovery';
 import { BehaviorSubject, map, of } from 'rxjs';
 import { logger } from 'matrix-js-sdk/lib/logger';
-import { type LocalParticipant, type LocalTrack } from 'livekit-client';
+import { RoomEvent, Track, type LocalParticipant, type LocalTrack } from 'livekit-client';
 
 import { DEAFENED_ATTRIBUTE } from '../../../../../../src/app/plugins/call/engine/livekit/deafened';
 import { MatrixRTCMode } from '../../../../../../src/app/plugins/call/engine/state/CallViewModel/matrixRTCMode';
@@ -40,6 +40,7 @@ import {
 import {
   FailToGetOpenIdToken,
   MatrixRTCTransportMissingError,
+  MediaDeviceError,
   MembershipManagerError,
 } from '../../../../../../src/app/plugins/call/engine/utils/errors';
 import {
@@ -809,6 +810,87 @@ describe('LocalMembership', () => {
 
     defaultCreateLocalMemberValues.muteStates.setDeafened(false);
     scope.end();
+  });
+
+  describe('microphone and camera that cannot start', () => {
+    const start = () => {
+      const scope = new ObservableScope();
+      const room = mockLivekitRoom({
+        localParticipant: {
+          isScreenShareEnabled: false,
+          trackPublications: [],
+          getTrackPublication: () => undefined,
+          setAttributes: vi.fn().mockResolvedValue(undefined),
+        } as unknown as LocalParticipant,
+      });
+      const connection = {
+        state$: constant(ConnectionState.LivekitConnected),
+        transport: aTransport,
+        livekitRoom: room,
+      } as unknown as Connection;
+      const data = new ConnectionManagerData();
+      data.add(connection, []);
+      const membership = createLocalMembership$({
+        scope,
+        ...defaultCreateLocalMemberValues,
+        connectionManager: { connectionManagerData$: constant(new Epoch(data)) },
+        localTransport$: new BehaviorSubject({
+          advertised$: new BehaviorSubject(aTransport),
+          active$: new BehaviorSubject(aTransportWithSFUConfig),
+        } as LocalTransport),
+      });
+      return { scope, room, membership };
+    };
+    // livekit tells a denied permission from the error's name
+    const permissionDenied = () => Object.assign(new Error('denied'), { name: 'NotAllowedError' });
+
+    it('tells the person when the microphone is blocked, instead of showing a quiet call', async () => {
+      const { scope, room, membership } = start();
+      await flushPromises();
+
+      room.emit(RoomEvent.MediaDevicesError, permissionDenied(), 'audioinput');
+
+      const error = membership.publishError$.value;
+      expect(error).toBeInstanceOf(MediaDeviceError);
+      expect(error?.localisedTitle).toBe('Access to your microphone is blocked');
+      expect(error?.localisedMessage).toContain('Others cannot hear you');
+      scope.end();
+    });
+
+    it('names the camera for a camera failure', async () => {
+      const { scope, room, membership } = start();
+      await flushPromises();
+
+      room.emit(RoomEvent.MediaDevicesError, permissionDenied(), 'videoinput');
+
+      expect(membership.publishError$.value?.localisedTitle).toBe(
+        'Access to your camera is blocked'
+      );
+      scope.end();
+    });
+
+    it('ignores a failure without a device kind, such as cancelling the screen share prompt', async () => {
+      const { scope, room, membership } = start();
+      await flushPromises();
+
+      room.emit(RoomEvent.MediaDevicesError, permissionDenied(), undefined);
+
+      expect(membership.publishError$.value).toBeNull();
+      scope.end();
+    });
+
+    it('clears once a track of that kind is published', async () => {
+      const { scope, room, membership } = start();
+      await flushPromises();
+      room.emit(RoomEvent.MediaDevicesError, permissionDenied(), 'audioinput');
+
+      room.emit(RoomEvent.LocalTrackPublished, { source: Track.Source.Camera });
+      expect(membership.publishError$.value).toBeInstanceOf(MediaDeviceError);
+
+      room.emit(RoomEvent.LocalTrackPublished, { source: Track.Source.Microphone });
+      expect(membership.publishError$.value).toBeNull();
+      scope.end();
+    });
   });
 
   // TODO add tests for matrix local matrix participation.

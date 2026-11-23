@@ -11,6 +11,7 @@ import {
   type LocalParticipant,
   type ScreenShareCaptureOptions,
   type LocalAudioTrack,
+  type LocalTrackPublication,
   createLocalAudioTrack,
   Track,
   RoomEvent,
@@ -30,6 +31,7 @@ import {
   catchError,
   combineLatest,
   distinctUntilChanged,
+  EMPTY,
   from,
   fromEvent,
   map,
@@ -53,6 +55,7 @@ import { type MuteStates } from '../../MuteStates';
 import {
   ElementCallError,
   FailToStartLivekitConnection,
+  MediaDeviceError,
   MembershipManagerError,
   PublishNotAllowedError,
   UnknownCallError,
@@ -291,28 +294,6 @@ export const createLocalMembership$ = ({
     )
   );
 
-  // Tracks error that happen when creating the local tracks.
-  const mediaErrors$ = localConnection$.pipe(
-    switchMap((connection) => {
-      if (!connection) {
-        return of(null);
-      } else {
-        return fromEvent(connection.livekitRoom, RoomEvent.MediaDevicesError, (error: Error) => {
-          return MediaDeviceFailure.getFailure(error) ?? null;
-        });
-      }
-    })
-  );
-
-  mediaErrors$.pipe(scope.bind()).subscribe((error) => {
-    if (error) {
-      // This is a MediaDevice error, can be PermissionDenied, NotFound, DeviceInUse, Other.
-      // Will also occurs if you cancel screen sharing browser prompt.
-      // This is not necessarily fatal, since the user might be able to join without media.
-      // XXX We might want to give some user feedback here to let them know their media is not working.
-      logger.error(`Failed to create local tracks:`, error);
-    }
-  });
   // MATRIX RELATED
 
   // This should be used in a combineLatest with publisher$ to connect.
@@ -449,6 +430,51 @@ export const createLocalMembership$ = ({
       } else if (publishError$.value instanceof PublishNotAllowedError) {
         publishError$.next(null);
       }
+    });
+
+  // The microphone or camera could not be started. Not fatal (the call works without
+  // media), but nothing is published, so say so. Screen share failures carry no kind
+  // (cancelling the browser prompt is one), and are left out.
+  localConnection$
+    .pipe(
+      switchMap((connection) =>
+        connection
+          ? fromEvent(
+              connection.livekitRoom,
+              RoomEvent.MediaDevicesError,
+              (error: Error, kind?: MediaDeviceKind) => ({ error, kind })
+            )
+          : EMPTY
+      ),
+      scope.bind()
+    )
+    .subscribe(({ error, kind }) => {
+      logger.error('Failed to create local tracks:', error);
+      if (kind !== 'audioinput' && kind !== 'videoinput') return;
+      const failure = MediaDeviceFailure.getFailure(error) ?? MediaDeviceFailure.Other;
+      setPublishError(new MediaDeviceError(failure, kind));
+    });
+
+  // Once that kind of track is published the problem is gone.
+  localConnection$
+    .pipe(
+      switchMap((connection) =>
+        connection
+          ? fromEvent(
+              connection.livekitRoom,
+              RoomEvent.LocalTrackPublished,
+              (publication: LocalTrackPublication) => publication.source
+            )
+          : EMPTY
+      ),
+      scope.bind()
+    )
+    .subscribe((source) => {
+      const current = publishError$.value;
+      if (!(current instanceof MediaDeviceError)) return;
+      const published =
+        current.kind === 'audioinput' ? Track.Source.Microphone : Track.Source.Camera;
+      if (source === published) publishError$.next(null);
     });
 
   const fatalTransportError$ = new BehaviorSubject<ElementCallError | null>(null);

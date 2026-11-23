@@ -5,6 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
+import { MediaDeviceFailure } from 'livekit-client';
+
 export enum ErrorCode {
   /**
    * Configuration problem due to no MatrixRTC backend/SFU is exposed via .well-known and no fallback configured.
@@ -21,6 +23,8 @@ export enum ErrorCode {
   SFU_ERROR = 'SFU_ERROR',
   /** The JWT service gave us a token without the canPublish grant. */
   PUBLISH_NOT_ALLOWED = 'PUBLISH_NOT_ALLOWED',
+  /** The browser or system refused, or could not provide, the microphone or camera. */
+  MEDIA_DEVICE_ERROR = 'MEDIA_DEVICE_ERROR',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
@@ -248,5 +252,44 @@ export class PublishNotAllowedError extends ElementCallError {
       `The media server ${server} does not let users of your homeserver send audio or video. Its admin has to add your homeserver to its trusted list.`
     );
     this.server = server;
+  }
+}
+
+const MEDIA_DEVICE_TEXT: Record<MediaDeviceFailure, { title: string; message: string }> = {
+  [MediaDeviceFailure.PermissionDenied]: {
+    title: 'Access to your {device} is blocked',
+    message: 'Allow it in your browser or system settings, then turn it on again.',
+  },
+  [MediaDeviceFailure.NotFound]: {
+    title: 'No {device} found',
+    message: 'Connect one, then turn it on again.',
+  },
+  [MediaDeviceFailure.DeviceInUse]: {
+    title: 'Your {device} is in use by another app',
+    message: 'Close the other app, then turn it on again.',
+  },
+  [MediaDeviceFailure.Other]: {
+    title: 'Could not start your {device}',
+    message: 'Check it is connected and allowed, then turn it on again.',
+  },
+};
+
+/**
+ * The microphone or camera could not be started, so nothing of that kind is
+ * published even though the call looks connected.
+ */
+export class MediaDeviceError extends ElementCallError {
+  public readonly kind: 'audioinput' | 'videoinput';
+
+  public constructor(failure: MediaDeviceFailure, kind: 'audioinput' | 'videoinput') {
+    const device = kind === 'audioinput' ? 'microphone' : 'camera';
+    const text = MEDIA_DEVICE_TEXT[failure];
+    super(
+      text.title.replace('{device}', device),
+      ErrorCode.MEDIA_DEVICE_ERROR,
+      ErrorCategory.CLIENT_CONFIGURATION,
+      `Others cannot ${kind === 'audioinput' ? 'hear' : 'see'} you. ${text.message}`
+    );
+    this.kind = kind;
   }
 }
