@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page, type Request } from '@playwright
 import { ownUserId, signIn } from './support/auth';
 import { e2eCredentials, peerCredentials } from './support/env';
 import { matrixRequest } from './support/matrix';
-import { acceptDirectInvite, createDirectMessage, leaveRooms } from './support/rooms';
+import { acceptDirectInvite, createDirectMessage, leaveRooms, openHome } from './support/rooms';
 
 // Two people share a direct message, each signed in on a device of their own; the tests run in
 // order on these two sessions. Synapse allows one presence update every 10 s by default, and
@@ -88,13 +88,6 @@ async function syncAgain(page: Page, other: Page): Promise<string> {
   await expect(dmRow(page).getByText(status)).toBeVisible();
   return status;
 }
-
-/** Client-side navigation to Home with no room open, so this person reads nothing. */
-const openHome = (page: Page) =>
-  page.evaluate(() => {
-    window.history.pushState(null, '', '/home/');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  });
 
 /** Clears the status message (server and remembered copy) left by a test that failed midway. */
 async function clearStatus(page: Page): Promise<void> {

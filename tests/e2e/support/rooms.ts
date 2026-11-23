@@ -153,6 +153,13 @@ export async function invite(page: Page, userId: string): Promise<void> {
     .click();
 }
 
+/** Client-side navigation to Home with no room open, so this person reads nothing. */
+export const openHome = (page: Page) =>
+  page.evaluate(() => {
+    window.history.pushState(null, '', '/home/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+
 export const roomPath = (roomId: string) => `/rooms/${encodeURIComponent(roomId)}`;
 
 export const joinedMembers = async (page: Page, roomId: string): Promise<string[]> =>
