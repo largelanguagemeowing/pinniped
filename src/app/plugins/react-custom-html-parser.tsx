@@ -310,8 +310,6 @@ export function CodeBlock({
   );
 }
 
-// custom emoji show at about 1.5em; twice that covers high-density screens
-const EMOTICON_THUMBNAIL_PX = 64;
 const INLINE_IMAGE_THUMBNAIL_PX = 600;
 
 export const getReactCustomHtmlParser = (
@@ -487,10 +485,22 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'img') {
-          // thumbnails only: the original of an image a stranger chose can be any size
+          // custom emoji are shown as sent: the server's thumbnailer breaks the transparency of some
+          // of them; other images get a bounded thumbnail, since a stranger chose the original
           const emoticon = 'data-mx-emoticon' in props;
-          const px = emoticon ? EMOTICON_THUMBNAIL_PX : INLINE_IMAGE_THUMBNAIL_PX;
-          const htmlSrc = mxcUrlToHttp(mx, attribs.src, params.useAuthentication, px, px, 'scale');
+          const htmlSrc = emoticon
+            ? mxcUrlToHttp(mx, attribs.src, params.useAuthentication)
+            : mxcUrlToHttp(
+                mx,
+                attribs.src,
+                params.useAuthentication,
+                INLINE_IMAGE_THUMBNAIL_PX,
+                INLINE_IMAGE_THUMBNAIL_PX,
+                'scale',
+                undefined,
+                undefined,
+                true
+              );
           if (htmlSrc && !isMxcUrl(attribs.src)) {
             return (
               <a href={htmlSrc} target="_blank" rel="noreferrer noopener">

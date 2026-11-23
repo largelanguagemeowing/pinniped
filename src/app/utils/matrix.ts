@@ -360,9 +360,10 @@ export const mxcUrlToHttp = (
   height?: number,
   resizeMethod?: string,
   allowDirectLinks?: boolean,
-  allowRedirects?: boolean
-): string | null =>
-  mx.mxcUrlToHttp(
+  allowRedirects?: boolean,
+  animated?: boolean
+): string | null => {
+  const url = mx.mxcUrlToHttp(
     mxcUrl,
     width,
     height,
@@ -371,6 +372,12 @@ export const mxcUrlToHttp = (
     allowRedirects,
     useAuthentication
   );
+  if (url === null || animated === undefined) return url;
+  // the SDK method cannot send `animated`; without it servers thumbnail only the first frame
+  const withAnimated = new URL(url);
+  withAnimated.searchParams.set('animated', String(animated));
+  return withAnimated.href;
+};
 
 /**
  * The `Authorization` header for an authenticated-media request to the session's own homeserver,

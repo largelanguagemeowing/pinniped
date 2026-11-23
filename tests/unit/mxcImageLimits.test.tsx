@@ -58,13 +58,13 @@ describe('thumbnails instead of originals', () => {
     return { mx: { mxcUrlToHttp } as unknown as MatrixClient, mxcUrlToHttp };
   };
 
-  it('asks for a small thumbnail of a custom emoji and a bounded one of an inline image', async () => {
+  it('asks for a bounded, animated thumbnail of an inline image and the original of a custom emoji', async () => {
     const { getReactCustomHtmlParser } =
       await import('../../src/app/plugins/react-custom-html-parser');
     const { mx: client, mxcUrlToHttp } = mx();
     const options = getReactCustomHtmlParser(client, undefined, { linkifyOpts: {} });
 
-    renderToStaticMarkup(
+    const markup = renderToStaticMarkup(
       <>
         {parse(
           '<img src="mxc://example.org/emoji" data-mx-emoticon><img src="mxc://example.org/pic">',
@@ -74,8 +74,10 @@ describe('thumbnails instead of originals', () => {
     );
 
     const call = (url: string) => mxcUrlToHttp.mock.calls.find((c) => c[0] === url)!;
-    expect(call('mxc://example.org/emoji').slice(1, 4)).toEqual([64, 64, 'scale']);
+    expect(call('mxc://example.org/emoji').slice(1, 4)).toEqual([undefined, undefined, undefined]);
     expect(call('mxc://example.org/pic').slice(1, 4)).toEqual([600, 600, 'scale']);
+    expect(markup).toMatch(/<img src="[^"]*pic[^"]*animated=true"/);
+    expect(markup).not.toMatch(/<img src="[^"]*emoji[^"]*animated/);
   });
 
   it('shows a reaction image as a thumbnail', async () => {

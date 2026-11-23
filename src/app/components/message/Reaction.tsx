@@ -40,7 +40,10 @@ export const Reaction = as<
               useAuthentication,
               REACTION_THUMBNAIL_PX,
               REACTION_THUMBNAIL_PX,
-              'scale'
+              'scale',
+              undefined,
+              undefined,
+              true
             ) ?? reaction
           }
           alt={reaction}
