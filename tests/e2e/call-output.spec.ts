@@ -1,14 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { loginWithTestAccount } from './support/auth';
+import { disconnectQuietly, fakeMedia, joinVoice } from './support/calls';
 import { createRoom, leaveRooms } from './support/rooms';
 
-test.use({
-  storageState: { cookies: [], origins: [] },
-  permissions: ['microphone', 'camera'],
-  launchOptions: {
-    args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
-  },
-});
+test.use(fakeMedia());
 
 // Chromium can leave an audio context with a stopped clock ("running", but nothing plays) when
 // two `setSinkId` calls overlap while it starts. The call's playback context is the one on a
@@ -38,8 +33,7 @@ test("the call's audio output is playing", async ({ page }) => {
   await loginWithTestAccount(page);
   const roomId = await createRoom(page, { name: `output ${Date.now()}`, voice: true });
   try {
-    await page.getByRole('button', { name: 'Join Voice', exact: true }).click();
-    await expect(page.getByText('Voice Connected', { exact: true })).toBeVisible();
+    await joinVoice(page);
 
     // a context whose clock stands still plays nothing
     await expect.poll(() => playbackTime(page)).toBeGreaterThan(0);
@@ -47,10 +41,7 @@ test("the call's audio output is playing", async ({ page }) => {
     await page.waitForTimeout(1500);
     expect(await playbackTime(page)).toBeGreaterThan(before + 1);
   } finally {
-    await page
-      .getByRole('button', { name: 'Disconnect', exact: true })
-      .click({ timeout: 3000 })
-      .catch(() => undefined);
+    await disconnectQuietly(page);
     await leaveRooms(page, [roomId]);
   }
 });

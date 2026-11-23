@@ -2,28 +2,37 @@ import type { Page } from '@playwright/test';
 
 type MatrixRequestOptions = {
   method: 'GET' | 'PUT' | 'POST' | 'DELETE';
+  /** below `/_matrix/client/v3`, or `/_matrix/media/v3` with `api: 'media'` */
   path: string;
+  api?: 'client' | 'media';
   body?: unknown;
+  /** raw bytes instead of a JSON body */
+  upload?: { bytes: number[]; contentType: string };
   allowNotFound?: boolean;
 };
 
+/** A request as the signed-in person, made from the page so it uses their session. */
 export async function matrixRequest<T = unknown>(
   page: Page,
   options: MatrixRequestOptions
 ): Promise<T | undefined> {
   const result = await page.evaluate(
-    async ({ method, path, body, allowNotFound }) => {
+    async ({ method, path, api = 'client', body, upload, allowNotFound }) => {
       const homeserver = localStorage.getItem('cinny_hs_base_url');
       const accessToken = localStorage.getItem('cinny_access_token');
       if (!homeserver || !accessToken) throw new Error('Missing authenticated Matrix session');
 
-      const response = await fetch(`${homeserver}/_matrix/client/v3${path}`, {
+      const response = await fetch(`${homeserver}/_matrix/${api}/v3${path}`, {
         method,
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          'Content-Type': upload?.contentType ?? 'application/json',
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: upload
+          ? new Uint8Array(upload.bytes)
+          : body === undefined
+            ? undefined
+            : JSON.stringify(body),
       });
       if (allowNotFound && response.status === 404) return undefined;
       if (!response.ok) {
@@ -40,29 +49,11 @@ export async function matrixRequest<T = unknown>(
 }
 
 export async function redactEvent(page: Page, roomId: string, eventId: string): Promise<void> {
-  await page.evaluate(
-    async ({ targetRoomId, targetEventId }) => {
-      const homeserver = localStorage.getItem('cinny_hs_base_url');
-      const accessToken = localStorage.getItem('cinny_access_token');
-      if (!homeserver || !accessToken) throw new Error('Missing authenticated Matrix session');
-
-      const response = await fetch(
-        `${homeserver}/_matrix/client/v3/rooms/${encodeURIComponent(
-          targetRoomId
-        )}/redact/${encodeURIComponent(targetEventId)}/${Date.now()}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: '{}',
-        }
-      );
-      if (!response.ok) throw new Error(`Failed to redact event: ${response.status}`);
-    },
-    { targetRoomId: roomId, targetEventId: eventId }
-  );
+  await matrixRequest(page, {
+    method: 'PUT',
+    path: `/rooms/${encodeURIComponent(roomId)}/redact/${encodeURIComponent(eventId)}/${Date.now()}`,
+    body: {},
+  });
 }
 
 /** Uploads a file to the homeserver's media repository and returns its mxc:// URI. */
@@ -70,22 +61,12 @@ export async function uploadMedia(
   page: Page,
   file: { bytes: number[]; contentType: string; filename: string }
 ): Promise<string> {
-  return page.evaluate(async ({ bytes, contentType, filename }) => {
-    const homeserver = localStorage.getItem('cinny_hs_base_url');
-    const accessToken = localStorage.getItem('cinny_access_token');
-    if (!homeserver || !accessToken) throw new Error('Missing authenticated Matrix session');
-
-    const response = await fetch(
-      `${homeserver}/_matrix/media/v3/upload?filename=${encodeURIComponent(filename)}`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': contentType },
-        body: new Uint8Array(bytes),
-      }
-    );
-    if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
-    const result = (await response.json()) as { content_uri?: string };
-    if (!result.content_uri) throw new Error('Upload returned no content URI');
-    return result.content_uri;
-  }, file);
+  const result = await matrixRequest<{ content_uri?: string }>(page, {
+    method: 'POST',
+    api: 'media',
+    path: `/upload?filename=${encodeURIComponent(file.filename)}`,
+    upload: { bytes: file.bytes, contentType: file.contentType },
+  });
+  if (!result?.content_uri) throw new Error('Upload returned no content URI');
+  return result.content_uri;
 }

@@ -1,14 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { loginWithTestAccount } from './support/auth';
+import { disconnectQuietly, fakeMedia, joinVoice } from './support/calls';
 import { createRoom, leaveRooms } from './support/rooms';
 
-test.use({
-  storageState: { cookies: [], origins: [] },
-  permissions: ['microphone', 'camera'],
-  launchOptions: {
-    args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
-  },
-});
+test.use(fakeMedia());
 
 // Remembers every microphone track the page opens, to read what the browser was asked for.
 // Chromium's fake microphone always reports `echoCancellation: false` in its settings, so the
@@ -42,8 +37,7 @@ test('the call microphone has echo cancellation off, until the setting turns it 
   await loginWithTestAccount(page);
   const roomId = await createRoom(page, { name: `echo ${Date.now()}`, voice: true });
   try {
-    await page.getByRole('button', { name: 'Join Voice', exact: true }).click();
-    await expect(page.getByText('Voice Connected', { exact: true })).toBeVisible();
+    await joinVoice(page);
     await expect.poll(() => liveMicrophoneEchoCancellation(page)).toBe(false);
 
     // changing the setting mid-call re-constrains the live microphone
@@ -57,10 +51,7 @@ test('the call microphone has echo cancellation off, until the setting turns it 
     await expect.poll(() => liveMicrophoneEchoCancellation(page)).toBe(false);
     await page.keyboard.press('Escape');
   } finally {
-    await page
-      .getByRole('button', { name: 'Disconnect', exact: true })
-      .click({ timeout: 3000 })
-      .catch(() => undefined);
+    await disconnectQuietly(page);
     await leaveRooms(page, [roomId]);
   }
 });

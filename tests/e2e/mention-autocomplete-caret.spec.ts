@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { ownUserId } from './support/auth';
 import { createRoom, leaveRooms } from './support/rooms';
 
 let roomId: string;
@@ -10,13 +11,6 @@ test.afterEach(async ({ page }) => {
 });
 
 type Accept = (page: Page, editor: Locator, item: Locator) => Promise<void>;
-
-const ownUserId = (page: Page) =>
-  page.evaluate(() => {
-    const userId = localStorage.getItem('cinny_user_id');
-    if (!userId) throw new Error('Missing authenticated Matrix session');
-    return userId;
-  });
 
 const accepts: Record<string, Accept> = {
   click: async (_page, _editor, item) => {

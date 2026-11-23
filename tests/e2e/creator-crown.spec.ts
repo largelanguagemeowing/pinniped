@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ownUserId } from './support/auth';
 import { matrixRequest } from './support/matrix';
 import { createRoom, leaveRooms } from './support/rooms';
 
@@ -41,8 +42,8 @@ test('crowns nobody in a room without creators', async ({ page }) => {
   // pre-12, so nobody is a creator
   const roomId = await createRoom(page, { name: `no crown e2e ${Date.now()}`, version: '11' });
   try {
-    const ownUserId = await page.evaluate(() => localStorage.getItem('cinny_user_id'));
-    await expect(page.locator(`button[data-user-id="${ownUserId}"]`).first()).toBeVisible();
+    const userId = await ownUserId(page);
+    await expect(page.locator(`button[data-user-id="${userId}"]`).first()).toBeVisible();
 
     await expect(page.getByLabel('Founder', { exact: true })).toHaveCount(0);
   } finally {

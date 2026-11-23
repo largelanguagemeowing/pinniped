@@ -1,15 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { loginWithTestAccount, ownUserId } from './support/auth';
+import { loginWithTestAccount, ownUserId, signIn } from './support/auth';
+import { disconnectQuietly, fakeMedia, tearDownRoom } from './support/calls';
 import { peerCredentials } from './support/env';
-import { acceptDirectInvite, createDirectMessage, leaveRooms, sendMessage } from './support/rooms';
+import { acceptDirectInvite, createDirectMessage, sendMessage } from './support/rooms';
 
-test.use({
-  storageState: { cookies: [], origins: [] },
-  permissions: ['microphone', 'camera'],
-  launchOptions: {
-    args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
-  },
-});
+test.use(fakeMedia());
 test.skip(!process.env.E2E_PEER_USERNAME, 'needs a second account (E2E_PEER_USERNAME)');
 
 // What someone who has not joined sees above the chat when the other person is in the call.
@@ -43,12 +38,11 @@ for (const [name, viewport] of [
     browser,
   }) => {
     await page.setViewportSize(viewport);
-    const peerContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const peer = await peerContext.newPage();
+    let peer: Page | undefined;
     let roomId: string | undefined;
     try {
       await loginWithTestAccount(page);
-      await loginWithTestAccount(peer, peerCredentials());
+      peer = await signIn(browser, peerCredentials());
       roomId = await createDirectMessage(page, await ownUserId(peer));
       await acceptDirectInvite(peer, roomId);
       await sendMessage(page, `overview ${Date.now()}`);
@@ -68,13 +62,8 @@ for (const [name, viewport] of [
       await page.mouse.up();
       await expectOverviewWhole(page);
     } finally {
-      await peer
-        .getByRole('button', { name: 'Disconnect', exact: true })
-        .click({ timeout: 3000 })
-        .catch(() => undefined);
-      if (roomId) await leaveRooms(peer, [roomId]);
-      if (roomId) await leaveRooms(page, [roomId]);
-      await peerContext.close();
+      if (peer) await disconnectQuietly(peer);
+      await tearDownRoom(roomId, page, peer ? [peer] : []);
     }
   });
 }

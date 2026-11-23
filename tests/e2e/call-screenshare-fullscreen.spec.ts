@@ -1,20 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { loginWithTestAccount, ownUserId } from './support/auth';
+import { loginWithTestAccount, ownUserId, signIn } from './support/auth';
+import { fakeMedia, inviteToCall, joinVoice, tearDownRoom } from './support/calls';
 import { peerCredentials } from './support/env';
-import { createRoom, leaveRooms } from './support/rooms';
+import { acceptRoomInvite, createRoom } from './support/rooms';
 
 // Chromium shares a fake screen without asking, and its fake microphone and camera need no devices.
-test.use({
-  storageState: { cookies: [], origins: [] },
-  permissions: ['microphone', 'camera'],
-  launchOptions: {
-    args: [
-      '--use-fake-device-for-media-stream',
-      '--use-fake-ui-for-media-stream',
-      '--auto-select-desktop-capture-source=Entire screen',
-    ],
-  },
-});
+test.use(fakeMedia(['--auto-select-desktop-capture-source=Entire screen']));
 test.skip(!process.env.E2E_PEER_USERNAME, 'needs a second account (E2E_PEER_USERNAME)');
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -28,34 +19,20 @@ test('a fullscreened screenshare fills the screen and its tags clear the call co
   page,
   browser,
 }, testInfo) => {
-  const peerContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-  const peer = await peerContext.newPage();
   const roomName = `share e2e ${Date.now()}`;
+  let peer: Page | undefined;
   let roomId: string | undefined;
 
   try {
     await loginWithTestAccount(page);
-    await loginWithTestAccount(peer, peerCredentials());
+    peer = await signIn(browser, peerCredentials());
     const peerId = await ownUserId(peer);
 
     roomId = await createRoom(page, { name: roomName, voice: true, encrypted: true });
-    await page.getByRole('button', { name: 'Join Voice', exact: true }).click();
-    await expect(page.getByText('Voice Connected', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Invite to call', exact: true }).click();
-    await page.locator('input[name="userIdInput"]').fill(peerId);
-    await page.getByRole('button', { name: 'Invite', exact: true }).click();
-    await expect(page.locator('input[name="userIdInput"]')).toHaveValue('');
-    await page.keyboard.press('Escape');
+    await joinVoice(page);
+    await inviteToCall(page, peerId);
 
-    await peer.goto('/inbox/invites/');
-    // listed under Public unless the two already share a room (a failed run leaves one)
-    await peer.getByRole('button', { name: /^Public\b/ }).click();
-    const accept = peer.getByRole('button', { name: 'Accept', exact: true });
-    if (!(await accept.isVisible({ timeout: 3000 }).catch(() => false))) {
-      await peer.getByRole('button', { name: /^Primary\b/ }).click();
-    }
-    await accept.first().click();
-    await peer.getByRole('link', { name: roomName }).first().click();
+    await acceptRoomInvite(peer, roomName);
     await expect(peer.getByText('Voice Connected', { exact: true })).toBeVisible();
 
     // the call controls fade while the pointer rests; moving it brings them back
@@ -116,10 +93,6 @@ test('a fullscreened screenshare fills the screen and its tags clear the call co
     const hiddenTag = (await tag.boundingBox())!;
     expect(hiddenTag.y + hiddenTag.height).toBeLessThanOrEqual(await controlsTop());
   } finally {
-    if (roomId) {
-      await leaveRooms(peer, [roomId]).catch(() => undefined);
-      await leaveRooms(page, [roomId]);
-    }
-    await peerContext.close();
+    await tearDownRoom(roomId, page, peer ? [peer] : []);
   }
 });

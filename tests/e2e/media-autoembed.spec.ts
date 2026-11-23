@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { ownUserId } from './support/auth';
 import { matrixRequest } from './support/matrix';
 import { createRoom, leaveRooms } from './support/rooms';
 
@@ -61,7 +62,7 @@ test('autoembeds a nyafiles video and retains its link', async ({ page }) => {
 });
 
 test('does not embed media from a reply fallback', async ({ page }) => {
-  const userId = await page.evaluate(() => localStorage.getItem('cinny_user_id'));
+  const userId = await ownUserId(page);
 
   const target = await matrixRequest<SendEventResponse>(page, {
     method: 'PUT',

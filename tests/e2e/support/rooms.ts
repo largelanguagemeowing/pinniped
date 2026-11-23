@@ -78,6 +78,12 @@ export async function createDirectMessage(
   return currentRoomId(page);
 }
 
+/** Opens the invites list on the section the inviter is in: Public, or Primary once a room is shared. */
+const openInviteSection = async (page: Page, known: boolean): Promise<void> => {
+  await page.goto('/inbox/invites/');
+  await page.getByRole('button', { name: known ? /^Primary\b/ : /^Public\b/ }).click();
+};
+
 /**
  * Accepts the pending DM invite, which opens the conversation with the direct messages. The
  * inviter is someone this person shares no room with (listed as Public), or with `known` one
@@ -88,13 +94,28 @@ export async function acceptDirectInvite(
   roomId: string,
   { known = false }: { known?: boolean } = {}
 ): Promise<void> {
-  await page.goto('/inbox/invites/');
-  await page.getByRole('button', { name: known ? /^Primary\b/ : /^Public\b/ }).click();
+  await openInviteSection(page, known);
   await page.getByRole('button', { name: 'Accept', exact: true }).click();
   await page.waitForURL(
     (url) => decodeURIComponent(url.pathname).replace(/\/$/, '') === `/home/${roomId}`
   );
   await expect(page.locator('[data-editable-name="RoomInput"]')).toBeVisible();
+}
+
+/**
+ * Accepts the pending invite to the room `roomName` and opens it from the sidebar. The inviter
+ * is listed under Public unless the two already share a room (a run that failed to leave one),
+ * then under Primary.
+ */
+export async function acceptRoomInvite(page: Page, roomName: string): Promise<void> {
+  const accept = page.getByRole('button', { name: 'Accept', exact: true });
+  await openInviteSection(page, false);
+  if (!(await accept.isVisible({ timeout: 3000 }).catch(() => false))) {
+    await page.getByRole('button', { name: /^Primary\b/ }).click();
+  }
+  await expect(page.getByText(roomName, { exact: true })).toBeVisible();
+  await accept.first().click();
+  await page.getByRole('link', { name: roomName }).first().click();
 }
 
 /** Sends a message through the composer of the open room and returns its event ID. */

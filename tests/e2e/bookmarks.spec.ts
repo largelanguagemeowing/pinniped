@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { ownUserId } from './support/auth';
 import { matrixRequest } from './support/matrix';
 import { createRoom, leaveRooms, sendMessage } from './support/rooms';
 const INDEX_TYPE = 'org.matrix.msc4438.bookmarks.index';
@@ -7,11 +8,8 @@ const ITEM_PREFIX = 'org.matrix.msc4438.bookmark.';
 type Index = { revision: number; bookmark_ids: string[] };
 type Item = { room_id: string; event_id: string; deleted?: boolean };
 
-const userPath = async (page: Page) => {
-  const userId = await page.evaluate(() => localStorage.getItem('cinny_user_id'));
-  if (!userId) throw new Error('Missing authenticated Matrix session');
-  return `/user/${encodeURIComponent(userId)}/account_data`;
-};
+const userPath = async (page: Page) =>
+  `/user/${encodeURIComponent(await ownUserId(page))}/account_data`;
 
 const readIndex = async (page: Page): Promise<Index | undefined> =>
   matrixRequest<Index>(page, {
