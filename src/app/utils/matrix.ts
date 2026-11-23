@@ -253,17 +253,18 @@ export const factoryEventSentBy = (senderId: string) => (ev: MatrixEvent) =>
 export const eventWithShortcode = (ev: MatrixEvent) =>
   typeof ev.getContent().shortcode === 'string';
 
+// The room m.direct lists for this user; membership of a room says nothing about
+// whether it is a DM (a large room whose members are not loaded looks like one).
 export const getDMRoomFor = (mx: MatrixClient, userId: string): Room | undefined => {
-  const dmLikeRooms = mx
-    .getRooms()
-    .filter(
-      (room) =>
-        room.getMyMembership() === Membership.Join &&
-        room.hasEncryptionStateEvent() &&
-        room.getMembers().length <= 2
-    );
+  const listed: unknown = mx.getAccountData(AccountDataEvent.Direct)?.getContent()?.[userId];
+  if (!Array.isArray(listed)) return undefined;
 
-  return dmLikeRooms.find((room) => room.getMember(userId));
+  return (
+    listed
+      .filter((roomId): roomId is string => typeof roomId === 'string')
+      .map((roomId) => mx.getRoom(roomId))
+      .find((room) => room?.getMyMembership() === Membership.Join) ?? undefined
+  );
 };
 
 export const guessDmRoomUserId = (room: Room, myUserId: string): string => {
@@ -315,7 +316,7 @@ export const addRoomIdToMDirect = async (
   Object.keys(userIdToRoomIds).forEach((targetUserId) => {
     const roomIds = userIdToRoomIds[targetUserId];
 
-    if (targetUserId !== userId) {
+    if (targetUserId !== userId && Array.isArray(roomIds)) {
       const indexOfRoomId = roomIds.indexOf(roomId);
       if (indexOfRoomId > -1) {
         roomIds.splice(indexOfRoomId, 1);
@@ -323,7 +324,8 @@ export const addRoomIdToMDirect = async (
     }
   });
 
-  const roomIds = userIdToRoomIds[userId] || [];
+  const listed: unknown = userIdToRoomIds[userId];
+  const roomIds: string[] = Array.isArray(listed) ? listed : [];
   if (roomIds.indexOf(roomId) === -1) {
     roomIds.push(roomId);
   }
