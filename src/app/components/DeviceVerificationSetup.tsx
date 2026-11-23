@@ -1,4 +1,4 @@
-import React, { FormEventHandler, forwardRef, useCallback, useState } from 'react';
+import React, { FormEventHandler, forwardRef, useCallback, useEffect, useState } from 'react';
 import {
   Dialog,
   Header,
@@ -31,7 +31,6 @@ import { clearSecretStorageKeys } from '../../client/secretStorageKeys';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
 import { useMatrixClient } from '../hooks/useMatrixClient';
 import { useAlive } from '../hooks/useAlive';
-import { UseStateProvider } from './UseStateProvider';
 
 type UIACallback<T> = (
   authDict: AuthDict | null
@@ -78,8 +77,14 @@ type SetupVerificationProps = {
   onComplete: (recoveryKey: string) => void;
   /** Turn recovery back on around the identity the account already has, instead of creating one. */
   keepIdentity?: boolean;
+  /** Called when setup starts and stops, so a container can hold its close button while it runs. */
+  onBusyChange?: (busy: boolean) => void;
 };
-export function SetupVerification({ onComplete, keepIdentity = false }: SetupVerificationProps) {
+export function SetupVerification({
+  onComplete,
+  keepIdentity = false,
+  onBusyChange,
+}: SetupVerificationProps) {
   const mx = useMatrixClient();
   const alive = useAlive();
 
@@ -164,19 +169,22 @@ export function SetupVerification({ onComplete, keepIdentity = false }: SetupVer
         if (!recoveryKeyData.encodedPrivateKey) {
           throw new Error('Unexpected Error! Failed to create recovery key.');
         }
-        clearSecretStorageKeys();
 
-        await crypto.bootstrapSecretStorage({
-          createSecretStorageKey: async () => recoveryKeyData,
-          setupNewSecretStorage: true,
-        });
-
+        // The identity comes first: it needs the account password, and a refused or
+        // cancelled prompt must leave the existing recovery key working.
         if (!keepIdentity) {
           await crypto.bootstrapCrossSigning({
             authUploadDeviceSigningKeys,
             setupNewCrossSigning: true,
           });
         }
+
+        clearSecretStorageKeys();
+
+        await crypto.bootstrapSecretStorage({
+          createSecretStorageKey: async () => recoveryKeyData,
+          setupNewSecretStorage: true,
+        });
 
         if (withBackup) {
           await crypto.resetKeyBackup();
@@ -197,6 +205,9 @@ export function SetupVerification({ onComplete, keepIdentity = false }: SetupVer
   );
 
   const loading = setupState.status === AsyncStatus.Loading;
+  useEffect(() => {
+    onBusyChange?.(loading);
+  }, [loading, onBusyChange]);
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
@@ -432,6 +443,8 @@ type DeviceVerificationResetProps = {
 export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerificationResetProps>(
   ({ onCancel }, ref) => {
     const [reset, setReset] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [recoveryKey, setRecoveryKey] = useState<string>();
 
     return (
       <Dialog ref={ref}>
@@ -446,23 +459,20 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
           <Box grow="Yes">
             <Text size="H4">Reset encryption identity</Text>
           </Box>
-          {!reset && (
-            <IconButton size="300" radii="300" onClick={onCancel}>
+          {/* closable until the new key exists, except while setup is running */}
+          {!busy && !recoveryKey && (
+            <IconButton size="300" radii="300" onClick={onCancel} aria-label="Close">
               <Icon src={Icons.Cross} />
             </IconButton>
           )}
         </Header>
         {reset ? (
           <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-            <UseStateProvider initial={undefined}>
-              {(recoveryKey: string | undefined, setRecoveryKey) =>
-                recoveryKey ? (
-                  <RecoveryKeyDisplay recoveryKey={recoveryKey} onDone={onCancel} />
-                ) : (
-                  <SetupVerification onComplete={setRecoveryKey} />
-                )
-              }
-            </UseStateProvider>
+            {recoveryKey ? (
+              <RecoveryKeyDisplay recoveryKey={recoveryKey} onDone={onCancel} />
+            ) : (
+              <SetupVerification onComplete={setRecoveryKey} onBusyChange={setBusy} />
+            )}
           </Box>
         ) : (
           <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

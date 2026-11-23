@@ -1,10 +1,15 @@
 import React from 'react';
 import { act, create, ReactTestRenderer, ReactTestInstance } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SetupVerification } from '../../src/app/components/DeviceVerificationSetup';
+import { MatrixError } from 'matrix-js-sdk';
+import {
+  DeviceVerificationReset,
+  SetupVerification,
+} from '../../src/app/components/DeviceVerificationSetup';
 
 const state = vi.hoisted(() => ({
   existingBackup: undefined as { version: string } | null | undefined,
+  backupCheckFails: false,
   held: { masterKey: true, selfSigningKey: true, userSigningKey: true },
   bootstrapSecretStorage: vi.fn(async () => {}),
   bootstrapCrossSigning: vi.fn(async () => {}),
@@ -14,6 +19,13 @@ const state = vi.hoisted(() => ({
 
 vi.mock('../../src/app/hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({
+    http: {
+      authedRequest: async () => {
+        if (state.backupCheckFails) throw new MatrixError({ errcode: 'M_UNKNOWN' }, 500);
+        if (state.existingBackup) return state.existingBackup;
+        throw new MatrixError({ errcode: 'M_NOT_FOUND' }, 404);
+      },
+    },
     getCrypto: () => ({
       createRecoveryKeyFromPassphrase: async () => ({
         encodedPrivateKey: 'EsTc 1abc',
@@ -61,6 +73,7 @@ describe('SetupVerification backup choice', () => {
 
   beforeEach(() => {
     state.existingBackup = undefined;
+    state.backupCheckFails = false;
     state.held = { masterKey: true, selfSigningKey: true, userSigningKey: true };
     state.bootstrapSecretStorage.mockClear();
     state.bootstrapCrossSigning.mockClear();
@@ -84,6 +97,16 @@ describe('SetupVerification backup choice', () => {
     await mount();
     await submit();
     expect(state.resetKeyBackup).toHaveBeenCalledTimes(1);
+    expect(state.deleteKeyBackupVersion).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledWith('EsTc 1abc');
+  });
+
+  it('keeps an old backup when the server could not be asked about it', async () => {
+    state.existingBackup = { version: '3' };
+    state.backupCheckFails = true;
+    await mount();
+    await act(async () => checkbox().props.onClick());
+    await submit();
     expect(state.deleteKeyBackupVersion).not.toHaveBeenCalled();
     expect(onComplete).toHaveBeenCalledWith('EsTc 1abc');
   });
@@ -133,6 +156,25 @@ describe('SetupVerification backup choice', () => {
     });
   });
 
+  describe('replacing an identity', () => {
+    it('makes the new identity before it replaces secret storage', async () => {
+      await mount();
+      await submit();
+      expect(state.bootstrapCrossSigning.mock.invocationCallOrder[0]).toBeLessThan(
+        state.bootstrapSecretStorage.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('leaves secret storage alone when the identity step is refused', async () => {
+      state.bootstrapCrossSigning.mockRejectedValueOnce(new Error('Authentication cancelled'));
+      await mount();
+      await submit();
+      expect(state.bootstrapSecretStorage).not.toHaveBeenCalled();
+      expect(onComplete).not.toHaveBeenCalled();
+      expect(textOf(r.root)).toContain('Authentication cancelled');
+    });
+  });
+
   describe('turning recovery back on around an identity that exists', () => {
     it('says what it will do and calls the button Turn on recovery', async () => {
       await mount({ keepIdentity: true });
@@ -174,5 +216,50 @@ describe('SetupVerification backup choice', () => {
       expect(state.resetKeyBackup).not.toHaveBeenCalled();
       expect(state.bootstrapCrossSigning).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('DeviceVerificationReset close button', () => {
+  let r: ReactTestRenderer;
+  const onCancel = vi.fn();
+  const closeButton = () =>
+    r.root.findAll((n) => n.props['aria-label'] === 'Close' && n.type === 'button');
+  const startReset = async () => {
+    await act(async () => {
+      r = create(<DeviceVerificationReset onCancel={onCancel} />);
+    });
+    const reset = r.root.findAll(
+      (n) => n.type === 'button' && textOf(n).includes('Reset encryption identity')
+    );
+    await act(async () => reset[0].props.onClick());
+  };
+  afterEach(() => act(() => r.unmount()));
+
+  it('stays available after the reset form opens, so a failed attempt is not a dead end', async () => {
+    await startReset();
+
+    expect(textOf(r.root)).toContain('Create recovery key');
+    expect(closeButton()).toHaveLength(1);
+  });
+
+  it('is held while setup runs', async () => {
+    let finish!: () => void;
+    state.bootstrapCrossSigning.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    await startReset();
+
+    const form = r.root.findAll((n) => n.type === 'form')[0];
+    await act(async () => {
+      form.props.onSubmit({ preventDefault: () => {}, target: { passphraseInput: { value: '' } } });
+    });
+    expect(closeButton()).toHaveLength(0);
+
+    await act(async () => finish());
+    // the recovery key is on screen now; closing is through its own Done
+    expect(closeButton()).toHaveLength(0);
   });
 });
