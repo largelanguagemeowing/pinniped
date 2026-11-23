@@ -1,3 +1,4 @@
+import { cell } from './markdown';
 import type { CallStatsSample } from '../../../plugins/call/Call';
 import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/callStats';
 import type { EncryptionEvent } from '../../../plugins/call/engine/livekit/encryptionLog';
@@ -41,9 +42,6 @@ const playbackLine = ({ playback, outputName }: ReportContext): string => {
           .join(', ')}; audio context replaced each time)`;
   return `- Playback: ${playback.state}, on ${outputName(playback.sinkId)}, ${failed}`;
 };
-
-/** Markdown table cells cannot contain pipes or newlines. */
-const cell = (v: string) => v.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 const table = (head: string[], rows: string[][]): string =>
   [

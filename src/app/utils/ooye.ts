@@ -24,14 +24,15 @@ export type OoyeGifData = {
   videoUrl: string;
 };
 
-function decodeHtmlEntities(text: string): string {
+// `&amp;` goes last so `&amp;lt;` decodes to the text `&lt;`, not to `<`.
+export function decodeHtmlEntities(text: string): string {
   return text
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'");
+    .replace(/&#x27;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 const MP4_URL_REG = /https:\/\/[^\s"<>']+\.mp4/g;
