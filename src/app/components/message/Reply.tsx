@@ -89,8 +89,10 @@ export const Reply = as<'div', ReplyProps>(
     const directRoom = useAtomValue(mDirectAtom).has(room.roomId);
 
     const replyContent = replyEvent?.getContent() ?? {};
-    const body: string | undefined =
+    // any event type can be replied to, and only m.room.message has its body checked by servers
+    const rawBody: unknown =
       replyContent.body ?? (replyEvent ? getPollQuestion(replyContent) : undefined);
+    const body = typeof rawBody === 'string' ? rawBody : undefined;
     const sender = replyEvent?.getSender();
     const powerTag = sender ? getMemberPowerTag?.(sender) : undefined;
     const tagColor = powerTag?.color ? accessibleTagColors?.get(powerTag.color) : undefined;

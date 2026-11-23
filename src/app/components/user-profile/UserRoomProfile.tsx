@@ -33,6 +33,10 @@ import { DirectMessageComposer } from './DirectMessageComposer';
 type UserRoomProfileProps = {
   userId: string;
 };
+// the reason is free-form content from whoever changed the membership
+const memberReason = (reason: unknown): string | undefined =>
+  typeof reason === 'string' ? reason : undefined;
+
 export function UserRoomProfile({ userId }: UserRoomProfileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -108,7 +112,7 @@ export function UserRoomProfile({ userId }: UserRoomProfileProps) {
         {ignored && <IgnoredUserAlert />}
         {member && membership === Membership.Ban && (
           <UserBanAlert
-            reason={member.events.member?.getContent().reason}
+            reason={memberReason(member.events.member?.getContent().reason)}
             bannedBy={member.events.member?.getSender()}
             ts={member.events.member?.getTs()}
           />
@@ -118,14 +122,14 @@ export function UserRoomProfile({ userId }: UserRoomProfileProps) {
           member.events.member &&
           member.events.member.getSender() !== userId && (
             <UserKickAlert
-              reason={member.events.member?.getContent().reason}
+              reason={memberReason(member.events.member?.getContent().reason)}
               kickedBy={member.events.member?.getSender()}
               ts={member.events.member?.getTs()}
             />
           )}
         {member && membership === Membership.Invite && (
           <UserInviteAlert
-            reason={member.events.member?.getContent().reason}
+            reason={memberReason(member.events.member?.getContent().reason)}
             invitedBy={member.events.member?.getSender()}
             ts={member.events.member?.getTs()}
           />

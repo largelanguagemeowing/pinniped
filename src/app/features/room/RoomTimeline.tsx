@@ -62,6 +62,7 @@ import {
   Reply,
   MessageBase,
   MessageUnsupportedContent,
+  MessageFailedContent,
   Time,
   MessageNotDecryptedContent,
   RedactedContent,
@@ -70,6 +71,7 @@ import {
   EventContent,
   AttachmentGrid,
 } from '../../components/message';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { getAttachmentGroupId } from '../../utils/attachments';
 import {
   factoryRenderLinkifyWithMention,
@@ -2122,7 +2124,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       prevEvent.getType() === mEvent.getType() &&
       minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
 
-    const eventJSX =
+    const renderedEvent =
       reactionOrEditEvent(mEvent) || isGroupContinuation(item, mEvent)
         ? null
         : renderMatrixEvent(
@@ -2134,6 +2136,19 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
             timelineSet,
             collapsed
           );
+    // one event that cannot render must not take the whole app down
+    const eventJSX = renderedEvent && (
+      <ErrorBoundary
+        key={mEventId}
+        fallback={() => (
+          <MessageBase space={messageSpacing}>
+            <MessageFailedContent />
+          </MessageBase>
+        )}
+      >
+        {renderedEvent}
+      </ErrorBoundary>
+    );
     prevEvent = mEvent;
     isPrevRendered = !!eventJSX;
 

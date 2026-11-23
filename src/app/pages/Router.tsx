@@ -57,6 +57,7 @@ import { ScreenSize } from '../hooks/useScreenSize';
 import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { ClientNonUIFeatures } from './client/ClientNonUIFeatures';
+import { RouteError } from './RouteError';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ReceiveSelfDeviceVerification } from '../components/DeviceVerification';
 import { DeviceVerificationGate } from '../features/device-verification-gate/DeviceVerificationGate';
@@ -78,7 +79,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
   const mobile = screenSize === ScreenSize.Mobile;
 
   const routes = createRoutesFromElements(
-    <Route>
+    <Route errorElement={<RouteError />}>
       <Route
         index
         loader={() => {
@@ -176,6 +177,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={_INVITES_PATH} element={<Invites />} />
           <Route
             path={_ROOM_PATH}
+            errorElement={<RouteError />}
             element={
               <HomeRouteRoomProvider>
                 <Room />
@@ -202,6 +204,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={_SEARCH_PATH} element={<RoomsSearch />} />
           <Route
             path={_ROOM_PATH}
+            errorElement={<RouteError />}
             element={
               <RoomsRouteRoomProvider>
                 <Room />
@@ -227,6 +230,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={_CREATE_PATH} element={<DirectCreate />} />
           <Route
             path={_ROOM_PATH}
+            errorElement={<RouteError />}
             element={
               <DirectRouteRoomProvider>
                 <Room />
@@ -267,6 +271,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={_SEARCH_PATH} element={<SpaceSearch />} />
           <Route
             path={_ROOM_PATH}
+            errorElement={<RouteError />}
             element={
               <SpaceRouteRoomProvider>
                 <Room />
