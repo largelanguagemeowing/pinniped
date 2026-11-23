@@ -41,6 +41,8 @@ import { ServerSoftwareProvider } from '../../hooks/useServerSoftware';
 import { getFallbackSession } from '../../state/sessions';
 import { AutoDiscovery } from './AutoDiscovery';
 import { StorageStatus } from './StorageStatus';
+import { SoftLogout } from './SoftLogout';
+import { readSessionEnd, rememberLogoutReason, SessionEnd } from '../../../client/sessionEnd';
 
 function ClientRootLoading() {
   return (
@@ -128,11 +130,33 @@ function ClientRootOptions({ mx }: { mx?: MatrixClient }) {
   );
 }
 
-const useLogoutListener = (mx?: MatrixClient) => {
+const CLEAR_STORES_TIMEOUT_MS = 5000;
+
+// Returns the soft logout the server sent, if any; that session is kept so a new
+// login on the same device keeps its encryption keys. Any other end wipes local data.
+const useLogoutListener = (mx?: MatrixClient): SessionEnd | undefined => {
+  const [softLogout, setSoftLogout] = useState<SessionEnd>();
+
   useEffect(() => {
-    const handleLogout: HttpApiEventHandlerMap[HttpApiEvent.SessionLoggedOut] = async () => {
+    const handleLogout: HttpApiEventHandlerMap[HttpApiEvent.SessionLoggedOut] = async (error) => {
+      const end = readSessionEnd(error);
       mx?.stopClient();
-      await mx?.clearStores();
+      if (end.soft) {
+        setSoftLogout(end);
+        return;
+      }
+      rememberLogoutReason(end.reason);
+      try {
+        // clearStores never settles while another tab holds the database open
+        await Promise.race([
+          mx?.clearStores(),
+          new Promise((resolve) => {
+            setTimeout(resolve, CLEAR_STORES_TIMEOUT_MS);
+          }),
+        ]);
+      } catch {
+        // the session is gone either way; local data is cleared below
+      }
       window.localStorage.clear();
       window.location.reload();
     };
@@ -142,6 +166,8 @@ const useLogoutListener = (mx?: MatrixClient) => {
       mx?.removeListener(HttpApiEvent.SessionLoggedOut, handleLogout);
     };
   }, [mx]);
+
+  return softLogout;
 };
 
 type ClientRootProps = {
@@ -165,7 +191,7 @@ export function ClientRoot({ children }: ClientRootProps) {
     useCallback((m) => startClient(m), [])
   );
 
-  useLogoutListener(mx);
+  const softLogout = useLogoutListener(mx);
 
   useEffect(() => {
     if (loadState.status === AsyncStatus.Idle) {
@@ -187,6 +213,8 @@ export function ClientRoot({ children }: ClientRootProps) {
       }
     }, [])
   );
+
+  if (mx && softLogout) return <SoftLogout mx={mx} reason={softLogout.reason} />;
 
   return (
     <AutoDiscovery userId={userId!} baseUrl={baseUrl!}>

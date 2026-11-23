@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Box, Text, color } from 'folds';
 import { Link, useSearchParams } from 'react-router-dom';
 import { SSOAction } from 'matrix-js-sdk';
@@ -13,6 +13,7 @@ import { getLoginPath, getRegisterPath, withSearchParam } from '../../pathUtils'
 import { usePathWithOrigin } from '../../../hooks/usePathWithOrigin';
 import { LoginPathSearchParams } from '../../paths';
 import { useClientConfig } from '../../../hooks/useClientConfig';
+import { takeLogoutReason } from '../../../../client/sessionEnd';
 
 const getLoginTokenSearchParam = () => {
   // when using hasRouter query params in existing route
@@ -53,12 +54,18 @@ export function Login() {
   }
 
   const parsedFlows = useParsedLoginFlows(loginFlows.flows);
+  const [logoutReason] = useState(takeLogoutReason);
 
   return (
     <Box direction="Column" gap="500">
       <Text size="H2" priority="400">
         Sign in
       </Text>
+      {logoutReason && (
+        <Text role="status" size="T300" style={{ color: color.Warning.Main }}>
+          You were signed out: {logoutReason}
+        </Text>
+      )}
       {parsedFlows.token && loginSearchParams.loginToken && (
         <TokenLogin token={loginSearchParams.loginToken} />
       )}
