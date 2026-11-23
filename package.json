@@ -136,10 +136,15 @@
     "prettier": "3.9.10",
     "react-test-renderer": "19.3.1",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.72.1",
+    "typescript-eslint": "8.73.0",
     "vite": "8.3.5",
     "vite-plugin-pwa": "2.0.0",
     "vite-plugin-static-copy": "4.1.1",
     "vitest": "5.0.5"
+  },
+  "overrides": {
+    "minimatch@9.0.9": "11.0.9",
+    "minimatch@10.2.6": "11.0.9",
+    "glob@11.1.0": "14.0.6"
   }
 }
