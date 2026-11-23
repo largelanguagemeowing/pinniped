@@ -11,12 +11,15 @@ export const editableActiveElement = (): boolean =>
     document.activeElement.getAttribute('role') === 'input' ||
     document.activeElement.getAttribute('role') === 'textarea');
 
+/** `margin` widens the scroll view by that many pixels above and below. */
 export const isIntersectingScrollView = (
   scrollElement: HTMLElement,
-  childElement: HTMLElement
+  childElement: HTMLElement,
+  margin = 0
 ): boolean => {
-  const scrollTop = scrollElement.offsetTop + scrollElement.scrollTop;
-  const scrollBottom = scrollTop + scrollElement.offsetHeight;
+  const scrollTop = scrollElement.offsetTop + scrollElement.scrollTop - margin;
+  const scrollBottom =
+    scrollElement.offsetTop + scrollElement.scrollTop + scrollElement.offsetHeight + margin;
 
   const childTop = childElement.offsetTop;
   const childBottom = childTop + childElement.clientHeight;

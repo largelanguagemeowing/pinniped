@@ -598,6 +598,25 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     useCallback(() => getScrollElement()?.firstElementChild ?? null, [getScrollElement])
   );
 
+  // The viewport shrinks or grows without the content changing (read-receipt bar, composer,
+  // window, side drawers); a reader at the bottom stays there.
+  useResizeObserver(
+    useMemo(() => {
+      let mounted = false;
+      return () => {
+        if (!mounted) {
+          mounted = true;
+          return;
+        }
+        const scrollElement = getScrollElement();
+        if (scrollElement && atBottomRef.current && atLiveEndRef.current) {
+          scrollToBottom(scrollElement);
+        }
+      };
+    }, [getScrollElement]),
+    getScrollElement
+  );
+
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
@@ -930,6 +949,12 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       () => () => {
         const index = pinnedFocusRef.current;
         if (index === undefined) return;
+        // scrollToItem would move the rendered range back around an item the timeline has left
+        const { range } = timelineRef.current;
+        if (index < range.start || index >= range.end) {
+          pinnedFocusRef.current = undefined;
+          return;
+        }
         scrollToItem(index, { behavior: 'instant', align: 'center', stopInView: true });
       },
       [scrollToItem]
@@ -969,6 +994,9 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     }
     setPaginationStalled(false);
     clearPaginationStall();
+    // the jump to a message ends here: its pin would pull the view back to it
+    pinnedFocusRef.current = undefined;
+    setFocusItem(undefined);
     setTimeline(getInitialTimeline(room));
     scrollToBottomRef.current.count += 1;
     scrollToBottomRef.current.smooth = false;

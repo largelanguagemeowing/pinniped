@@ -10,6 +10,19 @@ import {
 
 const PAGINATOR_ANCHOR_ATTR = 'data-paginator-anchor';
 
+// Chromium and Firefox keep the visible content in place when the content above it changes (CSS
+// scroll anchoring). A script that sets the scroll position instead cancels the wheel or touch
+// gesture in progress, so a flick that reaches unloaded history stops dead. Browsers without
+// anchoring (Safari) keep the manual restore below.
+const NATIVE_SCROLL_ANCHORING =
+  typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
+    ? CSS.supports('overflow-anchor', 'auto')
+    : false;
+
+// Pagination starts this far (in viewport heights) before the reader reaches the end of the
+// rendered items, so the next page is usually there before they do.
+const PREFETCH_VIEWPORTS = 1;
+
 export enum Direction {
   Backward = 'B',
   Forward = 'F',
@@ -346,6 +359,7 @@ export const useVirtualPaginator = <TScrollElement extends HTMLElement>(
     useCallback(
       () => ({
         root: getScrollElement(),
+        rootMargin: `${PREFETCH_VIEWPORTS * 100}% 0px`,
       }),
       [getScrollElement]
     )
@@ -365,6 +379,12 @@ export const useVirtualPaginator = <TScrollElement extends HTMLElement>(
       anchorItem,
       scrollTop: oldScrollTop,
     } = restoreScrollRef.current;
+    // Anchoring cannot hold a position at offset 0: nothing is above it to keep. The reader is
+    // at the edge there, so no gesture is left to cancel.
+    if (NATIVE_SCROLL_ANCHORING && oldScrollTop > 0) {
+      restoreScrollRef.current = undefined;
+      return;
+    }
     const anchorEl = getItemElement(anchorItem);
 
     if (!anchorEl) return;
@@ -394,16 +414,8 @@ export const useVirtualPaginator = <TScrollElement extends HTMLElement>(
     scrollToItemRef.current = undefined;
   }, [range, scrollToItem]);
 
-  // Continue pagination to fill view height with scroll items
-  // check if pagination anchor are in visible view height
-  // and trigger pagination
-  useEffect(() => {
-    if (initialRenderRef.current) {
-      // Do not trigger pagination on initial render
-      // anchor intersection observable will trigger pagination on mount
-      initialRenderRef.current = false;
-      return;
-    }
+  // Asks for the next page when a pagination anchor is within reach of the viewport.
+  const paginateIfAnchorNear = useCallback(() => {
     const scrollElement = getScrollElement();
     if (!scrollElement) return;
     const backAnchor = scrollElement.querySelector(
@@ -413,22 +425,54 @@ export const useVirtualPaginator = <TScrollElement extends HTMLElement>(
       `[${PAGINATOR_ANCHOR_ATTR}="${Direction.Forward}"]`
     ) as HTMLElement | null;
 
-    if (backAnchor && isIntersectingScrollView(scrollElement, backAnchor)) {
+    const margin = scrollElement.clientHeight * PREFETCH_VIEWPORTS;
+    if (backAnchor && isIntersectingScrollView(scrollElement, backAnchor, margin)) {
       paginate(Direction.Backward);
       return;
     }
-    if (frontAnchor && isIntersectingScrollView(scrollElement, frontAnchor)) {
+    if (frontAnchor && isIntersectingScrollView(scrollElement, frontAnchor, margin)) {
       paginate(Direction.Forward);
     }
-  }, [range, getScrollElement, paginate]);
+  }, [getScrollElement, paginate]);
 
-  // Track the topmost visible item on scroll so we can use it as a scroll
-  // anchor when async content height changes occur (images loading, URL
-  // previews resolving, etc.). The browser's built-in overflow-anchor does
-  // not reliably handle this with the virtual scroll + flexbox layout.
+  // The intersection observer only reports changes, so it cannot see an anchor that is already
+  // in reach when a page arrives (or that came back into reach while the page was loading). After
+  // every range change, check the anchors directly to keep filling the view.
+  useEffect(() => {
+    if (initialRenderRef.current) {
+      // Do not trigger pagination on initial render
+      // anchor intersection observable will trigger pagination on mount
+      initialRenderRef.current = false;
+      return;
+    }
+    paginateIfAnchorNear();
+  }, [range, paginateIfAnchorNear]);
+
+  // The same check while scrolling: a reader who settles within reach of an anchor after the last
+  // range change (a scroll animation ending at the edge) produces no intersection change.
+  useEffect(() => {
+    const scrollElement = getScrollElement();
+    if (!scrollElement) return undefined;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        paginateIfAnchorNear();
+      });
+    };
+    scrollElement.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      scrollElement.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [getScrollElement, paginateIfAnchorNear]);
+
+  // Without native scroll anchoring: track the topmost visible item on scroll so it can serve as
+  // the anchor when async content height changes occur (images loading, URL previews resolving).
   useEffect(() => {
     const scrollEl = getScrollElement();
-    if (!scrollEl) return undefined;
+    if (NATIVE_SCROLL_ANCHORING || !scrollEl) return undefined;
 
     const updateAnchor = () => {
       const items = getItems();
@@ -459,7 +503,7 @@ export const useVirtualPaginator = <TScrollElement extends HTMLElement>(
     useMemo(
       () => () => {
         const scrollEl = getScrollElement();
-        if (!scrollEl || !scrollAnchorRef.current) return;
+        if (NATIVE_SCROLL_ANCHORING || !scrollEl || !scrollAnchorRef.current) return;
 
         // Skip if the user is at (or near) the bottom. The at-bottom logic
         // in the host component handles scrolling to the new bottom.
