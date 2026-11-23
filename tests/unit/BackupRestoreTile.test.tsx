@@ -2,6 +2,7 @@ import React from 'react';
 import { act, create, ReactTestRenderer, ReactTestInstance } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackupRestoreTile } from '../../src/app/components/BackupRestore';
+import { MatrixError } from 'matrix-js-sdk';
 import { isBackupRestored } from '../../src/app/state/backupRestored';
 
 const state = vi.hoisted(() => ({
@@ -14,6 +15,7 @@ const state = vi.hoisted(() => ({
   resetCalls: 0,
   deleteCalls: [] as string[],
   deleteError: undefined as Error | undefined,
+  serverBackupError: undefined as Error | undefined,
 }));
 
 // Popups, portals and focus traps need a browser window. The popup's content is rendered in
@@ -29,7 +31,16 @@ vi.mock('focus-trap-react', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 vi.mock('../../src/app/hooks/useMatrixClient', () => ({
-  useMatrixClient: () => ({ getSafeUserId: () => '@me:x', getDeviceId: () => 'DEV1' }),
+  useMatrixClient: () => ({
+    getSafeUserId: () => '@me:x',
+    getDeviceId: () => 'DEV1',
+    http: {
+      authedRequest: async () => {
+        if (state.serverBackupError) throw state.serverBackupError;
+        throw new MatrixError({ errcode: 'M_NOT_FOUND' }, 404);
+      },
+    },
+  }),
 }));
 vi.mock('../../src/app/hooks/useKeyBackup', () => ({
   useKeyBackupStatus: () => true,
@@ -106,6 +117,7 @@ describe('BackupRestoreTile', () => {
     state.keyId = 'KEY';
     state.restore = async () => ({ total: 2, imported: 2 });
     state.resetCalls = 0;
+    state.serverBackupError = undefined;
     state.deleteCalls = [];
     state.deleteError = undefined;
   });
@@ -246,6 +258,15 @@ describe('BackupRestoreTile', () => {
       await mount();
       await act(async () => button('Turn on backup').props.onClick());
       expect(state.resetCalls).toBe(1);
+    });
+
+    it('does not create a backup, which would delete the real one, when the server check fails', async () => {
+      state.info = null;
+      state.serverBackupError = new MatrixError({ errcode: 'M_UNKNOWN' }, 500);
+      await mount();
+      await act(async () => button('Turn on backup').props.onClick());
+      expect(state.resetCalls).toBe(0);
+      expect(all()).toContain('Could not check whether a backup already exists');
     });
 
     it('does not offer Turn on while a backup exists', async () => {

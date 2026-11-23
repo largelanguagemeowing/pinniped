@@ -25,6 +25,7 @@ import { PasswordInput } from './password-input';
 import { ContainerColor } from '../styles/ContainerColor.css';
 import { copyToClipboard } from '../utils/dom';
 import { recoveryKeyFilename } from '../utils/recoveryKeyFile';
+import { checkServerBackup } from '../utils/serverBackup';
 import { AsyncStatus, useAsyncCallback } from '../hooks/useAsyncCallback';
 import { clearSecretStorageKeys } from '../../client/secretStorageKeys';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
@@ -182,8 +183,11 @@ export function SetupVerification({ onComplete, keepIdentity = false }: SetupVer
         } else {
           // A backup left from before cannot be opened with the new key, so remove it rather
           // than leave one that shows as locked forever.
-          const existing = await crypto.getKeyBackupInfo();
-          if (existing?.version) await crypto.deleteKeyBackupVersion(existing.version);
+          // when the check fails the old backup stays, which is the safer mistake
+          const existing = await checkServerBackup(mx);
+          if (existing.status === 'present' && existing.info.version) {
+            await crypto.deleteKeyBackupVersion(existing.info.version);
+          }
         }
 
         onComplete(recoveryKeyData.encodedPrivateKey);

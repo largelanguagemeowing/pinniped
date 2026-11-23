@@ -39,6 +39,7 @@ import { stopPropagation } from '../utils/keyboard';
 import { useMatrixClient } from '../hooks/useMatrixClient';
 import { restoreKeyBackupAndRecord } from '../utils/backupRestore';
 import { BackupAdvice } from '../utils/backupAdvice';
+import { assertNoServerBackup } from '../utils/serverBackup';
 import { ManualVerificationTile } from './ManualVerification';
 import {
   useSecretStorageDefaultKeyId,
@@ -308,11 +309,14 @@ function TurnOffBackupDialog({
 
 /** Creates a new backup and uploads this device's keys to it. */
 function TurnOnBackup({ crypto }: { crypto: CryptoApi }) {
+  const mx = useMatrixClient();
   const [state, turnOn] = useAsyncCallback<void, Error, []>(
     useCallback(async () => {
+      // resetKeyBackup deletes the backups the server has, so be sure there are none
+      await assertNoServerBackup(mx);
       await crypto.resetKeyBackup();
       notifyKeyBackupInfoChanged();
-    }, [crypto])
+    }, [mx, crypto])
   );
   const busy = state.status === AsyncStatus.Loading;
 
