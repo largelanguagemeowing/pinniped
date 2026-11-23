@@ -17,12 +17,13 @@ import { useStageScreenShares$ } from '../StageContext';
 import { ScreenSharePreview } from './ScreenSharePreview';
 import { gridVars } from './vars';
 import { useRenderTrail } from '../renderTrail';
+import { useVideoTiles } from './videoTiles';
 
 /**
  * An implementation of the "grid" layout, in which all participants are shown
  * together in a scrolling grid.
  */
-export const makeGridLayout: CallLayout<GridLayoutModel> = () => ({
+export const makeGridLayout: CallLayout<GridLayoutModel> = ({ hideVideoless$ }) => ({
   foreground: 'fixed',
 
   // The "fixed" (non-scrolling) part of the layout is where the spotlight tile
@@ -65,8 +66,9 @@ export const makeGridLayout: CallLayout<GridLayoutModel> = () => ({
     const { width, height: minHeight } = bounds;
     // Screen shares are tiles in the grid too.
     const screenShares = useBehavior(useStageScreenShares$());
-    useRenderTrail('grid/scrolling', { model, bounds, screenShares });
-    const tileCount = model.grid.length + screenShares.length;
+    const people = useVideoTiles(model.grid, hideVideoless$, screenShares.length);
+    useRenderTrail('grid/scrolling', { model, bounds, screenShares, people });
+    const tileCount = people.length + screenShares.length;
     const { gap, tileWidth, tileHeight } = useMemo(
       () => arrangeGrid(width, minHeight, tileCount),
       [width, minHeight, tileCount]
@@ -88,7 +90,7 @@ export const makeGridLayout: CallLayout<GridLayoutModel> = () => ({
         {screenShares.map((m) => (
           <ScreenSharePreview key={m.id} vm={m} variant="grid" />
         ))}
-        {model.grid.map((m) => (
+        {people.map((m) => (
           <Slot key={m.id} className={css.slot} id={m.id} model={m} />
         ))}
       </div>

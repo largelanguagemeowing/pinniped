@@ -139,6 +139,10 @@ export interface Scenario {
   undecryptable: number[];
   /** Every participant is speaking and has a camera, to check the speaking ring. */
   everyoneSpeaks: boolean;
+  /** Milliseconds between the second participant's camera turning on and off; 0 for never. */
+  flapCamera?: number;
+  /** Milliseconds between every participant's camera state being announced again, unchanged. */
+  repeatCamera?: number;
 }
 
 const richStates: Participant[] = [
@@ -164,6 +168,18 @@ export function fakeCall(s: Scenario): Call {
           : {}
     )
   );
+  if (s.flapCamera) {
+    const camera$ = people[1].videoEnabled$ as BehaviorSubject<boolean>;
+    setInterval(() => camera$.next(!camera$.value), s.flapCamera);
+  }
+  if (s.repeatCamera) {
+    setInterval(() => {
+      people.forEach((m) => {
+        const camera$ = m.videoEnabled$ as BehaviorSubject<boolean>;
+        camera$.next(camera$.value);
+      });
+    }, s.repeatCamera);
+  }
   const shares = Array.from({ length: s.shares }, (_, i) => screenShare(i + 1));
   const grid = people.map((m) => new GridTileViewModel(b(m)));
   const spotlightMedia: MediaViewModel[] =
@@ -175,7 +191,9 @@ export function fakeCall(s: Scenario): Call {
   const setVisibleTiles = (n: number): void => {
     if (n === lastVisible) return;
     lastVisible = n;
-    layout$.next({ ...layout$.value });
+    // The call rebuilds the grid array when the number of visible tiles changes.
+    const current = layout$.value;
+    layout$.next('grid' in current ? { ...current, grid: [...current.grid] } : { ...current });
   };
 
   const layouts: Record<string, unknown> = {

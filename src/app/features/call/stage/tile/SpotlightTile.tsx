@@ -6,6 +6,7 @@ Please see LICENSE in the repository root for full details.
 */
 
 import React, {
+  type MouseEvent,
   type MouseEventHandler,
   type ReactNode,
   type Ref,
@@ -31,6 +32,7 @@ import { type RingingMediaViewModel } from '../../../../plugins/call/engine/stat
 import { type Behavior } from '../../../../plugins/call/engine/state/Behavior';
 import { useBehavior } from '../../../../plugins/call/engine/useBehavior';
 import { VolumeSlider } from '../../../../components/slider';
+import { getMouseEventCords } from '../../../../utils/dom';
 import { useInitial, useLatest, useMergedRefs, useReactiveState } from '../hooks';
 import { StageContext, useUndecryptable } from '../StageContext';
 import { recordStage, useRenderTrail } from '../renderTrail';
@@ -349,6 +351,14 @@ export function SpotlightTile({
   const visibleMedia = media.at(visibleIndex);
   const canGoBack = visibleIndex > 0;
   const canGoToNext = visibleIndex !== -1 && visibleIndex < media.length - 1;
+  const stage = use(StageContext);
+
+  // The same participant menu as on a grid tile, for whoever the visible media belongs to.
+  const onContextMenu = (evt: MouseEvent<HTMLDivElement>): void => {
+    if (stage === null || visibleMedia === undefined) return;
+    evt.preventDefault();
+    stage.openMemberMenu(visibleMedia.userId, getMouseEventCords(evt.nativeEvent));
+  };
 
   // To keep track of which item is visible, the items are watched by an intersection observer
   // on the root element. The items run their effects before their parent does, so they take
@@ -396,6 +406,7 @@ export function SpotlightTile({
       className={classNames(className, css.tile, { [css.maximised]: maximised })}
       style={style}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       aria-hidden={ariaHidden}
     >
       {canGoBack && (

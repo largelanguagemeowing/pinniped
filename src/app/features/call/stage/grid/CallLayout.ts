@@ -27,6 +27,8 @@ export const useLayoutBounds = (): Bounds => use(LayoutBoundsContext);
 export interface CallLayoutInputs {
   /** Whether the participant strip under a focused stream is hidden; kept for the whole call. */
   stripHidden$: BehaviorSubject<boolean>;
+  /** Whether the grid leaves out people without video; kept for the whole call. */
+  hideVideoless$: BehaviorSubject<boolean>;
 }
 
 export interface CallLayoutOutputs<Model> {

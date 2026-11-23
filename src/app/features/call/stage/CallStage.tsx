@@ -6,6 +6,7 @@ Please see LICENSE in the repository root for full details.
 */
 
 import React, {
+  type MouseEvent,
   type PointerEvent,
   type ReactNode,
   useCallback,
@@ -22,6 +23,8 @@ import { type Call } from '../../../plugins/call/Call';
 import { callFullscreenAtom, callStageMountsAtom } from '../../../state/call';
 import { type Layout } from '../../../plugins/call/engine/state/layout-types';
 import { useBehavior } from '../../../plugins/call/engine/useBehavior';
+import { GridBackgroundMenu } from './GridBackgroundMenu';
+import { hideVideolessOf, useHideVideoless } from './hideVideoless';
 import { Grid } from './grid/Grid';
 import { type CallLayoutOutputs, LayoutBoundsProvider } from './grid/CallLayout';
 import { makeGridLayout } from './grid/GridLayout';
@@ -110,8 +113,9 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
   });
 
   const stripHidden$ = stripHiddenOf(call);
+  const hideVideoless$ = hideVideolessOf(call);
   const layouts = useMemo(() => {
-    const inputs = { stripHidden$ };
+    const inputs = { stripHidden$, hideVideoless$ };
     return {
       grid: makeGridLayout(inputs),
       'spotlight-landscape': makeSpotlightLandscapeLayout(inputs),
@@ -120,7 +124,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
       'one-on-one-landscape': makeOneOnOneLandscapeLayout(inputs),
       'one-on-one-portrait': makeOneOnOnePortraitLayout(inputs),
     };
-  }, [stripHidden$]);
+  }, [stripHidden$, hideVideoless$]);
 
   const latestOnMemberMenu = useLatest(onMemberMenu);
   const latestOnStreamHeightChange = useLatest(onStreamHeightChange);
@@ -159,6 +163,20 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
   );
   const onPointerOut = useCallback(() => vm.unhoverScreen(), [vm]);
   const shortcuts = useStageShortcuts(call);
+
+  // Right-clicking the grid's empty background: tiles and screen shares have their own menus,
+  // and a tile's handler has already prevented the default by the time this one sees the event.
+  const [hideVideoless, toggleHideVideoless] = useHideVideoless(call);
+  const [backgroundMenu, setBackgroundMenu] = useState<RectCords | undefined>();
+  const onContextMenu = useCallback(
+    (e: MouseEvent) => {
+      if (layout.type !== 'grid' || e.defaultPrevented) return;
+      if ((e.target as Element).closest('[data-testid="screenSharePreview"], button')) return;
+      e.preventDefault();
+      setBackgroundMenu({ x: e.clientX, y: e.clientY, width: 0, height: 0 });
+    },
+    [layout.type]
+  );
 
   const renderContent = (): ReactNode => {
     if (layout.type === 'pip') {
@@ -236,6 +254,7 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
             onPointerUp={onPointerUp}
             onPointerMove={onPointerMove}
             onPointerOut={onPointerOut}
+            onContextMenu={onContextMenu}
             onKeyDown={shortcuts.onKeyDown}
             onKeyUp={shortcuts.onKeyUp}
             onBlur={shortcuts.onBlur}
@@ -252,6 +271,12 @@ export function CallStage({ call, idle, onMemberMenu, onStreamHeightChange }: Ca
             </Scroll>
             <ReactionsOverlay vm={vm} />
             {reconnecting && <ReconnectingIndicator />}
+            <GridBackgroundMenu
+              anchor={layout.type === 'grid' ? backgroundMenu : undefined}
+              hideVideoless={hideVideoless}
+              onToggleHideVideoless={toggleHideVideoless}
+              requestClose={() => setBackgroundMenu(undefined)}
+            />
           </div>
         </TileContext>
       </LayoutBoundsProvider>

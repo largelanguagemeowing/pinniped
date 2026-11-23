@@ -2,6 +2,7 @@ import React, { MouseEventHandler, useCallback, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  Checkbox,
   config,
   Icon,
   IconButton,
@@ -30,6 +31,7 @@ import { stopPropagation } from '../../utils/keyboard';
 import { InviteUserPrompt } from '../../components/invite-user-prompt';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { ScreenSharePicker } from './ScreenSharePicker';
+import { useHideVideoless } from './stage';
 
 type CallControlsProps = {
   call: Call;
@@ -43,6 +45,9 @@ export function CallControls({ call }: CallControlsProps) {
   const { microphone, video, sound, screenshare, spotlight } = useBehavior(call.controlState$);
   // Screen share and soundboard need the media connection.
   const connected = useBehavior(call.vm.connected$);
+
+  const [hideVideoless, toggleHideVideoless] = useHideVideoless(call);
+  const inGrid = useBehavior(call.vm.layout$).type === 'grid';
 
   const [cords, setCords] = useState<RectCords>();
 
@@ -179,6 +184,30 @@ export function CallControls({ call }: CallControlsProps) {
                       {spotlight ? 'Grid View' : 'Spotlight View'}
                     </Text>
                   </MenuItem>
+                  {/* The filter belongs to the grid layout. */}
+                  {inGrid && (
+                    <MenuItem
+                      size="300"
+                      variant="Surface"
+                      radii="300"
+                      role="menuitemcheckbox"
+                      aria-checked={hideVideoless}
+                      onClick={toggleHideVideoless}
+                      after={
+                        <Checkbox
+                          size="200"
+                          variant="Primary"
+                          checked={hideVideoless}
+                          readOnly
+                          tabIndex={-1}
+                        />
+                      }
+                    >
+                      <Text size="B300" truncate style={{ flexGrow: 1 }}>
+                        Hide non-video participants
+                      </Text>
+                    </MenuItem>
+                  )}
                   <MenuItem
                     size="300"
                     variant="Surface"
