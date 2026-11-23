@@ -129,6 +129,13 @@ const unpublishRichPresence = async (page: Page) =>
 // by default; without it Pinniped looks at a profile again every 3 minutes.
 const lookAgain = () => user.clock.fastForward('03:00');
 
+// A look that was already under way when the profile changed misses it; the next one sees it.
+const lookUntilVisible = (locator: Locator) =>
+  expect(async () => {
+    await lookAgain();
+    await expect(locator).toBeVisible({ timeout: 3000 });
+  }).toPass({ timeout: 30_000 });
+
 test.beforeAll(async ({ browser }) => {
   user = await signIn(browser, e2eCredentials, { fakeClock: true });
   peer = await signIn(browser, peerCredentials());
@@ -204,8 +211,7 @@ test('rich presence shows with the person until they stop it or it goes stale', 
   const track = `e2e track ${Date.now()}`;
 
   await publishRichPresence(peer, track);
-  await lookAgain();
-  await expect(seen.getByText(track)).toBeVisible();
+  await lookUntilVisible(seen.getByText(track));
   // and on their profile in the conversation
   await seen.click();
   await expect(user.getByText('E2E Artist', { exact: true })).toBeVisible();
@@ -219,8 +225,7 @@ test('rich presence shows with the person until they stop it or it goes stale', 
   // a publisher that died left it behind: it expires on its own
   const now = await user.evaluate(() => Date.now());
   await publishRichPresence(peer, track, now + 4 * 60_000);
-  await lookAgain();
-  await expect(seen.getByText(track)).toBeVisible();
+  await lookUntilVisible(seen.getByText(track));
   await user.clock.fastForward('01:01');
   await expect(seen.getByText(track)).toHaveCount(0);
   await unpublishRichPresence(peer);

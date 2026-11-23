@@ -43,6 +43,8 @@ rc_login:
   account: { per_second: 10, burst_count: 100 }
 rc_invites:
   per_user: { per_second: 10, burst_count: 100 }
+  per_issuer: { per_second: 10, burst_count: 100 }
+  per_room: { per_second: 10, burst_count: 100 }
 
 # MatrixRTC requirements, as in matrix-installer
 max_event_delay_duration: 24h

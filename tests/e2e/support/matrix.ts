@@ -22,18 +22,28 @@ export async function matrixRequest<T = unknown>(
       const accessToken = localStorage.getItem('cinny_access_token');
       if (!homeserver || !accessToken) throw new Error('Missing authenticated Matrix session');
 
-      const response = await fetch(`${homeserver}/_matrix/${api}/v3${path}`, {
-        method,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': upload?.contentType ?? 'application/json',
-        },
-        body: upload
-          ? new Uint8Array(upload.bytes)
-          : body === undefined
-            ? undefined
-            : JSON.stringify(body),
-      });
+      const send = () =>
+        fetch(`${homeserver}/_matrix/${api}/v3${path}`, {
+          method,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': upload?.contentType ?? 'application/json',
+          },
+          body: upload
+            ? new Uint8Array(upload.bytes)
+            : body === undefined
+              ? undefined
+              : JSON.stringify(body),
+        });
+      // a rate-limited request is retried after the wait the homeserver names
+      let response = await send();
+      for (let retry = 0; response.status === 429 && retry < 5; retry += 1) {
+        const { retry_after_ms: wait = 1000 } = await response.json().catch(() => ({}));
+        await new Promise((resolve) => {
+          setTimeout(resolve, Math.min(wait, 10_000));
+        });
+        response = await send();
+      }
       if (allowNotFound && response.status === 404) return undefined;
       if (!response.ok) {
         throw new Error(`Matrix request failed: ${method} ${path} (${response.status})`);
