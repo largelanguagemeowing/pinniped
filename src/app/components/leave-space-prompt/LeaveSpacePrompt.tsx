@@ -23,7 +23,7 @@ import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { stopPropagation } from '../../utils/keyboard';
 import { getSpaceChildren } from '../../utils/room';
 import { Membership } from '../../../types/matrix/room';
-import { rateLimitedActions } from '../../utils/matrix';
+import { assertAllSucceeded, rateLimitedActions } from '../../utils/matrix';
 import { leaveRoomExplicitly } from '../../state/leftRooms';
 
 type LeaveSpacePromptProps = {
@@ -33,7 +33,7 @@ type LeaveSpacePromptProps = {
 };
 export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptProps) {
   const mx = useMatrixClient();
-  const [leaveRooms, setLeaveRooms] = useState(true);
+  const [leaveRooms, setLeaveRooms] = useState(false);
 
   const [leaveState, leaveRoom] = useAsyncCallback<undefined, MatrixError, []>(
     useCallback(async () => {
@@ -45,9 +45,11 @@ export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptP
             if (!room || room.isSpaceRoom()) return false;
             return room.getMyMembership() === Membership.Join;
           });
-          await rateLimitedActions(childIds, async (childId) => {
-            await leaveRoomExplicitly(mx, childId);
-          });
+          assertAllSucceeded(
+            await rateLimitedActions(childIds, async (childId) => {
+              await leaveRoomExplicitly(mx, childId);
+            })
+          );
         }
       }
       await leaveRoomExplicitly(mx, roomId);
@@ -55,7 +57,8 @@ export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptP
   );
 
   const handleLeave = () => {
-    leaveRoom();
+    // the failure is shown from leaveState
+    leaveRoom().catch(() => undefined);
   };
 
   useEffect(() => {
