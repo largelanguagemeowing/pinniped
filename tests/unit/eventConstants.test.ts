@@ -44,6 +44,7 @@ describe('event type constants', () => {
       PinnipedRoomOrder: 'club.stablecat.pinniped.room_order',
       PinnipedGifFavorites: 'club.stablecat.pinniped.gif_favorites',
       PinnipedLeftRooms: 'club.stablecat.pinniped.left_rooms',
+      PinnipedAutoJoinSettled: 'club.stablecat.pinniped.auto_join_settled',
       PinnipedStatusMessage: 'club.stablecat.pinniped.status_message',
       PinnipedUserSounds: 'club.stablecat.pinniped.user_sounds',
       PinnipedSoundFavorites: 'club.stablecat.pinniped.sound_favorites',

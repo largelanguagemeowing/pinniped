@@ -1,6 +1,6 @@
 # End-to-end tests
 
-The Playwright suite logs in through the real Pinniped UI once, saves the authenticated browser state (including IndexedDB, which holds the device's encryption keys) under `playwright/.auth/`, and reuses that state for the Chromium tests. Tests run with one worker because they share a Matrix account and some specs update account or room state. Tests with two people in them (`call.spec.ts`, `presence.spec.ts`, `read-indicators.spec.ts`) sign both in themselves.
+The Playwright suite logs in through the real Pinniped UI once, saves the authenticated browser state (including IndexedDB, which holds the device's encryption keys) under `playwright/.auth/`, and reuses that state for the Chromium tests. Tests run with one worker because they share a Matrix account and some specs update account or room state. Tests with two people in them (`call.spec.ts`, `presence.spec.ts`, `read-indicators.spec.ts`, `space-auto-join.spec.ts`) sign both in themselves.
 
 The suite runs against either a throwaway local homeserver (what CI does) or a deployment.
 
@@ -41,7 +41,7 @@ Required variables:
 - `E2E_USERNAME`: Matrix account username
 - `E2E_PASSWORD`: Matrix account password
 
-Optional: `E2E_PEER_USERNAME`/`E2E_PEER_PASSWORD` and `E2E_THIRD_*` and `E2E_FOURTH_*`, more accounts on the same homeserver for the tests with several people (`call.spec.ts`, `group-dm.spec.ts`, `presence.spec.ts`, `read-indicators.spec.ts`); without them those tests are skipped.
+Optional: `E2E_PEER_USERNAME`/`E2E_PEER_PASSWORD` and `E2E_THIRD_*` and `E2E_FOURTH_*`, more accounts on the same homeserver for the tests with several people (`call.spec.ts`, `group-dm.spec.ts`, `presence.spec.ts`, `read-indicators.spec.ts`, `space-auto-join.spec.ts`); without them those tests are skipped.
 
 `.env.e2e` and the generated authentication state are ignored by Git. Never commit either file.
 

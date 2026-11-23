@@ -13,6 +13,8 @@ export const AccountDataEvent = {
   PinnipedRoomOrder: 'club.stablecat.pinniped.room_order',
   PinnipedGifFavorites: 'club.stablecat.pinniped.gif_favorites',
   PinnipedLeftRooms: 'club.stablecat.pinniped.left_rooms',
+  /** Rooms space auto-join has already handled (joined once); it never joins them again. */
+  PinnipedAutoJoinSettled: 'club.stablecat.pinniped.auto_join_settled',
   PinnipedStatusMessage: 'club.stablecat.pinniped.status_message',
   PinnipedUserSounds: 'club.stablecat.pinniped.user_sounds',
   PinnipedSoundFavorites: 'club.stablecat.pinniped.sound_favorites',

@@ -27,6 +27,7 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'club.stablecat.pinniped.room_order': Record<string, unknown>;
     'club.stablecat.pinniped.gif_favorites': Record<string, unknown>;
     'club.stablecat.pinniped.left_rooms': Record<string, unknown>;
+    'club.stablecat.pinniped.auto_join_settled': Record<string, unknown>;
     'club.stablecat.pinniped.status_message': { status?: string };
     'club.stablecat.pinniped.user_sounds': Record<string, unknown>;
     'club.stablecat.pinniped.sound_favorites': Record<string, unknown>;

@@ -13,8 +13,9 @@ import { useSidebarItems } from './useSidebarItems';
 import { roomToParentsAtom } from '../state/room/roomToParents';
 import { Membership, MSpaceChildContent, StateEvent } from '../../types/matrix/room';
 import { getStateEvent, getStateEvents, isValidChild } from '../utils/room';
-import { getSpaceAutoJoin } from '../utils/spaceAutoJoin';
+import { getAutoJoinAction, getSpaceAutoJoin } from '../utils/spaceAutoJoin';
 import { markRoomsLeft, unmarkRoomsLeft, useLeftRooms } from '../state/leftRooms';
+import { markAutoJoinSettled, useAutoJoinSettled } from '../state/autoJoinSettled';
 import { isRoomId, rateLimitedActions } from '../utils/matrix';
 
 type RoomToJoin = {
@@ -40,6 +41,10 @@ type RoomToJoin = {
  * them for the user to manage manually. Joining a subspace enables discovery
  * of its own children, which are picked up on the next scan.
  *
+ * Each room is joined once: it is then recorded in account data (settled), as is
+ * every child that is already joined when first seen. A settled room we are not
+ * in was left, on any client, and is never joined again.
+ *
  * Already-attempted rooms are tracked for the lifetime of the hook so we don't
  * hammer the homeserver with duplicate join requests. Rooms that fail to join
  * (e.g. invite-only) stay attempted and can still be joined manually from the
@@ -55,6 +60,7 @@ export const useSpaceAutoJoinGlobal = () => {
   const orphanSpaces = useOrphanSpaces(mx, allRoomsAtom, roomToParents);
   const [sidebarItems] = useSidebarItems(orphanSpaces);
   const leftRooms = useLeftRooms();
+  const settledRooms = useAutoJoinSettled();
   const attemptedRef = useRef<Set<string>>(new Set());
   const [updateCount, forceUpdate] = useForceUpdate();
 
@@ -157,6 +163,7 @@ export const useSpaceAutoJoinGlobal = () => {
     if (autoJoinSpaces.size === 0) return;
 
     const roomsToJoin: RoomToJoin[] = [];
+    const roomsToSettle: string[] = [];
     const visited = new Set<string>();
     const attempted = attemptedRef.current;
 
@@ -177,8 +184,14 @@ export const useSpaceAutoJoinGlobal = () => {
         const joined = childRoom?.getMyMembership() === Membership.Join;
         const isSpace = childRoom?.isSpaceRoom() || spaceRooms.has(childId);
 
-        // Never join back rooms the user explicitly left.
-        if (!joined && leftRooms.has(childId)) return;
+        const action = getAutoJoinAction({
+          joined,
+          settled: settledRooms.has(childId),
+          leftExplicitly: leftRooms.has(childId),
+        });
+        if (action === 'settle') roomsToSettle.push(childId);
+        // A room is joined once; one we are not in was left, never join it back.
+        if (!joined && action === 'skip') return;
 
         if (isSpace) {
           // Skip pinned subspaces entirely: don't join them and don't recurse
@@ -207,16 +220,18 @@ export const useSpaceAutoJoinGlobal = () => {
 
     autoJoinSpaces.forEach(collect);
 
+    if (roomsToSettle.length > 0) markAutoJoinSettled(mx, roomsToSettle).catch(() => undefined);
     if (roomsToJoin.length === 0) return;
 
     rateLimitedActions(roomsToJoin, async (item) => {
       try {
         await mx.joinRoom(item.roomId, { viaServers: item.via });
+        await markAutoJoinSettled(mx, [item.roomId]);
       } catch {
         // Swallowed: rateLimitedActions only retries on 429.
         // The room stays in attemptedRef so we don't retry automatically.
         // Users can still join manually via the lobby Join button.
       }
     });
-  }, [mx, autoJoinSpaces, spaceRooms, pinnedSpaces, leftRooms]);
+  }, [mx, autoJoinSpaces, spaceRooms, pinnedSpaces, leftRooms, settledRooms]);
 };
