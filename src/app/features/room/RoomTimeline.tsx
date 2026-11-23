@@ -605,6 +605,9 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         setPaginationStalled(false);
         const evLength = getTimelinesEventsCount(lTimelines);
 
+        // The jump leaves the bottom. The scroll anchor's observer only says so after the
+        // resize observer has run, which would pull the view back down.
+        atBottomRef.current = false;
         setFocusItem({
           index: evtAbsIndex,
           scrollTo: true,
@@ -902,6 +905,35 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       });
     }, 2000);
   }, [alive, focusItem, scrollToItem]);
+
+  // A jump's target stays in view while the content around it settles (decryption, images);
+  // the reader's own scrolling ends that.
+  const pinnedFocusRef = useRef<number>(undefined);
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!focusItem?.scrollTo || !scrollEl) return undefined;
+    pinnedFocusRef.current = focusItem.index;
+    const unpin = () => {
+      pinnedFocusRef.current = undefined;
+    };
+    const inputs = ['wheel', 'touchmove', 'pointerdown', 'keydown'] as const;
+    inputs.forEach((input) => scrollEl.addEventListener(input, unpin, { passive: true }));
+    return () => {
+      inputs.forEach((input) => scrollEl.removeEventListener(input, unpin));
+      pinnedFocusRef.current = undefined;
+    };
+  }, [focusItem]);
+  useResizeObserver(
+    useMemo(
+      () => () => {
+        const index = pinnedFocusRef.current;
+        if (index === undefined) return;
+        scrollToItem(index, { behavior: 'instant', align: 'center', stopInView: true });
+      },
+      [scrollToItem]
+    ),
+    useCallback(() => getScrollElement()?.firstElementChild ?? null, [getScrollElement])
+  );
 
   // scroll to bottom of timeline
   const scrollToBottomCount = scrollToBottomRef.current.count;
