@@ -262,6 +262,64 @@ describe('range events', () => {
   });
 });
 
+describe('range events across timelines', () => {
+  type Chain = { events: MatrixEvent[]; next?: Chain; prev?: Chain };
+  const cache = new WeakMap<Chain, EventTimeline>();
+  const chainTimeline = (chain: Chain): EventTimeline => {
+    const cached = cache.get(chain);
+    if (cached) return cached;
+    const created = {
+      getEvents: () => chain.events,
+      getNeighbouringTimeline: (dir: string) => {
+        const neighbour = dir === 'f' ? chain.next : chain.prev;
+        return neighbour ? chainTimeline(neighbour) : null;
+      },
+    } as unknown as EventTimeline;
+    cache.set(chain, created);
+    return created;
+  };
+
+  const buildRoom = (live: Chain, all: Chain[]): Room => {
+    const timelineFor = (eventId: string) => {
+      const found = all.find((c) => c.events.some((e) => e.getId() === eventId));
+      return found ? chainTimeline(found) : null;
+    };
+    const timelineSet = {
+      getLiveTimeline: () => chainTimeline(live),
+      getTimelineForEvent: timelineFor,
+    };
+    return { getUnfilteredTimelineSet: () => timelineSet } as unknown as Room;
+  };
+
+  it('reads the chain of the anchors when it is not the live one', () => {
+    const old: Chain = { events: [makeEvent(), makeEvent(), makeEvent()] };
+    const live: Chain = { events: [makeEvent()] };
+    const room = buildRoom(live, [old, live]);
+    const ids = old.events.map((e) => e.getId()!);
+    expect(getExportRangeEvents(room, ids[0], ids[2])).toEqual(old.events);
+  });
+
+  it('is not loaded while the anchors are in unlinked timelines', () => {
+    const old: Chain = { events: [makeEvent(), makeEvent()] };
+    const live: Chain = { events: [makeEvent()] };
+    const room = buildRoom(live, [old, live]);
+    expect(() =>
+      getExportRangeEvents(room, old.events[0].getId()!, live.events[0].getId()!)
+    ).toThrow(/no longer loaded/);
+  });
+
+  it('spans linked timelines', () => {
+    const old: Chain = { events: [makeEvent(), makeEvent()] };
+    const live: Chain = { events: [makeEvent(), makeEvent()], prev: old };
+    old.next = live;
+    const room = buildRoom(live, [old, live]);
+    expect(getExportRangeEvents(room, old.events[1].getId()!, live.events[0].getId()!)).toEqual([
+      old.events[1],
+      live.events[0],
+    ]);
+  });
+});
+
 describe('export anchor selection', () => {
   it('replaces and toggles anchors', () => {
     const start = { eventId: '$a', ts: 1 };

@@ -16,11 +16,7 @@ import {
   trimReplyFromFormattedBody,
 } from '../../../utils/room';
 import { getMxIdLocalPart } from '../../../utils/matrix';
-import {
-  getEventIdAbsoluteIndex,
-  getLinkedTimelines,
-  getLiveTimeline,
-} from '../../../utils/timeline';
+import { getEventIdAbsoluteIndex, getLinkedTimelines } from '../../../utils/timeline';
 import { isPollStartType, parsePollStart } from '../../../utils/poll';
 
 export const CHAT_EXPORT_GENERATOR = 'pinniped';
@@ -142,17 +138,26 @@ export const isExportableEvent = (mEvent: MatrixEvent): boolean => {
   );
 };
 
-/** All loaded events between two anchors, in timeline order, inclusive. */
+/**
+ * All loaded events between two anchors, in timeline order, inclusive. Undefined
+ * while the anchors sit in timelines that are not linked to each other, e.g. one
+ * was marked after a jump to an old message and the other in the live timeline.
+ */
 export const findExportRangeEvents = (
   room: Room,
   startEventId: string,
   endEventId: string
 ): MatrixEvent[] | undefined => {
-  const linkedTimelines = getLinkedTimelines(getLiveTimeline(room));
+  const timelineSet = room.getUnfilteredTimelineSet();
+  const startTimeline = timelineSet.getTimelineForEvent(startEventId);
+  if (!startTimeline) return undefined;
+
+  // The chain the anchors are in, not the live one: the live chain need not hold them.
+  const linkedTimelines = getLinkedTimelines(startTimeline);
   const events = linkedTimelines.flatMap((timeline) => timeline.getEvents());
 
   const absoluteIndex = (eventId: string): number | undefined => {
-    const eventTimeline = room.getUnfilteredTimelineSet().getTimelineForEvent(eventId);
+    const eventTimeline = timelineSet.getTimelineForEvent(eventId);
     if (!eventTimeline) return undefined;
     return getEventIdAbsoluteIndex(linkedTimelines, eventTimeline, eventId);
   };

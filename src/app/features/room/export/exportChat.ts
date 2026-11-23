@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
-import { MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
+import { Direction, MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
 import {
   CHAT_EXPORT_FILES_DIR,
   CHAT_EXPORT_GENERATOR,
@@ -22,9 +22,10 @@ import { decryptFile, mxcUrlToHttp } from '../../../utils/matrix';
 import { FALLBACK_MIMETYPE, getFileNameExt, mimeTypeToSafeExt } from '../../../utils/mimeTypes';
 import { decryptAllTimelineEvent, getStateEvent } from '../../../utils/room';
 import { StateEvent } from '../../../../types/matrix/room';
-import { getLinkedTimelines, getLiveTimeline } from '../../../utils/timeline';
+import { getLinkedTimelines } from '../../../utils/timeline';
 
 const FALLBACK_FILE_EXT = 'bin';
+const EXPORT_PAGE_SIZE = 100;
 const MAX_EXT_LENGTH = 8;
 const MAX_FILE_NAME_LENGTH = 96;
 
@@ -159,13 +160,48 @@ export const downloadExportImages = async (
  * Retries decryption of the room timeline. Anchors are always loaded events, so
  * this only makes their content readable where keys arrived after the fact.
  */
-const decryptRoomTimeline = async (mx: MatrixClient, room: Room): Promise<void> => {
-  if (!room.hasEncryptionStateEvent() || !mx.getCrypto()) return;
+const decryptRoomTimeline = async (
+  mx: MatrixClient,
+  room: Room,
+  anchorEventId: string
+): Promise<void> => {
+  const anchorTimeline = room.getUnfilteredTimelineSet().getTimelineForEvent(anchorEventId);
+  if (!anchorTimeline || !room.hasEncryptionStateEvent() || !mx.getCrypto()) return;
   await Promise.allSettled(
-    getLinkedTimelines(getLiveTimeline(room)).map((timeline) =>
-      decryptAllTimelineEvent(mx, timeline)
-    )
+    getLinkedTimelines(anchorTimeline).map((timeline) => decryptAllTimelineEvent(mx, timeline))
   );
+};
+
+/**
+ * Pages the timeline holding the start anchor, forward and then backward, until
+ * the end anchor joins its chain. Anchors marked on either side of a jump are in
+ * separate timelines, and the in-between messages are not loaded.
+ */
+const linkExportAnchors = async (
+  mx: MatrixClient,
+  room: Room,
+  startEventId: string,
+  endEventId: string
+): Promise<void> => {
+  const timelineSet = room.getUnfilteredTimelineSet();
+  const linked = () => findExportRangeEvents(room, startEventId, endEventId) !== undefined;
+
+  const pageUntilLinked = async (backwards: boolean): Promise<void> => {
+    const startTimeline = timelineSet.getTimelineForEvent(startEventId);
+    if (!startTimeline || !timelineSet.getTimelineForEvent(endEventId) || linked()) return;
+    const chain = getLinkedTimelines(startTimeline);
+    const edge = backwards ? chain[0] : chain[chain.length - 1];
+    const direction = backwards ? Direction.Backward : Direction.Forward;
+    const token = edge.getPaginationToken(direction);
+    if (!token) return;
+    await mx.paginateEventTimeline(edge, { backwards, limit: EXPORT_PAGE_SIZE });
+    // No new token means the server had nothing more in this direction.
+    if (edge.getPaginationToken(direction) === token) return;
+    await pageUntilLinked(backwards);
+  };
+
+  await pageUntilLinked(false);
+  await pageUntilLinked(true);
 };
 
 export type ExportSummary = {
@@ -190,7 +226,8 @@ export const prepareExport = async (
   startEventId: string,
   endEventId: string
 ): Promise<ExportPreview> => {
-  await decryptRoomTimeline(mx, room);
+  await linkExportAnchors(mx, room, startEventId, endEventId);
+  await decryptRoomTimeline(mx, room, startEventId);
 
   const events = findExportRangeEvents(room, startEventId, endEventId);
   if (!events) {
