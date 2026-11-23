@@ -62,6 +62,7 @@ import {
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../../utils/matrix';
 import { MessageLayout, MessageSpacing } from '../../../state/settings';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
+import { isHighlightForUser } from '../../../utils/pushHighlight';
 import { useMessageShield } from '../../../hooks/useMessageShield';
 import { useRecentEmoji } from '../../../hooks/useRecentEmoji';
 import * as css from './styles.css';
@@ -898,6 +899,23 @@ export const Message = as<'div', MessageProps>(
       </Box>
     );
 
+    // A collapsed row has no header; hovering it shows its own time where the avatar would be.
+    const hoverTimeJSX = collapsed && hover && (
+      <Text
+        as="div"
+        size="T400"
+        className={css.HoverTime}
+        data-compact={messageLayout === MessageLayout.Compact}
+      >
+        <Time
+          ts={mEvent.getTs()}
+          compact
+          hour24Clock={hour24Clock}
+          dateFormatString={dateFormatString}
+        />
+      </Text>
+    );
+
     const avatarJSX = !collapsed && messageLayout !== MessageLayout.Compact && (
       <AvatarBase
         className={messageLayout === MessageLayout.Bubble ? css.BubbleAvatarBase : undefined}
@@ -1055,6 +1073,8 @@ export const Message = as<'div', MessageProps>(
         tabIndex={0}
         space={messageSpacing}
         collapse={collapsed}
+        interactive
+        mentioned={isHighlightForUser(mx, mEvent)}
         highlight={highlight}
         selected={!!menuAnchor || !!emojiBoardAnchor}
         data-event-id={mEvent.getId()}
@@ -1321,17 +1341,21 @@ export const Message = as<'div', MessageProps>(
           </div>
         )}
         {messageLayout === MessageLayout.Compact && (
-          <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
+          <CompactLayout before={headerJSX || hoverTimeJSX} onContextMenu={handleContextMenu}>
             {msgContentJSX}
           </CompactLayout>
         )}
         {messageLayout === MessageLayout.Bubble && (
-          <BubbleLayout before={avatarJSX} header={headerJSX} onContextMenu={handleContextMenu}>
+          <BubbleLayout
+            before={avatarJSX || hoverTimeJSX}
+            header={headerJSX}
+            onContextMenu={handleContextMenu}
+          >
             {msgContentJSX}
           </BubbleLayout>
         )}
         {messageLayout !== MessageLayout.Compact && messageLayout !== MessageLayout.Bubble && (
-          <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
+          <ModernLayout before={avatarJSX || hoverTimeJSX} onContextMenu={handleContextMenu}>
             {headerJSX}
             {msgContentJSX}
           </ModernLayout>
@@ -1405,6 +1429,7 @@ export const Event = as<'div', EventProps>(
         tabIndex={0}
         space={messageSpacing}
         autoCollapse
+        interactive
         highlight={highlight}
         selected={!!menuAnchor}
         {...props}

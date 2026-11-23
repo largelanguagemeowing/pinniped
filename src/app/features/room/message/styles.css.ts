@@ -14,6 +14,24 @@ export const MessageBaseBubbleCollapsed = style({
   paddingTop: 0,
 });
 
+// time shown in a collapsed row's gutter; Modern and Bubble pin it to the row's left edge across
+// the row padding and the 36px avatar column (so a 12h time never wraps), Compact keeps it inline
+export const HoverTime = style({
+  display: 'flex',
+  justifyContent: 'flex-end',
+  whiteSpace: 'nowrap',
+  position: 'absolute',
+  insetInlineStart: 0,
+  width: `calc(${config.space.S400} + ${toRem(36)})`,
+  selectors: {
+    '&[data-compact="true"]': {
+      position: 'static',
+      width: '100%',
+      justifyContent: 'flex-start',
+    },
+  },
+});
+
 export const MessageOptionsBase = style([
   DefaultReset,
   {

@@ -80,6 +80,18 @@ const AutoCollapse = style({
   },
 });
 
+const MentionedVariant = styleVariants({
+  true: {
+    backgroundColor: color.Warning.Container,
+    boxShadow: `inset ${config.borderWidth.B500} 0 0 ${color.Warning.Main}`,
+    selectors: {
+      [`${inputModeSelector('keyboard')} &:focus-visible`]: {
+        backgroundColor: color.Warning.ContainerHover,
+      },
+    },
+  },
+});
+
 export const MessageBase = recipe({
   base: [
     DefaultReset,
@@ -90,9 +102,6 @@ export const MessageBase = recipe({
       padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       selectors: {
-        '&:hover': {
-          backgroundColor: color.Surface.ContainerHover,
-        },
         // inset; an outer ring would be clipped by the timeline's scroll edge
         [`${inputModeSelector('keyboard')} &:focus-visible`]: {
           backgroundColor: color.Surface.ContainerHover,
@@ -111,9 +120,33 @@ export const MessageBase = recipe({
     autoCollapse: {
       true: AutoCollapse,
     },
+    // a row you act on; dividers, placeholders and error rows stay inert. Hover needs a pointer,
+    // so a mouse left resting on the list after Tab navigation does not tint a second row
+    interactive: {
+      true: {
+        selectors: {
+          [`${inputModeSelector('pointer')} &:hover`]: {
+            backgroundColor: color.Surface.ContainerHover,
+          },
+        },
+      },
+    },
+    mentioned: MentionedVariant,
     highlight: HighlightVariant,
     selected: SelectedVariant,
   },
+  compoundVariants: [
+    {
+      variants: { interactive: true, mentioned: true },
+      style: {
+        selectors: {
+          [`${inputModeSelector('pointer')} &:hover`]: {
+            backgroundColor: color.Warning.ContainerHover,
+          },
+        },
+      },
+    },
+  ],
   defaultVariants: {
     space: '400',
   },
