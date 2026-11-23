@@ -35,6 +35,8 @@ We own our dependency versions. Upgrade majors when it helps us, one concern per
   - The audio contexts LiveKit makes without playing through them (the room's own when `webAudioMix` is off, silence checks, track analysers) get no output stream (`sinkId: { type: 'none' }`). Without it, every connection held an output stream that only ever played silence (`tests/unit/call-engine/livekit/processingAudio.test.ts`).
   - In an encrypted call, a remote participant's media is always decrypted, and decryption is on before a subscribed track's first frame. Unpatched, the E2EE manager turned decryption off for every track of a participant whenever the media server said one of their tracks was unencrypted, and the worker then played that participant's frames as they arrived. That let the server inject media under their name with only a "Not encrypted" icon on the tile; now such frames fail to decrypt and are dropped ("Can't decrypt"). Our own participant's setting is untouched, since it also decides whether our tracks are published as encrypted (`tests/unit/call-engine/livekit/remoteDecryption.test.ts`).
 
+- `vite-plugin-pwa+2.0.0.patch`: the service worker is built with Rolldown's `codeSplitting: false` instead of `inlineDynamicImports: true`, which Rolldown deprecated and which printed a warning on every build (`tests/unit/pwaServiceWorkerBuild.test.ts`). Delete it once the plugin stops using the old option.
+
 ## End-to-end tests
 
 The Playwright suite (`tests/e2e/`, see its README) runs in CI (`.github/workflows/e2e.yml`) against a
