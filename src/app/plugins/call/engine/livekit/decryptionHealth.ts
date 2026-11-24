@@ -47,24 +47,57 @@ const decoded = (stream: CallStatsStream): number => {
     : count('totalSamplesReceived') - count('concealedSamples');
 };
 
+const key = (stream: CallStatsStream): string => `${stream.identity} ${stream.ssrc}`;
+
+/** The streams that existed in `prev`, with their counters, paired with their state in `cur`. */
+const progress = (
+  prev: DecodeSample,
+  cur: DecodeSample
+): { stream: CallStatsStream; before: CallStatsStream }[] => {
+  const before = new Map(prev.connections.flatMap((c) => c.inbound).map((s) => [key(s), s]));
+  return cur.connections
+    .flatMap((c) => c.inbound)
+    .flatMap((stream) => {
+      const earlier = before.get(key(stream));
+      return stream.identity !== undefined && earlier !== undefined
+        ? [{ stream, before: earlier }]
+        : [];
+    });
+};
+
+const packets = (stream: CallStatsStream): number => {
+  const value = stream.stats.packetsReceived;
+  return typeof value === 'number' ? value : 0;
+};
+
 /**
  * The participants who decoded media between two samples. A frame only reaches the decoder once
  * it is decrypted, so this is proof that decrypting their media works.
  */
 export function decodedBetween(prev: DecodeSample, cur: DecodeSample): Set<string> {
-  const key = (stream: CallStatsStream): string => `${stream.identity} ${stream.ssrc}`;
-  const before = new Map(
-    prev.connections.flatMap((c) => c.inbound).map((stream) => [key(stream), decoded(stream)])
+  return new Set(
+    progress(prev, cur)
+      .filter(({ stream, before }) => decoded(stream) > decoded(before))
+      .map(({ stream }) => stream.identity as string)
   );
-  const identities = new Set<string>();
-  cur.connections
-    .flatMap((c) => c.inbound)
-    .forEach((stream) => {
-      const previous = before.get(key(stream));
-      if (stream.identity !== undefined && previous !== undefined && decoded(stream) > previous)
-        identities.add(stream.identity);
-    });
-  return identities;
+}
+
+/**
+ * The participants with a video stream whose packets arrived between two samples without one
+ * frame decoding. A participant whose audio decodes while their camera does not (the camera is on
+ * a key we lack) is not recovered; audio is not held to this since it decodes in bursts (DTX).
+ */
+export function videoStalledBetween(prev: DecodeSample, cur: DecodeSample): Set<string> {
+  return new Set(
+    progress(prev, cur)
+      .filter(
+        ({ stream, before }) =>
+          stream.kind === 'video' &&
+          packets(stream) > packets(before) &&
+          decoded(stream) <= decoded(before)
+      )
+      .map(({ stream }) => stream.identity as string)
+  );
 }
 
 /** A room's decryption failures of remote participants' media. */
@@ -87,7 +120,8 @@ const roomFailures$ = (room: LivekitRoom, now: () => number): Observable<Change>
  *
  * LiveKit reports no recovery; it drops frames silently once it gives up on a key, until a
  * working key arrives. So recovery is read from the stats instead: media that decoded in a
- * sampling interval that started at least `settleMs` after the failure. Audio already in the
+ * sampling interval that started at least `settleMs` after the failure, while no video of theirs
+ * received packets without decoding. Audio already in the
  * jitter buffer still plays out after frames stop decrypting (tens of milliseconds in
  * Chromium), and must not count.
  */
@@ -115,9 +149,11 @@ export function undecryptableParticipants$(
       const [prev, cur] = change.samples.slice(-2);
       if (cur === undefined || failures.size === 0) return failures;
       const recovered = decodedBetween(prev, cur);
+      const stalled = videoStalledBetween(prev, cur);
       const next = new Map(failures);
       failures.forEach((time, identity) => {
-        const decodes = recovered.has(identity) && prev.time - time >= settleMs;
+        const decodes =
+          recovered.has(identity) && !stalled.has(identity) && prev.time - time >= settleMs;
         if (decodes || !change.present(identity)) next.delete(identity);
       });
       return next.size === failures.size ? failures : next;

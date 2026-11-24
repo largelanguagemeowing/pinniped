@@ -32,11 +32,16 @@ const audio = (
   identity,
   stats: { packetsReceived: total / 960, totalSamplesReceived: total, concealedSamples: concealed },
 });
-const video = (identity: string, ssrc: number, framesDecoded: number): CallStatsStream => ({
+const video = (
+  identity: string,
+  ssrc: number,
+  framesDecoded: number,
+  packetsReceived = framesDecoded * 2 + 100
+): CallStatsStream => ({
   kind: 'video',
   ssrc,
   identity,
-  stats: { packetsReceived: framesDecoded * 2 + 100, framesDecoded },
+  stats: { packetsReceived, framesDecoded },
 });
 
 const subscriptions: { unsubscribe: () => void }[] = [];
@@ -141,6 +146,26 @@ describe('undecryptable participants', () => {
     sample(2000, [video(ADA, 2, 0)]);
     expect(current().has(ADA)).toBe(true);
     sample(3000, [video(ADA, 2, 27)]);
+    expect(current().has(ADA)).toBe(false);
+  });
+
+  it('keeps them while their audio decodes but their camera receives packets without decoding', () => {
+    const { fail, sample, current } = setup();
+    fail(ADA);
+    sample(1000, [audio(ADA, 1, 48000, 48000), video(ADA, 2, 0)]);
+    sample(2000, [audio(ADA, 1, 96000, 48000), video(ADA, 2, 0, 300)]);
+    sample(3000, [audio(ADA, 1, 144000, 48000), video(ADA, 2, 0, 600)]);
+    expect(current().has(ADA)).toBe(true);
+    sample(4000, [audio(ADA, 1, 192000, 48000), video(ADA, 2, 30, 900)]);
+    expect(current().has(ADA)).toBe(false);
+  });
+
+  it('clears them when their audio decodes and their camera has stopped sending', () => {
+    const { fail, sample, current } = setup();
+    fail(ADA);
+    sample(1000, [audio(ADA, 1, 48000, 48000), video(ADA, 2, 0, 100)]);
+    sample(2000, [audio(ADA, 1, 96000, 96000), video(ADA, 2, 0, 100)]);
+    sample(3000, [audio(ADA, 1, 144000, 100000), video(ADA, 2, 0, 100)]);
     expect(current().has(ADA)).toBe(false);
   });
 
