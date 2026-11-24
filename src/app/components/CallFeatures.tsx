@@ -20,6 +20,7 @@ import {
 import {
   EventTimelineSetHandlerMap,
   EventType,
+  KnownMembership,
   RelationType,
   Room,
   RoomEvent,
@@ -269,8 +270,11 @@ function IncomingCallListener({ call }: IncomingCallListenerProps) {
 
       if (
         !room ||
+        // a sync also replays the rings of rooms left since; nobody is calling us there
+        room.getMyMembership() !== KnownMembership.Join ||
         event.getType() !== EventType.RTCNotification ||
         event.getSender() === mx.getSafeUserId() ||
+        event.isRedacted() ||
         !data.liveEvent
       ) {
         return;
@@ -334,7 +338,7 @@ function IncomingCallListener({ call }: IncomingCallListenerProps) {
     setCallInfo(undefined);
   }, []);
 
-  useRedactionDismiss(mx, callInfo?.notificationEventId, handleIgnore);
+  useRedactionDismiss(mx, callInfo?.room, callInfo?.notificationEventId, handleIgnore);
 
   const handleReject = useCallback(
     (room: Room, eventId: string) => {

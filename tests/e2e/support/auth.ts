@@ -1,6 +1,9 @@
 import { type Browser, expect, type Page } from '@playwright/test';
 import { type Credentials, e2eCredentials } from './env';
 
+/** Where the setup project saves the signed-in session (playwright.config.ts uses it too). */
+export const savedSession = 'playwright/.auth/user.json';
+
 type SignInOptions = {
   /** Playwright's clock, installed before the app loads: time runs as usual until a test moves it. */
   fakeClock?: boolean;
@@ -16,6 +19,24 @@ export async function signIn(
   if (fakeClock) await context.clock.install();
   const page = await context.newPage();
   await loginWithTestAccount(page, credentials);
+  return page;
+}
+
+/**
+ * Opens the app with the session the setup saved, once it has caught up on everything that
+ * happened since: the saved sync position is old, so the first sync replays it as it comes.
+ */
+export async function openSavedSession(browser: Browser): Promise<Page> {
+  const context = await browser.newContext({ storageState: savedSession });
+  const page = await context.newPage();
+  let syncs = 0;
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/client/v3/sync') && url.searchParams.has('since')) syncs += 1;
+  });
+  await page.goto('/home/');
+  // the next sync is asked for once the catching-up one is processed
+  await expect.poll(() => syncs).toBeGreaterThan(1);
   return page;
 }
 

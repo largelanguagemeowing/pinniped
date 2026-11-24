@@ -253,12 +253,16 @@ export class Call {
     return this.room.roomId;
   }
 
-  /** Leaves the call; resolves once the homeserver has been told, or after a second. */
+  /**
+   * Leaves the call and stops the ring we started, so a client that loads later does not ring for
+   * a call that is over; resolves once the homeserver has been told, or after a second.
+   */
   public async hangup(): Promise<void> {
     // Leave the session first: ending the call's scope leaves it too, but without waiting.
     const leaving = this.session.leave(LEAVE_TIMEOUT_MS);
+    const cancelling = cancelRing(this.mx, this.room.roomId, this.sentNotification$.value);
     this.vm.hangup();
-    await leaving;
+    await Promise.all([leaving, cancelling]);
   }
 
   /** The size of the view showing the call, for its layout. */
