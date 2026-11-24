@@ -285,6 +285,7 @@ export const outboundRows = (s: CallStatsStream): Row[] => {
 export const inboundRows = (s: CallStatsStream): Row[] => [
   ['SSRC', str(s.ssrc)],
   ['Codec', str(s.codec)],
+  ['Announced Encryption', str(s.announcedEncryption), s.announcedEncryption === 'none'],
   ['Stereo Decoding', stereo(s)],
   ['Decoder', str(s.stats.decoderImplementation)],
   ['Frames Decoded', str(s.stats.framesDecoded)],

@@ -5,7 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type Room as LivekitRoom, Track, type TrackPublication } from 'livekit-client';
+import {
+  Encryption_Type,
+  type Room as LivekitRoom,
+  Track,
+  type TrackPublication,
+} from 'livekit-client';
 
 /**
  * Raw WebRTC counters of one SFU connection, sampled once a second by the Call,
@@ -50,6 +55,8 @@ export interface CallStatsStream {
   identity?: string;
   /** What the track carries: "Microphone", "Camera", "Screen share", "Soundboard"... */
   track?: string;
+  /** What the media server says of an inbound track's encryption; we decrypt it either way. */
+  announcedEncryption?: 'none' | 'encrypted';
 }
 
 export interface CallStatsConnection {
@@ -75,6 +82,7 @@ interface StreamLabel {
   participant?: string;
   identity?: string;
   track: string;
+  announcedEncryption?: 'none' | 'encrypted';
 }
 
 const trackLabel = (pub: TrackPublication): string => {
@@ -116,6 +124,8 @@ function labelTracks(room: LivekitRoom, userIds: Record<string, string>): Map<st
           participant: from,
           identity: participant.identity,
           track: trackLabel(pub),
+          announcedEncryption:
+            pub.trackInfo?.encryption === Encryption_Type.NONE ? 'none' : 'encrypted',
         });
     });
   });
@@ -210,6 +220,7 @@ export async function sampleConnection(
       participant: label?.participant,
       identity: label?.identity,
       track: label?.track,
+      announcedEncryption: label?.announcedEncryption,
     };
   };
   const outbound = pubStats.filter((s) => s.type === 'outbound-rtp').map(stream);

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type Room as LivekitRoom } from 'livekit-client';
+import { Encryption_Type, type Room as LivekitRoom, Track } from 'livekit-client';
 import { describe, expect, it } from 'vitest';
 
 import { sampleConnection } from '../../../../src/app/plugins/call/engine/livekit/callStats';
@@ -60,5 +60,40 @@ describe('call stats sampling', () => {
     const stream = await sampleCamera({ qualityLimitationDurations });
     expect(stream?.qualityLimitationDurations).toBeUndefined();
     expect(stream?.stats.bytesSent).toBe(1000);
+  });
+});
+
+describe('announced encryption of inbound tracks', () => {
+  /** A remote camera of `ada` whose publication the server announces with `encryption`. */
+  const inboundCamera = async (encryption: number) => {
+    const room = fakeRoom([
+      { id: 'IT01V1', type: 'inbound-rtp', kind: 'video', ssrc: 7, trackIdentifier: 'trk' },
+    ]) as unknown as { remoteParticipants: Map<string, unknown> };
+    room.remoteParticipants.set('ada', {
+      identity: 'ada',
+      trackPublications: new Map([
+        [
+          'TR1',
+          {
+            source: Track.Source.Camera,
+            trackInfo: { encryption },
+            track: { receiver: { track: { id: 'trk' } } },
+          },
+        ],
+      ]),
+    });
+    const connection = await sampleConnection(
+      'wss://sfu.example.org',
+      room as unknown as LivekitRoom
+    );
+    return connection?.inbound[0];
+  };
+
+  it('is reported for a track the server says is not encrypted', async () => {
+    expect((await inboundCamera(Encryption_Type.NONE))?.announcedEncryption).toBe('none');
+  });
+
+  it('is reported for a track the server says is encrypted', async () => {
+    expect((await inboundCamera(Encryption_Type.GCM))?.announcedEncryption).toBe('encrypted');
   });
 });
