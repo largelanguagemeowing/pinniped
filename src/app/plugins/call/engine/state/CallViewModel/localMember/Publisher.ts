@@ -20,7 +20,7 @@ import { type Logger } from 'matrix-js-sdk/lib/logger';
 import type { MediaDevices, SelectedDevice } from '../../MediaDevices';
 import type { MuteStates } from '../../MuteStates';
 import { captureConstraintsSync } from '../../../livekit/captureConstraints';
-import { voiceGateSync } from '../../../livekit/voiceGate';
+import { micProcessingSync } from '../../../livekit/micProcessor';
 import { callSettings } from '../../../settings';
 import { Soundboard, type SoundboardLink } from '../../../livekit/soundboard';
 import {
@@ -481,7 +481,7 @@ export class Publisher {
       ),
       null
     );
-    voiceGateSync(scope, track$, this.logger);
+    micProcessingSync(scope, track$, this.logger);
     captureConstraintsSync(scope, track$, this.logger);
   }
 }

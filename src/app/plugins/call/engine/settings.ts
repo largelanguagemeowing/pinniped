@@ -29,6 +29,7 @@ const deviceId = (id: string): string | undefined => (id === '' ? undefined : id
 export const callSettings = {
   autoGain$: setting((s) => s.callAutoGain),
   echoCancellation$: setting((s) => s.callEchoCancellation),
+  monoMic$: setting((s) => s.callMonoMic),
   voiceGate$: setting((s) => s.callVoiceGate),
   voiceGateAuto$: setting((s) => s.callVoiceGateAuto),
   /** 0-1: how loud speech must be to open the gate when not automatic. */

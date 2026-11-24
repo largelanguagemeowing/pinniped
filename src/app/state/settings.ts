@@ -43,6 +43,8 @@ export interface Settings {
   callAutoGain: boolean;
   /** The browser's echo cancellation on the microphone; off by default, as it also thins out the voice. */
   callEchoCancellation: boolean;
+  /** Mix the microphone down to one channel before it is sent. */
+  callMonoMic: boolean;
   // Only send the microphone while it hears speech (applied by the call).
   // `Auto` follows the room's noise floor; otherwise `Threshold` (0-1) is the level.
   callVoiceGate: boolean;
@@ -146,6 +148,7 @@ const defaultSettings: Settings = {
 
   callAutoGain: false,
   callEchoCancellation: false,
+  callMonoMic: false,
   callVoiceGate: false,
   callVoiceGateAuto: true,
   callVoiceGateThreshold: 0.45,

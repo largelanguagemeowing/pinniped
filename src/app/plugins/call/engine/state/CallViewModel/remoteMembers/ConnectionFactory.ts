@@ -131,6 +131,8 @@ function generateRoomOption({
       echoCancellation: callSettings.echoCancellation$.value,
       autoGainControl: false,
       noiseSuppression: false,
+      // Published as mono from the start; the mic processor does the mixing (see micProcessingSync).
+      ...(callSettings.monoMic$.value ? { channelCount: 1 } : {}),
     },
     e2ee: e2eeLivekitOptions,
     // TODO test and consider this:

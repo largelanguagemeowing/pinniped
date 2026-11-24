@@ -165,6 +165,7 @@ function CallAudio() {
     settingsAtom,
     'callEchoCancellation'
   );
+  const [monoMic, setMonoMic] = useSetting(settingsAtom, 'callMonoMic');
   const [voiceGate, setVoiceGate] = useSetting(settingsAtom, 'callVoiceGate');
   const [voiceGateAuto, setVoiceGateAuto] = useSetting(settingsAtom, 'callVoiceGateAuto');
   const [voiceGateThreshold, setVoiceGateThreshold] = useSetting(
@@ -253,6 +254,13 @@ function CallAudio() {
               onChange={setCallEchoCancellation}
             />
           }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Mix Microphone to Mono"
+          description="Blend the left and right channels of your microphone into one before sending. Turn it on if your microphone or audio interface puts your voice on one side only; the blend is quieter than a single channel."
+          after={<Switch variant="Primary" value={monoMic} onChange={setMonoMic} />}
         />
       </SequenceCard>
       <SequenceCard
