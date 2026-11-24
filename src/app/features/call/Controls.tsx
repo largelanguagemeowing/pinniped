@@ -156,3 +156,32 @@ export function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareBu
     </TooltipProvider>
   );
 }
+
+export function StopRingingButton({ onStop }: { onStop: () => void }) {
+  return (
+    <TooltipProvider
+      position="Top"
+      delay={500}
+      tooltip={
+        <Tooltip>
+          <Text size="T200">Stop Ringing</Text>
+        </Tooltip>
+      }
+    >
+      {(anchorRef) => (
+        <IconButton
+          ref={anchorRef}
+          variant="Surface"
+          fill="Soft"
+          radii="400"
+          size="400"
+          onClick={onStop}
+          aria-label="Stop ringing"
+          outlined
+        >
+          <Icon size="400" src={Icons.BellMute} />
+        </IconButton>
+      )}
+    </TooltipProvider>
+  );
+}

@@ -26,7 +26,8 @@ import {
 } from 'matrix-js-sdk';
 import { IRTCNotificationContent, RTCNotificationType } from 'matrix-js-sdk/lib/matrixrtc/types';
 import { CryptoBackend } from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
-import { logSound } from '../sound/log';
+import { useCallRing } from '../hooks/useCallRing';
+import { useRedactionDismiss } from '../hooks/useRedactionDismiss';
 import { useSoundToggle } from '../hooks/useSoundToggle';
 import { useSoundVolume } from '../hooks/useSoundVolume';
 import {
@@ -68,6 +69,8 @@ type IncomingCallInfo = {
   intent?: string;
   notificationType?: RTCNotificationType;
   refEventId: string;
+  /** The notification that rings; redacted by a caller who stops ringing. */
+  notificationEventId?: string;
 };
 type IncomingCallProps = {
   dm: boolean;
@@ -109,26 +112,7 @@ function IncomingCall({ dm, info, onIgnore, onAnswer, onReject }: IncomingCallPr
 
   useSoundVolume(audioRef);
 
-  const playSound = useCallback(() => {
-    const audioElement = audioRef.current;
-    audioElement?.play();
-  }, []);
-
-  useEffect(() => {
-    if (info.notificationType !== 'ring') return undefined;
-    if (!ringSound) {
-      logSound('skip', 'call (ring)', 'switched off');
-      return undefined;
-    }
-    logSound('play', 'call (ring)');
-    playSound();
-    const audioElement = audioRef.current;
-    // A detached <audio> keeps playing, so the ring must be stopped explicitly.
-    return () => {
-      logSound('stop', 'call (ring)');
-      audioElement?.pause();
-    };
-  }, [playSound, info.notificationType, ringSound]);
+  const { ringing, silence } = useCallRing(audioRef, info.notificationType === 'ring' && ringSound);
 
   return (
     <>
@@ -225,6 +209,21 @@ function IncomingCall({ dm, info, onIgnore, onAnswer, onReject }: IncomingCallPr
                       {dm ? 'Reject' : 'Ignore'}
                     </Text>
                   </Button>
+                  {ringing && (
+                    <Button
+                      style={{ flexGrow: 1 }}
+                      variant="Secondary"
+                      fill="None"
+                      size="400"
+                      radii="400"
+                      onClick={silence}
+                      before={<Icon size="200" src={Icons.BellMute} />}
+                    >
+                      <Text as="span" size="B400">
+                        Stop ringing
+                      </Text>
+                    </Button>
+                  )}
                 </Box>
               </Box>
             </Dialog>
@@ -316,6 +315,7 @@ function IncomingCallListener({ call }: IncomingCallListenerProps) {
             : undefined,
         notificationType,
         refEventId,
+        notificationEventId: event.getId(),
       };
 
       setCallInfo(info);
@@ -333,6 +333,8 @@ function IncomingCallListener({ call }: IncomingCallListenerProps) {
   const handleIgnore = useCallback(() => {
     setCallInfo(undefined);
   }, []);
+
+  useRedactionDismiss(mx, callInfo?.notificationEventId, handleIgnore);
 
   const handleReject = useCallback(
     (room: Room, eventId: string) => {
@@ -358,6 +360,7 @@ function IncomingCallListener({ call }: IncomingCallListenerProps) {
 
   return !call && callInfo ? (
     <IncomingCall
+      key={callInfo.refEventId}
       dm={dm}
       info={callInfo}
       onIgnore={handleIgnore}

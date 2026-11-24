@@ -23,7 +23,13 @@ import { useCallFullscreen } from './useCallFullscreen';
 import { settingsModalAtom } from '../../state/settingsModal';
 import { SettingsPages } from '../settings';
 import * as css from './styles.css';
-import { MicrophoneButton, ScreenShareButton, SoundButton, VideoButton } from './Controls';
+import {
+  MicrophoneButton,
+  ScreenShareButton,
+  SoundButton,
+  StopRingingButton,
+  VideoButton,
+} from './Controls';
 import { SoundboardButton } from '../soundboard/SoundboardButton';
 import type { Call } from '../../plugins/call/Call';
 import { useBehavior } from '../../plugins/call/engine/useBehavior';
@@ -45,6 +51,7 @@ export function CallControls({ call }: CallControlsProps) {
   const { microphone, video, sound, screenshare, spotlight } = useBehavior(call.controlState$);
   // Screen share and soundboard need the media connection.
   const connected = useBehavior(call.vm.connected$);
+  const ringbackPlaying = useBehavior(call.ringbackPlaying$);
 
   const [hideVideoless, toggleHideVideoless] = useHideVideoless(call);
   const inGrid = useBehavior(call.vm.layout$).type === 'grid';
@@ -148,6 +155,7 @@ export function CallControls({ call }: CallControlsProps) {
         <MicrophoneButton enabled={microphone} onToggle={() => call.toggleMicrophone()} />
         <SoundButton enabled={sound} onToggle={() => call.toggleSound()} />
         <VideoButton enabled={video} onToggle={() => call.toggleVideo()} />
+        {ringbackPlaying && <StopRingingButton onStop={() => call.stopRinging()} />}
       </Box>
       <Box className={css.ControlGroup} alignItems="Center" gap="100">
         <ScreenShareButton

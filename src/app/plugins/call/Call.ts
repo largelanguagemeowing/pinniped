@@ -17,6 +17,8 @@ import {
   Subject,
 } from 'rxjs';
 
+import { cancelRing } from './cancelRing';
+import { createRingback } from './ringback';
 import { playCallEndSound } from '../../sound/play';
 import { loopCallSound, playCallSound } from '../../sound/callSounds';
 import { type EventSoundKind } from '../../sound/bundles';
@@ -31,7 +33,11 @@ import {
   retainEncryptionEvents,
 } from './engine/livekit/encryptionLog';
 import { ReactionsReader } from './engine/reactions/ReactionsReader';
-import { type AutoLeaveReason } from './engine/state/CallViewModel/CallNotificationLifecycle';
+import {
+  type AutoLeaveReason,
+  type CallNotificationWrapper,
+  createSentCallNotification$,
+} from './engine/state/CallViewModel/CallNotificationLifecycle';
 import {
   type CallViewModel,
   createCallViewModel$,
@@ -105,6 +111,13 @@ export class Call {
   /** Whether we started this call by ringing the other side of a DM. */
   public readonly ringing: boolean;
 
+  /** Whether the ringback is audible, while we wait for the other side to pick up. */
+  public readonly ringbackPlaying$: Behavior<boolean>;
+
+  private readonly sentNotification$: Behavior<CallNotificationWrapper | null>;
+
+  private readonly silenceRingback: () => void;
+
   /** WebRTC stats of the last {@link STATS_WINDOW_MS}, oldest first. */
   public readonly stats$ = new BehaviorSubject<CallStatsSample[]>([]);
 
@@ -133,7 +146,7 @@ export class Call {
   private ended = false;
 
   public constructor(
-    mx: MatrixClient,
+    private readonly mx: MatrixClient,
     public readonly room: Room,
     { dm, preferences }: CallJoinOptions
   ) {
@@ -171,6 +184,13 @@ export class Call {
       reactions.reactions$
     );
 
+    // While the other side has not picked up, the ringback loops after its intro.
+    const ringback = createRingback(this.scope, this.vm.ringing$, () =>
+      loopCallSound('ringback', 'callStart')
+    );
+    this.sentNotification$ = createSentCallNotification$(this.scope, this.session);
+    this.ringbackPlaying$ = ringback.playing$;
+    this.silenceRingback = ringback.silence;
     this.playCallSounds();
     this.sampleStats();
     this.logEncryption();
@@ -218,6 +238,15 @@ export class Call {
     );
 
     this.vm.join();
+  }
+
+  /**
+   * Stops ringing the other side and silences our ringback; the call keeps waiting for them to
+   * join. Their ring stops where a client drops a redacted notification.
+   */
+  public stopRinging(): void {
+    this.silenceRingback();
+    cancelRing(this.mx, this.room.roomId, this.sentNotification$.value);
   }
 
   public get roomId(): string {
@@ -284,14 +313,6 @@ export class Call {
     this.vm.leaveSoundEffect$.pipe(this.scope.bind()).subscribe(play('callLeave'));
     this.vm.newHandRaised$.pipe(this.scope.bind()).subscribe(play('raiseHand'));
     this.vm.newScreenShare$.pipe(this.scope.bind()).subscribe(play('screenshareStarted'));
-
-    // While the other side has not picked up, the ringback loops after its intro.
-    let stopRinging: (() => void) | undefined;
-    this.vm.ringing$.pipe(this.scope.bind()).subscribe((ringing) => {
-      stopRinging?.();
-      stopRinging = ringing ? loopCallSound('ringback', 'callStart') : undefined;
-    });
-    this.scope.onEnd(() => stopRinging?.());
   }
 
   /** Keeps the call's key arrivals and decryption failures, naming the participants by Matrix user. */
