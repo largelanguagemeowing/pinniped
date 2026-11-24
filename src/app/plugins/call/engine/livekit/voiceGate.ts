@@ -5,72 +5,54 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type VoiceTuning } from '../../voiceTuning';
-import { AdaptiveVoiceGate, VoiceGate, measureLevel, voiceGateLevels } from './voiceActivity';
+import { type Observable } from 'rxjs';
 
-const POLL_MS = 20;
-/** The most lookahead the delay line can give (see VoiceTuning.lookaheadMs). */
-const MAX_LOOKAHEAD_S = 0.1;
+import { VOICE_GATE_PROCESSOR, type VoiceGateConfig } from './voiceGateDsp';
+import voiceGateModuleUrl from './voiceGateWorklet?worker&url';
 
-/** The gate settings, read as the gate runs. */
-export type VoiceGateSettings = () => {
-  /** Follow the noise floor instead of `threshold`. */
-  auto: boolean;
-  /** 0-1 level that opens the gate when not automatic. */
-  threshold: number;
-  tuning: VoiceTuning;
-};
+export type { VoiceGateConfig };
+
+const loaded = new WeakMap<BaseAudioContext, Promise<void>>();
+
+/** Loads the gate's worklet into `ctx`, once; required before {@link attachVoiceGate}. */
+export function loadVoiceGate(ctx: BaseAudioContext): Promise<void> {
+  let module = loaded.get(ctx);
+  if (module === undefined) {
+    module = ctx.audioWorklet.addModule(voiceGateModuleUrl);
+    // A failed load is tried again by the next caller.
+    module.catch(() => loaded.delete(ctx));
+    loaded.set(ctx, module);
+  }
+  return module;
+}
 
 /**
- * Sends `input` to `output` only while it carries speech: the signal plays through a gain that
- * opens and closes on the level an analyser hears, behind a delay line so speech that opens the
- * gate is not cut off. Returns the function that takes the stage apart.
+ * Sends `input` to `output` only while it carries speech (see VoiceGateDsp). The gate runs on
+ * the audio thread, in step with the samples, so it does not depend on timers; the main thread
+ * only passes settings in. Always stereo: a mono input is heard on both sides, and a mono output
+ * takes the mix. Returns the function that takes the stage apart.
  */
 export function attachVoiceGate(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   input: AudioNode,
   output: AudioNode,
-  settings: VoiceGateSettings
+  config$: Observable<VoiceGateConfig>
 ): () => void {
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 1024;
-  const delay = ctx.createDelay(MAX_LOOKAHEAD_S);
-  const gain = ctx.createGain();
-  gain.gain.value = 0;
-  input.connect(analyser);
-  input.connect(delay);
-  delay.connect(gain);
-  gain.connect(output);
-
-  const samples = new Float32Array(analyser.fftSize);
-  const fixed = new VoiceGate();
-  const adaptive = new AdaptiveVoiceGate();
-  let open = false;
-  const id = setInterval(() => {
-    const { auto, threshold, tuning } = settings();
-    const levels = voiceGateLevels(threshold, tuning.hysteresisDb);
-    fixed.setLevels(levels.open, levels.close);
-    fixed.holdMs = tuning.holdMs;
-    adaptive.holdMs = tuning.holdMs;
-    adaptive.marginDb = tuning.autoMarginDb;
-    adaptive.hysteresisDb = tuning.hysteresisDb;
-    delay.delayTime.value = tuning.lookaheadMs / 1000;
-    const next = (auto ? adaptive : fixed).update(measureLevel(analyser, samples), Date.now());
-    if (next === open) return;
-    open = next;
-    gain.gain.setTargetAtTime(
-      open ? 1 : 0,
-      ctx.currentTime,
-      (open ? tuning.fadeInMs : tuning.fadeOutMs) / 1000
-    );
-  }, POLL_MS);
-
+  const node = new AudioWorkletNode(ctx, VOICE_GATE_PROCESSOR, {
+    numberOfInputs: 1,
+    numberOfOutputs: 1,
+    outputChannelCount: [2],
+    channelCount: 2,
+    channelCountMode: 'explicit',
+    channelInterpretation: 'speakers',
+  });
+  const subscription = config$.subscribe((config) => node.port.postMessage(config));
+  input.connect(node);
+  node.connect(output);
   return (): void => {
-    clearInterval(id);
-    input.disconnect(analyser);
-    input.disconnect(delay);
-    analyser.disconnect();
-    delay.disconnect();
-    gain.disconnect();
+    subscription.unsubscribe();
+    input.disconnect(node);
+    node.disconnect();
+    node.port.close();
   };
 }

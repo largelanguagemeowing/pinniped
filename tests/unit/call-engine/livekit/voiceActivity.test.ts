@@ -11,7 +11,7 @@ import {
   AdaptiveVoiceGate,
   VoiceGate,
   voiceGateLevels,
-} from '../../../../src/app/plugins/call/engine/livekit/voiceActivity';
+} from '../../../../src/app/plugins/call/engine/livekit/voiceGateLogic';
 
 const gate = (): VoiceGate => new VoiceGate(0.01, 0.005, 200);
 

@@ -6,7 +6,7 @@ Please see LICENSE in the repository root for full details.
 */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { type LocalAudioTrack } from 'livekit-client';
 import { logger } from 'matrix-js-sdk/lib/logger';
 
@@ -162,10 +162,12 @@ class GraphContext {
   createGain = () =>
     this.node('gain', { channelCount: 2, gain: { value: 1, setTargetAtTime() {} } });
 
-  createAnalyser = () =>
-    this.node('analyser', { fftSize: 0, getFloatTimeDomainData: () => undefined });
+  audioWorklet = { addModule: vi.fn(async () => undefined) };
 
-  createDelay = () => this.node('delay', { delayTime: { value: 0 } });
+  /** The node an `AudioWorkletNode` made on this context stands for. */
+  worklet(options: object): FakeNode {
+    return this.node('gate', { options, port: { postMessage: vi.fn(), close: vi.fn() } });
+  }
 }
 
 class FakeNode {
@@ -192,8 +194,17 @@ class FakeNode {
 }
 
 describe('the microphone graph', () => {
+  const gateConfig = { auto: false, threshold: 0.5, tuning: {} as never };
   const build = (stages: ConstructorParameters<typeof MicProcessor>[0]) => {
     vi.stubGlobal('MediaStream', class {});
+    vi.stubGlobal(
+      'AudioWorkletNode',
+      class {
+        constructor(ctx: GraphContext, name: string, options: object) {
+          return Object.assign(ctx.worklet(options), { name });
+        }
+      }
+    );
     const ctx = new GraphContext();
     const processor = new MicProcessor(stages);
     return processor
@@ -217,6 +228,7 @@ describe('the microphone graph', () => {
     expect(source.targets).toEqual(new Set([mix]));
     expect(mix.targets).toEqual(new Set([output]));
     expect(output.channelCount).toBe(1);
+    expect(ctx.audioWorklet.addModule).not.toHaveBeenCalled();
 
     await processor.destroy();
     expect(source.targets.size).toBe(0);
@@ -224,25 +236,82 @@ describe('the microphone graph', () => {
   });
 
   it('feeds the gate from the mix, so the gate hears the mono signal', async () => {
-    const { ctx, processor } = await build({
-      mono: true,
-      gate: () => ({ auto: false, threshold: 0.5, tuning: {} as never }),
-    });
+    const { ctx, processor } = await build({ mono: true, gate: of(gateConfig) });
     const [source] = kinds(ctx, 'source');
     const [mix] = kinds(ctx, 'gain');
+    const [gate] = kinds(ctx, 'gate');
+    const [output] = kinds(ctx, 'destination');
     expect(source.targets).toEqual(new Set([mix]));
-    expect([...mix.targets].map((n) => n.kind).sort()).toEqual(['analyser', 'delay']);
+    expect(mix.targets).toEqual(new Set([gate]));
+    expect(gate.targets).toEqual(new Set([output]));
     await processor.destroy();
   });
 
   it('leaves the capture at its own channel count without the mix', async () => {
-    const { ctx, processor } = await build({
-      mono: false,
-      gate: () => ({ auto: false, threshold: 0.5, tuning: {} as never }),
-    });
+    const { ctx, processor } = await build({ mono: false, gate: of(gateConfig) });
     const [source] = kinds(ctx, 'source');
+    const [gate] = kinds(ctx, 'gate');
     expect(kinds(ctx, 'destination')[0].channelCount).toBe(2);
-    expect([...source.targets].map((n) => n.kind).sort()).toEqual(['analyser', 'delay']);
+    expect(source.targets).toEqual(new Set([gate]));
+    await processor.destroy();
+  });
+
+  it('loads the gate worklet before it makes the gate, and passes the settings to it', async () => {
+    const { ctx, processor } = await build({ mono: false, gate: of(gateConfig) });
+    expect(ctx.audioWorklet.addModule).toHaveBeenCalledTimes(1);
+    const [gate] = kinds(ctx, 'gate');
+    expect(gate.name).toBe('voice-gate');
+    expect((gate.port as { postMessage: unknown }).postMessage).toHaveBeenCalledWith(gateConfig);
+    await processor.destroy();
+    expect(gate.targets.size).toBe(0);
+    expect((gate.port as { close: unknown }).close).toHaveBeenCalled();
+  });
+
+  it('loads the worklet once per context, however often the graph is rebuilt', async () => {
+    const { ctx, processor } = await build({ mono: false, gate: of(gateConfig) });
+    await processor.restart({ track: {}, audioContext: ctx } as never);
+    expect(ctx.audioWorklet.addModule).toHaveBeenCalledTimes(1);
+    expect(kinds(ctx, 'gate')).toHaveLength(2);
+    await processor.destroy();
+  });
+
+  it('builds no graph for a start that was destroyed while the worklet loaded', async () => {
+    vi.stubGlobal('MediaStream', class {});
+    const ctx = new GraphContext();
+    let loaded!: () => void;
+    ctx.audioWorklet.addModule = vi.fn(
+      () => new Promise<undefined>((r) => (loaded = () => r(undefined)))
+    );
+    const processor = new MicProcessor({ mono: false, gate: of(gateConfig) });
+    const starting = processor.init({ track: {}, audioContext: ctx } as never);
+    await processor.destroy();
+    loaded();
+    await starting;
+    expect(ctx.nodes).toHaveLength(0);
+  });
+
+  it('retries the worklet load after a failure', async () => {
+    vi.stubGlobal('MediaStream', class {});
+    const ctx = new GraphContext();
+    ctx.audioWorklet.addModule = vi
+      .fn<() => Promise<undefined>>()
+      .mockRejectedValueOnce(new Error('load failed'))
+      .mockResolvedValue(undefined);
+    const processor = new MicProcessor({ mono: false, gate: of(gateConfig) });
+    await expect(processor.init({ track: {}, audioContext: ctx } as never)).rejects.toThrow(
+      'load failed'
+    );
+    vi.stubGlobal(
+      'AudioWorkletNode',
+      class {
+        constructor(c: GraphContext, name: string, options: object) {
+          return Object.assign(c.worklet(options), { name });
+        }
+      }
+    );
+    await processor.init({ track: {}, audioContext: ctx } as never);
+    expect(ctx.audioWorklet.addModule).toHaveBeenCalledTimes(2);
+    expect(kinds(ctx, 'gate')).toHaveLength(1);
     await processor.destroy();
   });
 });

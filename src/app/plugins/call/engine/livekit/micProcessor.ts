@@ -12,13 +12,13 @@ import {
   type TrackProcessor,
 } from 'livekit-client';
 import { type Logger } from 'matrix-js-sdk/lib/logger';
-import { combineLatest } from 'rxjs';
+import { combineLatest, map, type Observable } from 'rxjs';
 
 import { callSettings } from '../settings';
 import { type Behavior } from '../state/Behavior';
 import { type ObservableScope } from '../state/ObservableScope';
 import { createMonoMix } from './monoMix';
-import { attachVoiceGate, type VoiceGateSettings } from './voiceGate';
+import { attachVoiceGate, loadVoiceGate, type VoiceGateConfig } from './voiceGate';
 
 type AudioProcessor = TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>;
 
@@ -26,8 +26,8 @@ type AudioProcessor = TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>;
 export type MicStages = {
   /** Mix the capture down to one channel. */
   mono: boolean;
-  /** Send only while speaking, with these settings; null sends continuously. */
-  gate: VoiceGateSettings | null;
+  /** Send only while speaking, with these settings as they change; null sends continuously. */
+  gate: Observable<VoiceGateConfig> | null;
 };
 
 /** The microphone's audio graph: capture, then the mono mix, then the voice gate, then out. */
@@ -43,20 +43,30 @@ export class MicProcessor implements AudioProcessor {
   // keep the one init() was given and fall back to it.
   private audioContext?: AudioContext;
 
+  // Counts starts and destroys, so a graph is not built for a start that was destroyed while
+  // the gate's worklet was loading.
+  private epoch = 0;
+
   public async init(opts: AudioProcessorOptions): Promise<void> {
     this.audioContext = opts.audioContext;
-    this.build(opts.track, opts.audioContext);
+    const epoch = ++this.epoch;
+    if (this.stages.gate) await loadVoiceGate(opts.audioContext);
+    if (epoch === this.epoch) this.build(opts.track, opts.audioContext);
   }
 
   public async restart(opts: AudioProcessorOptions): Promise<void> {
     const ctx = opts.audioContext ?? this.audioContext;
     if (!ctx) throw new Error('MicProcessor: no AudioContext to restart with');
     this.audioContext = ctx;
+    const epoch = ++this.epoch;
+    if (this.stages.gate) await loadVoiceGate(ctx);
+    if (epoch !== this.epoch) return;
     this.teardown?.();
     this.build(opts.track, ctx);
   }
 
   public async destroy(): Promise<void> {
+    this.epoch++;
     this.teardown?.();
     this.teardown = undefined;
     this.processedTrack = undefined;
@@ -90,6 +100,13 @@ export class MicProcessor implements AudioProcessor {
     };
   }
 }
+
+/** The gate's settings, which apply while it runs. */
+const gateConfig$: Observable<VoiceGateConfig> = combineLatest([
+  callSettings.voiceGateAuto$,
+  callSettings.voiceGateThreshold$,
+  callSettings.voiceTuning$,
+]).pipe(map(([auto, threshold, tuning]) => ({ auto, threshold, tuning })));
 
 /** Which stages a track has, so repeat emissions stay no-ops. */
 const applied = new WeakMap<LocalAudioTrack, { mono: boolean; gate: boolean }>();
@@ -138,13 +155,7 @@ export function micProcessingSync(
       applied.set(track, claim);
       const stages: MicStages = {
         mono,
-        gate: gate
-          ? () => ({
-              auto: callSettings.voiceGateAuto$.value,
-              threshold: callSettings.voiceGateThreshold$.value,
-              tuning: callSettings.voiceTuning$.value,
-            })
-          : null,
+        gate: gate ? gateConfig$ : null,
       };
       applyStages(track, stages).catch((e) => {
         if (applied.get(track) === claim) applied.delete(track);
