@@ -110,6 +110,7 @@ export function VideoButton({ enabled, onToggle, compact }: VideoButtonProps) {
           onClick={() => onToggle()}
           outlined
           disabled={unavailable}
+          aria-label={enabled ? 'Stop Camera' : 'Start Camera'}
         >
           <Icon
             size={compact ? '100' : '400'}
