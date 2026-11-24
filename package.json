@@ -1,6 +1,6 @@
 {
   "name": "pinniped",
-  "version": "4.19.4",
+  "version": "4.19.5",
   "description": "A Matrix client",
   "desktopName": "pinniped.desktop",
   "main": "index.js",
