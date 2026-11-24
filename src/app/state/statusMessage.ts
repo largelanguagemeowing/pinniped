@@ -2,7 +2,7 @@ import { MatrixClient, MatrixError, SetPresence } from 'matrix-js-sdk';
 import { AccountDataEvent } from '../../types/matrix/accountData';
 import { useAccountData } from '../hooks/useAccountData';
 import { useUserPresence } from '../hooks/useUserPresence';
-import type { PresenceChoice } from './settings';
+import { getSettings, type PresenceChoice } from './settings';
 
 type StatusMessageContent = { status?: string };
 
@@ -58,14 +58,14 @@ export const sendPresence = async (
   await putPresence(mx, presence, statusMsg);
 };
 
-/** Stores the status message and applies it to the current presence. */
-export const saveStatusMessage = async (
-  mx: MatrixClient,
-  presence: PresenceChoice,
-  status: string
-) => {
+/**
+ * Stores the status message and sends it with the presence this device chose. Not the one the
+ * server reports: that is the most present device's, and a moment of offline (other devices
+ * timing out) would otherwise make this one invisible for good.
+ */
+export const saveStatusMessage = async (mx: MatrixClient, status: string) => {
   await mx.setAccountData(AccountDataEvent.PinnipedStatusMessage, { status });
-  await sendPresence(mx, presence, status);
+  await sendPresence(mx, getSettings().chosenPresence, status);
 };
 
 /** The user's own status: what the server reports, else the remembered message. */

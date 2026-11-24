@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import { MatrixClient, MatrixError, SetPresence } from 'matrix-js-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sendPresence } from '../../src/app/state/statusMessage';
+import { saveStatusMessage, sendPresence } from '../../src/app/state/statusMessage';
 
 const rateLimited = (retryAfterMs: number) =>
   new MatrixError(
@@ -72,4 +73,32 @@ describe('sendPresence', () => {
     });
     await expect(sendPresence(mxClient, 'offline')).rejects.toThrow('no');
   });
+});
+
+describe('saveStatusMessage', () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it.each(['online', 'unavailable', 'offline'] as const)(
+    'sends the status with the chosen presence %s, whatever the server reports',
+    async (chosen) => {
+      localStorage.setItem('settings', JSON.stringify({ chosenPresence: chosen }));
+      const mx = {
+        setAccountData: vi.fn(async () => ({})),
+        setSyncPresence: vi.fn(async () => undefined),
+        setPresence: vi.fn(async () => ({})),
+        getAccountData: () => undefined,
+      };
+      await saveStatusMessage(mx as unknown as MatrixClient, 'at lunch');
+      expect(mx.setPresence).toHaveBeenCalledWith({ presence: chosen, status_msg: 'at lunch' });
+      expect(mx.setSyncPresence).toHaveBeenCalledWith(
+        {
+          online: SetPresence.Online,
+          unavailable: SetPresence.Unavailable,
+          offline: SetPresence.Offline,
+        }[chosen]
+      );
+    }
+  );
 });

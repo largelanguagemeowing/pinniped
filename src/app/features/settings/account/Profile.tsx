@@ -55,7 +55,6 @@ import {
 } from '../../../../types/matrix/profile';
 import { ProfilePreview } from './ProfilePreview';
 import * as previewCss from './ProfilePreview.css';
-import { useUserPresence } from '../../../hooks/useUserPresence';
 import { saveStatusMessage, useOwnStatus } from '../../../state/statusMessage';
 import { detectImageAnimation } from '../../../utils/animatedImage';
 
@@ -524,7 +523,6 @@ function ProfilePronouns({ profile }: { profile: UserProfile }) {
 
 function ProfileStatus({ userId }: { userId: string }) {
   const mx = useMatrixClient();
-  const presence = useUserPresence(userId);
   const currentValue = useOwnStatus(userId);
   const [value, setValue] = useState(currentValue);
   const [saving, setSaving] = useState(false);
@@ -537,7 +535,7 @@ function ProfileStatus({ userId }: { userId: string }) {
     setSaving(true);
     setError(undefined);
     try {
-      await saveStatusMessage(mx, presence?.presence ?? 'online', value.trim());
+      await saveStatusMessage(mx, value.trim());
     } catch {
       setError('Could not save your status. Try again.');
     } finally {
