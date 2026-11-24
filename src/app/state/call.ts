@@ -49,6 +49,16 @@ export type CallPlayback = {
   sinkId: string;
   /** When the output failed, each time replacing the call's audio context (ms since epoch). */
   failures: number[];
+  /** The context's rate in Hz; WebRTC delivers 48000, any other rate is resampled. */
+  sampleRate: number;
+  /** The context's own buffering in seconds, and the delay to the speakers (0 when unknown). */
+  baseLatency: number;
+  outputLatency: number;
+  /**
+   * How often the context ran out of audio to hand the device since it started and for how long
+   * (each is a crackle); undefined where the browser has no `playoutStats`.
+   */
+  underruns: () => { events: number; seconds: number; ofSeconds: number } | undefined;
 };
 
 /** The running call's playback; undefined while no call plays. */

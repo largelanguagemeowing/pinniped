@@ -25,11 +25,18 @@ export const contextFollowsOutput =
 type SinkContext = AudioContext & {
   sinkId?: string | object;
   setSinkId?(id: string): Promise<void>;
+  playoutStats?: {
+    fallbackFramesEvents: number;
+    fallbackFramesDuration: number; // ms
+    totalFramesDuration: number; // ms
+  };
 };
 
 /**
  * The audio context the call plays through, on the output device `outputId` ('' is the system
- * default).
+ * default). The larger `playback` buffer keeps a loaded machine from starving the output (heard
+ * as crackling; the call report counts the underruns); the voices already wait in WebRTC's
+ * jitter buffer, so the extra tens of milliseconds are not noticed.
  *
  * When its output fails (an error from the audio device, or the device missing from a new device
  * list), Chromium fires `error` on the context, and a new one replaces it. Device changes that
@@ -41,12 +48,25 @@ export function useCallAudioContext(outputId: string): AudioContext | undefined 
   const setPlayback = useSetAtom(callPlaybackAtom);
 
   useEffect(() => {
-    const created: SinkContext = new AudioContext({ latencyHint: 'interactive' });
+    const created: SinkContext = new AudioContext({ latencyHint: 'playback' });
     const report = (): void =>
       setPlayback((p) => ({
         state: created.state,
         sinkId: typeof created.sinkId === 'string' ? created.sinkId : '',
         failures: p?.failures ?? [],
+        sampleRate: created.sampleRate,
+        baseLatency: created.baseLatency,
+        outputLatency: created.outputLatency,
+        underruns: () => {
+          const stats = created.playoutStats;
+          return stats === undefined
+            ? undefined
+            : {
+                events: stats.fallbackFramesEvents,
+                seconds: stats.fallbackFramesDuration / 1000,
+                ofSeconds: stats.totalFramesDuration / 1000,
+              };
+        },
       }));
     const onState = (): void => {
       log.info(`audio context ${created.state}`);

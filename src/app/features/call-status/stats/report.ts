@@ -40,7 +40,16 @@ const playbackLine = ({ playback, outputName }: ReportContext): string => {
           .slice(-5)
           .map((time) => new Date(time).toISOString().slice(11, 19))
           .join(', ')}; audio context replaced each time)`;
-  return `- Playback: ${playback.state}, on ${outputName(playback.sinkId)}, ${failed}`;
+  const ms = (seconds: number): string => `${Math.round(seconds * 1000)} ms`;
+  const underruns = playback.underruns();
+  const ran =
+    underruns === undefined
+      ? 'underruns unknown (no playout stats)'
+      : `${underruns.events} underruns (${ms(underruns.seconds)} of silence in ${Math.round(underruns.ofSeconds)} s played)`;
+  return [
+    `- Playback: ${playback.state}, on ${outputName(playback.sinkId)}, ${failed}`,
+    `- Playback context: ${playback.sampleRate} Hz, buffer ${ms(playback.baseLatency)}, output delay ${ms(playback.outputLatency)}, ${ran}`,
+  ].join('\n');
 };
 
 const table = (head: string[], rows: string[][]): string =>

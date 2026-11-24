@@ -15,6 +15,7 @@ import {
 } from '../../src/app/features/call-status/stats/metrics';
 import type { EncryptionEvent } from '../../src/app/plugins/call/engine/livekit/encryptionLog';
 import { buildCallReport } from '../../src/app/features/call-status/stats/report';
+import type { CallPlayback } from '../../src/app/state/call';
 
 vi.mock('../../src/app/utils/device', () => ({ APP_VERSION: 'v0 (test)', isDesktop: () => false }));
 
@@ -484,6 +485,33 @@ describe('call report', () => {
       outputName: () => 'Default',
     });
     expect(plain).not.toContain('Encryption events');
+  });
+
+  it('reports the playback context and its underruns', () => {
+    const playback = (underruns: CallPlayback['underruns']): CallPlayback => ({
+      state: 'running',
+      sinkId: '',
+      failures: [],
+      sampleRate: 44100,
+      baseLatency: 0.02,
+      outputLatency: 0.05,
+      underruns,
+    });
+    const text = (p: CallPlayback) =>
+      buildCallReport({
+        samples: [],
+        who: () => 'Alice',
+        roomName: 'Room',
+        roomId: '!room:example.org',
+        encrypted: false,
+        encryptionEvents: [],
+        playback: p,
+        outputName: () => 'Default',
+      });
+    expect(text(playback(() => ({ events: 3, seconds: 0.06, ofSeconds: 9 })))).toContain(
+      '44100 Hz, buffer 20 ms, output delay 50 ms, 3 underruns (60 ms of silence in 9 s played)'
+    );
+    expect(text(playback(() => undefined))).toContain('underruns unknown');
   });
 
   it('summarises the freezes of an inbound video stream', () => {

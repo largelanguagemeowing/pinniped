@@ -16,6 +16,20 @@ const { FakeContext } = vi.hoisted(() => {
 
     sinkId = '';
 
+    sampleRate = 44100;
+
+    baseLatency = 0.02;
+
+    outputLatency = 0.05;
+
+    playoutStats = {
+      fallbackFramesEvents: 3,
+      fallbackFramesDuration: 60,
+      totalFramesDuration: 9000,
+    };
+
+    options: unknown;
+
     sinks: string[] = [];
 
     /** Output changes in progress, at most; Chromium stalls a starting context if they overlap. */
@@ -26,8 +40,9 @@ const { FakeContext } = vi.hoisted(() => {
     /** While set, `setSinkId` waits for it. */
     hold: Promise<void> | undefined;
 
-    constructor() {
+    constructor(options?: unknown) {
       super();
+      this.options = options;
       Fake.made.push(this);
     }
 
@@ -110,10 +125,22 @@ describe("the call's audio context", () => {
     expect(FakeContext.made).toHaveLength(1);
     expect(current).toBe(latest());
     expect(latest().sinkId).toBe('headphones');
-    expect(store.get(callPlaybackAtom)).toEqual({
+    expect(store.get(callPlaybackAtom)).toMatchObject({
       state: 'running',
       sinkId: 'headphones',
       failures: [],
+      sampleRate: 44100,
+    });
+  });
+
+  it('asks for the buffering that rides out a loaded machine, and reports its underruns', async () => {
+    const { store } = mount('');
+    await flush();
+    expect(latest().options).toEqual({ latencyHint: 'playback' });
+    expect(store.get(callPlaybackAtom)?.underruns()).toEqual({
+      events: 3,
+      seconds: 0.06,
+      ofSeconds: 9,
     });
   });
 
