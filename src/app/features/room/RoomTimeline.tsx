@@ -15,7 +15,6 @@ import {
   Direction,
   EventTimeline,
   EventTimelineSet,
-  EventTimelineSetHandlerMap,
   IContent,
   M_POLL_END,
   M_POLL_START,
@@ -26,7 +25,6 @@ import {
   Room,
   RoomEvent,
   RoomEventHandlerMap,
-  EventType,
 } from 'matrix-js-sdk';
 import { HTMLReactParserOptions } from 'html-react-parser';
 import classNames from 'classnames';
@@ -88,12 +86,10 @@ import {
   getLatestEditableEvt,
   getMemberDisplayName,
   getReactionContent,
-  isMembershipChanged,
-  reactionOrEditEvent,
 } from '../../utils/room';
 import { useSetting } from '../../state/hooks/settings';
 import { MessageLayout, settingsAtom } from '../../state/settings';
-import { useMatrixEventRenderer } from '../../hooks/useMatrixEventRenderer';
+import { EventRendererOpts, useMatrixEventRenderer } from '../../hooks/useMatrixEventRenderer';
 import { PollContent, PollEnd, PollIcon } from '../../components/poll';
 import { isPollStartType, parsePollStart } from '../../utils/poll';
 import { Reactions, Message, Event, EncryptedContent } from './message';
@@ -110,6 +106,12 @@ import { isUserActive } from '../../state/idle';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getResizeObserverEntry, useResizeObserver } from '../../hooks/useResizeObserver';
 import * as css from './RoomTimeline.css';
+import { isEventHidden } from './eventVisibility';
+import {
+  useLiveEventArrive,
+  useLiveTimelineRefresh,
+  useRedactionRerender,
+} from './liveTimelineEvents';
 import { inSameDay, minuteDifference, timeDayMonthYear, today, yesterday } from '../../utils/time';
 import { isEmptyEditor, safeFocusEditor } from '../../components/editor';
 import { roomIdToReplyDraftAtomFamily } from '../../state/room/roomInputDrafts';
@@ -368,46 +370,6 @@ const useTimelinePagination = (
   return [handleTimelinePagination, clearStall] as const;
 };
 
-const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void) => {
-  useEffect(() => {
-    const handleTimelineEvent: EventTimelineSetHandlerMap[RoomEvent.Timeline] = (
-      mEvent,
-      eventRoom,
-      toStartOfTimeline,
-      removed,
-      data
-    ) => {
-      if (eventRoom?.roomId !== room.roomId || !data.liveEvent) return;
-      onArrive(mEvent);
-    };
-    const handleRedaction: RoomEventHandlerMap[RoomEvent.Redaction] = (mEvent, eventRoom) => {
-      if (eventRoom?.roomId !== room.roomId) return;
-      onArrive(mEvent);
-    };
-
-    room.on(RoomEvent.Timeline, handleTimelineEvent);
-    room.on(RoomEvent.Redaction, handleRedaction);
-    return () => {
-      room.removeListener(RoomEvent.Timeline, handleTimelineEvent);
-      room.removeListener(RoomEvent.Redaction, handleRedaction);
-    };
-  }, [room, onArrive]);
-};
-
-const useLiveTimelineRefresh = (room: Room, onRefresh: () => void) => {
-  useEffect(() => {
-    const handleTimelineRefresh: RoomEventHandlerMap[RoomEvent.TimelineRefresh] = (r) => {
-      if (r.roomId !== room.roomId) return;
-      onRefresh();
-    };
-
-    room.on(RoomEvent.TimelineRefresh, handleTimelineRefresh);
-    return () => {
-      room.removeListener(RoomEvent.TimelineRefresh, handleTimelineRefresh);
-    };
-  }, [room, onRefresh]);
-};
-
 const useLocalEchoUpdated = (room: Room, onUpdate: () => void) => {
   useEffect(() => {
     const handleLocalEchoUpdated: RoomEventHandlerMap[RoomEvent.LocalEchoUpdated] = (
@@ -497,6 +459,8 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const atBottomAnchorRef = useRef<HTMLElement>(null);
   const [atBottom, setAtBottom] = useState<boolean>(true);
   const atBottomRef = useRef(true);
+  // the renderer's own visibility decision; set below once the renderers exist
+  const isHiddenEventRef = useRef<(mEvent: MatrixEvent) => boolean>(() => false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollToBottomRef = useRef({
@@ -670,8 +634,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
 
           if (!isUserActive()) trackUnread();
 
-          const rendersNothing =
-            reactionOrEditEvent(mEvt) || mEvt.getType() === EventType.RoomRedaction;
+          const rendersNothing = isHiddenEventRef.current(mEvt);
           if (!rendersNothing) {
             scrollToBottomRef.current.count += 1;
             scrollToBottomRef.current.smooth = true;
@@ -680,8 +643,8 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
           setTimeline((ct) => ({
             ...ct,
             range: {
-              // Events that render nothing (reactions, edits, redactions) only
-              // grow the window; sliding it would drop real messages.
+              // Events the timeline draws nothing for only grow the window;
+              // sliding it would drop a message the reader is looking at.
               start: ct.range.start + (rendersNothing ? 0 : 1),
               end: ct.range.end + 1,
             },
@@ -702,6 +665,11 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       },
       [mx, room, unreadInfo, trackUnread, hideActivity]
     )
+  );
+
+  useRedactionRerender(
+    room,
+    useCallback(() => setTimeline((ct) => ({ ...ct })), [])
   );
 
   useDecryptedRelation(
@@ -1292,9 +1260,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
   const isGroupContinuation = (item: number, mEvent: MatrixEvent): boolean =>
     item > 0 && isSameGroup(getEventAtItem(item - 1), mEvent);
 
-  const renderMatrixEvent = useMatrixEventRenderer<
-    [string, MatrixEvent, number, EventTimelineSet, boolean]
-  >(
+  const typeRenderers: EventRendererOpts<[string, MatrixEvent, number, EventTimelineSet, boolean]> =
     {
       [MessageEvent.RoomMessage]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const reactionRelations = getEventReactions(timelineSet, mEventId);
@@ -1669,10 +1635,6 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       [M_POLL_END.altName]: renderPollEndEvent,
       [M_POLL_END.name]: renderPollEndEvent,
       [StateEvent.RoomMember]: (mEventId, mEvent, item) => {
-        const membershipChanged = isMembershipChanged(mEvent);
-        if (membershipChanged && hideMembershipEvents) return null;
-        if (!membershipChanged && hideNickAvatarEvents) return null;
-
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const parsed = parseMemberEvent(mEvent);
 
@@ -1848,12 +1810,8 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         const senderName = getMemberDisplayName(room, senderId) || getMxIdLocalPart(senderId);
 
         const content = mEvent.getContent();
-        const prevContent = mEvent.getPrevContent();
 
         const callJoined = content.application;
-        if (callJoined && 'application' in prevContent) {
-          return null;
-        }
 
         const timeJSX = (
           <Time
@@ -1893,9 +1851,23 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
           </Event>
         );
       },
-    },
+    };
+  const isHiddenEvent = (mEvent: MatrixEvent) =>
+    isEventHidden(mEvent, {
+      ignoredUsers: ignoredUsersSet,
+      showHiddenEvents,
+      hideMembershipEvents,
+      hideNickAvatarEvents,
+      hasRenderer: (eventType) => eventType in typeRenderers,
+    });
+  useLayoutEffect(() => {
+    isHiddenEventRef.current = isHiddenEvent;
+  });
+  const renderMatrixEvent = useMatrixEventRenderer<
+    [string, MatrixEvent, number, EventTimelineSet, boolean]
+  >(
+    typeRenderers,
     (mEventId, mEvent, item) => {
-      if (!showHiddenEvents) return null;
       const highlighted = focusItem?.index === item && focusItem.highlight;
       const senderId = mEvent.getSender() ?? '';
       const senderName = getMemberDisplayName(room, senderId) || getMxIdLocalPart(senderId);
@@ -1941,11 +1913,6 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       );
     },
     (mEventId, mEvent, item) => {
-      if (!showHiddenEvents) return null;
-      if (Object.keys(mEvent.getContent()).length === 0) return null;
-      if (mEvent.getRelation()) return null;
-      if (mEvent.isRedaction()) return null;
-
       const highlighted = focusItem?.index === item && focusItem.highlight;
       const senderId = mEvent.getSender() ?? '';
       const senderName = getMemberDisplayName(room, senderId) || getMxIdLocalPart(senderId);
@@ -2090,13 +2057,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
           getTimelineEvent(eventTimeline, getTimelineRelativeIndex(item, baseIndex));
         // Match eventRenderer's visibility rules: never copy content the
         // timeline hides (ignored senders, redacted-with-hidden-events).
-        const visible =
-          mEvent &&
-          eventTimeline &&
-          !(mEvent.getSender() && ignoredUsersSet.has(mEvent.getSender() ?? '')) &&
-          !(mEvent.isRedacted() && !showHiddenEvents) &&
-          !reactionOrEditEvent(mEvent);
-        if (visible && mEvent && eventTimeline) {
+        if (mEvent && eventTimeline && !isHiddenEventRef.current(mEvent)) {
           const line = eventToTranscriptLine(
             room,
             mEvent,
@@ -2112,7 +2073,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       evt.clipboardData.setData('text/plain', transcript.join('\n'));
       evt.preventDefault();
     },
-    [room, ignoredUsersSet, showHiddenEvents, hour24Clock]
+    [room, hour24Clock]
   );
 
   let prevEvent: MatrixEvent | undefined;
@@ -2128,13 +2089,8 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
 
     if (!mEvent || !mEventId) return null;
 
+    if (isHiddenEvent(mEvent)) return null;
     const eventSender = mEvent.getSender();
-    if (eventSender && ignoredUsersSet.has(eventSender)) {
-      return null;
-    }
-    if (mEvent.isRedacted() && !showHiddenEvents) {
-      return null;
-    }
 
     if (!newDivider && readUptoEventIdRef.current) {
       newDivider = prevEvent?.getId() === readUptoEventIdRef.current;
@@ -2152,18 +2108,17 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
       prevEvent.getType() === mEvent.getType() &&
       minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
 
-    const renderedEvent =
-      reactionOrEditEvent(mEvent) || isGroupContinuation(item, mEvent)
-        ? null
-        : renderMatrixEvent(
-            mEvent.getType(),
-            typeof mEvent.getStateKey() === 'string',
-            mEventId,
-            mEvent,
-            item,
-            timelineSet,
-            collapsed
-          );
+    const renderedEvent = isGroupContinuation(item, mEvent)
+      ? null
+      : renderMatrixEvent(
+          mEvent.getType(),
+          typeof mEvent.getStateKey() === 'string',
+          mEventId,
+          mEvent,
+          item,
+          timelineSet,
+          collapsed
+        );
     // one event that cannot render must not take the whole app down
     const eventJSX = renderedEvent && (
       <ErrorBoundary
