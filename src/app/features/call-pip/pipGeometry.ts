@@ -93,12 +93,18 @@ export function cornerPosition(
 }
 
 /**
- * The corner a released drag goes to: where the window would be `PIP_FLING_MS` from now at the
- * release velocity (px per ms), by which half of the viewport that is in.
+ * The corner a released drag goes to: where the window's centre would be `PIP_FLING_MS` from now
+ * at the release velocity (px per ms), by which half of the viewport that is in. `position` is
+ * the window's top-left; the centre keeps a wide window in the corner it rests in.
  */
-export function releaseCorner(position: Point, velocity: Point, viewport: Size): PipCorner {
-  const x = position.x + PIP_FLING_MS * velocity.x;
-  const y = position.y + PIP_FLING_MS * velocity.y;
+export function releaseCorner(
+  position: Point,
+  velocity: Point,
+  viewport: Size,
+  size: Size
+): PipCorner {
+  const x = position.x + size.width / 2 + PIP_FLING_MS * velocity.x;
+  const y = position.y + size.height / 2 + PIP_FLING_MS * velocity.y;
   const left = !(x > viewport.width / 2);
   const top = !(y > viewport.height / 2);
   if (top) return left ? 'top-left' : 'top-right';

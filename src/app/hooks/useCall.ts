@@ -93,26 +93,28 @@ export const useSpaceHasCall = (space: Room): boolean => {
   const [hasCall, setHasCall] = useState(false);
 
   useEffect(() => {
-    const childRoomIds = getSpaceChildren(space);
-    const hasLocalCall = () =>
-      childRoomIds.some((roomId) => {
-        const room = mx.getRoom(roomId);
-        if (!room) return false;
-        return mx.matrixRTC.getRoomSession(room).memberships.length > 0;
-      });
-
     // MatrixRTC sessions are built from synced state for every joined room,
     // so no per-room /state download is needed.
-    const check = () => setHasCall(hasLocalCall());
+    const check = () =>
+      setHasCall(
+        getSpaceChildren(space).some((roomId) => {
+          const room = mx.getRoom(roomId);
+          if (!room) return false;
+          return mx.matrixRTC.getRoomSession(room).memberships.length > 0;
+        })
+      );
 
     mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionStarted, check);
     mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionEnded, check);
+    // rooms joining or leaving the space
+    space.on(RoomStateEvent.Events, check);
 
     check();
 
     return () => {
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, check);
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionEnded, check);
+      space.off(RoomStateEvent.Events, check);
     };
   }, [mx, space]);
 

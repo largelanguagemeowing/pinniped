@@ -195,7 +195,7 @@ function PipWindow({ call, media }: PipWindowProps): ReactNode {
       justDragged.current = false;
     }, 0);
     const position = { x: spring.x.get(), y: spring.y.get() };
-    setCorner(releaseCorner(position, dragVelocity(d.samples), viewport));
+    setCorner(releaseCorner(position, dragVelocity(d.samples), viewport, size));
     setDragging(false);
   };
 

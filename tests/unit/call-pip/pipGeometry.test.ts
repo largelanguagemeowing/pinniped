@@ -82,23 +82,34 @@ describe('cornerPosition', () => {
 
 describe('releaseCorner', () => {
   const still = { x: 0, y: 0 };
+  // A point window: the position is then the centre as well
+  const point = { width: 0, height: 0 };
 
   it('picks the corner of the half the window rests in', () => {
-    expect(releaseCorner({ x: 100, y: 100 }, still, viewport)).toBe('top-left');
-    expect(releaseCorner({ x: 1200, y: 100 }, still, viewport)).toBe('top-right');
-    expect(releaseCorner({ x: 100, y: 700 }, still, viewport)).toBe('bottom-left');
-    expect(releaseCorner({ x: 1200, y: 700 }, still, viewport)).toBe('bottom-right');
+    expect(releaseCorner({ x: 100, y: 100 }, still, viewport, point)).toBe('top-left');
+    expect(releaseCorner({ x: 1200, y: 100 }, still, viewport, point)).toBe('top-right');
+    expect(releaseCorner({ x: 100, y: 700 }, still, viewport, point)).toBe('bottom-left');
+    expect(releaseCorner({ x: 1200, y: 700 }, still, viewport, point)).toBe('bottom-right');
   });
 
   it('lets a fling carry the window across the middle', () => {
     // At x=700 (left half) moving right at 2 px/ms reaches 700 + 400 = 1100, the right half.
-    expect(releaseCorner({ x: 700, y: 100 }, { x: 2, y: 0 }, viewport)).toBe('top-right');
-    expect(releaseCorner({ x: 900, y: 100 }, { x: -2, y: 0 }, viewport)).toBe('top-left');
-    expect(releaseCorner({ x: 100, y: 300 }, { x: 0, y: 3 }, viewport)).toBe('bottom-left');
+    expect(releaseCorner({ x: 700, y: 100 }, { x: 2, y: 0 }, viewport, point)).toBe('top-right');
+    expect(releaseCorner({ x: 900, y: 100 }, { x: -2, y: 0 }, viewport, point)).toBe('top-left');
+    expect(releaseCorner({ x: 100, y: 300 }, { x: 0, y: 3 }, viewport, point)).toBe('bottom-left');
+  });
+
+  it('classifies by the window centre, so a wide window dragged in its corner stays there', () => {
+    const wide = { width: 680, height: pipHeight(680) };
+    const wideViewport = { width: 1440, height: 900 };
+    (['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).forEach((corner) => {
+      const rest = cornerPosition(corner, wideViewport, wide);
+      expect(releaseCorner(rest, still, wideViewport, wide)).toBe(corner);
+    });
   });
 
   it('counts exactly the middle as the left and top half', () => {
-    expect(releaseCorner({ x: 800, y: 450 }, still, viewport)).toBe('top-left');
+    expect(releaseCorner({ x: 800, y: 450 }, still, viewport, point)).toBe('top-left');
   });
 });
 

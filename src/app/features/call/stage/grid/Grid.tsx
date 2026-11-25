@@ -437,9 +437,12 @@ export function Grid<
   ): void => {
     if (tap) return;
     const tileController = springRef.current.find((c) => (c.item as Tile<TileModel>).id === tileId);
-    if (tileController === undefined) return;
-    const callback = tiles.get(tileController.item.id)?.onDrag;
-    if (callback == null) return;
+    const callback = tiles.get(tileId)?.onDrag;
+    if (tileController === undefined || callback == null) {
+      // The tile left the layout mid-drag; its gesture still has to end the drag state.
+      if (last && dragState.current?.tileId === tileId) dragState.current = null;
+      return;
+    }
 
     if (dragState.current === null) {
       const tileSpring = tileController.get();

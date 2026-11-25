@@ -60,6 +60,8 @@ export interface CallStatsStream {
 }
 
 export interface CallStatsConnection {
+  /** Service URL of the SFU; identifies the connection, which two can share a host. */
+  url: string;
   /** Hostname of the SFU. */
   host: string;
   /** Signalling round-trip time in ms, falling back to the ICE pair's RTT. */
@@ -230,6 +232,7 @@ export async function sampleConnection(
 
   const signalRtt = room.engine.client.rtt;
   return {
+    url,
     host: new URL(url).hostname,
     rtt: signalRtt > 0 ? signalRtt : pairRtt !== undefined ? Math.round(pairRtt * 1000) : null,
     transport: {

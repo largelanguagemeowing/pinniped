@@ -199,7 +199,7 @@ export function CallStatsDebug({ call, requestClose }: CallStatsDebugProps) {
                   <Text size="T300">{latest ? 'Connected' : 'Connecting'}</Text>
                 </Box>
                 {connections.map((c, conn) => (
-                  <Box key={c.host} direction="Column" gap="100">
+                  <Box key={c.url} direction="Column" gap="100">
                     <Text
                       size="T200"
                       priority="300"
