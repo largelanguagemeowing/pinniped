@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
 import { BlockType } from '../../src/app/components/editor/types';
-import { toMatrixCustomHTML, trimCustomHtml } from '../../src/app/components/editor/output';
+import {
+  toMatrixCustomHTML,
+  toPlainText,
+  trimCustomHtml,
+} from '../../src/app/components/editor/output';
 import { htmlToEditorInput } from '../../src/app/components/editor/input';
 import {
   continueMarkdownList,
@@ -223,5 +227,33 @@ describe('composer', () => {
     });
     expect(pasteMarkdownLink(editor, 'https://example.com')).toBe(true);
     expect(editorText(editor)).toBe('click [here](https://example.com)');
+  });
+});
+
+describe('plain text body', () => {
+  const mention = (id: string, name: string) => ({
+    type: BlockType.Mention as const,
+    id,
+    name,
+    highlight: true,
+    children: [{ text: '' }] as [{ text: '' }],
+  });
+  const body = (id: string, name: string) =>
+    toPlainText(
+      [
+        {
+          type: BlockType.Paragraph,
+          children: [{ text: 'hello ' }, mention(id, name), { text: '!' }],
+        },
+      ],
+      false
+    );
+
+  it('writes the @room ping as @room, not as the room it holds', () => {
+    expect(body('!abc:example.org', '@room')).toBe('hello @room!\n');
+  });
+
+  it('writes a person as their user ID', () => {
+    expect(body('@bob:example.org', 'Bob')).toBe('hello @bob:example.org!\n');
   });
 });

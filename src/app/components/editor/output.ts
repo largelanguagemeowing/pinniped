@@ -2,7 +2,7 @@ import { Descendant, Editor, Text } from 'slate';
 import { MatrixClient } from 'matrix-js-sdk';
 import { sanitizeText } from '../../utils/sanitize';
 import { BlockType } from './types';
-import { CustomElement } from './slate';
+import { CustomElement, MentionElement } from './slate';
 import {
   parseBlockMD,
   parseInlineMD,
@@ -135,6 +135,9 @@ export const toMatrixCustomHTML = (
   return elementToCustomHtml(node, children);
 };
 
+/** The @room pill pings everyone; its element holds the room's ID but is shown as `@room`. */
+const isRoomPing = (node: MentionElement): boolean => node.name === '@room';
+
 const elementToPlainText = (node: CustomElement, children: string): string => {
   switch (node.type) {
     case BlockType.Paragraph:
@@ -156,7 +159,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.UnorderedList:
       return `${children}\n`;
     case BlockType.Mention:
-      return node.id;
+      return isRoomPing(node) ? node.name : node.id;
     case BlockType.Emoticon:
       return isMxcUrl(node.key) ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
@@ -216,7 +219,7 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
     if (node.type === BlockType.CodeBlock) return;
 
     if (node.type === BlockType.Mention) {
-      if (node.name === '@room') {
+      if (isRoomPing(node)) {
         mentionData.room = true;
       }
 
