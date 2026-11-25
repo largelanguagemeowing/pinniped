@@ -20,7 +20,6 @@ export const findAndReplace = <ReplaceReturnType, ConvertReturnType>(
       if (!regex.global) break;
       regex.lastIndex += 1;
       match = regex.exec(text);
-      // eslint-disable-next-line no-continue
       continue;
     }
     result.push(convertPart(text.slice(lastEnd, match.index), result.length));
