@@ -15,6 +15,14 @@ export const findAndReplace = <ReplaceReturnType, ConvertReturnType>(
 
   let match: RegExpExecArray | RegExpMatchArray | null = regex.exec(text);
   while (match !== null && typeof match.index === 'number') {
+    if (match[0].length === 0) {
+      // an empty match never advances lastIndex; skip it instead of looping forever
+      if (!regex.global) break;
+      regex.lastIndex += 1;
+      match = regex.exec(text);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     result.push(convertPart(text.slice(lastEnd, match.index), result.length));
     result.push(replace(match, result.length));
 

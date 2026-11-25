@@ -180,7 +180,11 @@ export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] =>
   );
 
 export const makeHighlightRegex = (highlights: string[]): RegExp | undefined => {
-  const pattern = highlights.map(sanitizeForRegex).join('|');
+  // an empty term would make an alternative that matches everywhere
+  const pattern = highlights
+    .filter((h) => h.length > 0)
+    .map(sanitizeForRegex)
+    .join('|');
   if (!pattern) return undefined;
   return new RegExp(pattern, 'gi');
 };
