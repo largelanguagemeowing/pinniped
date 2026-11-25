@@ -122,7 +122,9 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
   const handleSearchChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const value = evt.currentTarget.value.trim();
     if (isUserId(value)) {
+      // a complete ID needs no suggestions; Tab would complete over it
       setValidUserId(value);
+      resetSearch();
     } else {
       setValidUserId(undefined);
       const term = getMxIdLocalPart(value) ?? (value.startsWith('@') ? value.slice(1) : value);
