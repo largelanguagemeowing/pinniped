@@ -52,6 +52,8 @@ export const parseSidebar = (
     ) {
       const safeContent = item.content.filter(safeToAdd);
       safeContent.forEach((i) => orphans.delete(i));
+      // a folder of spaces we have left has nothing to show
+      if (safeContent.length === 0) return;
       items.push({
         ...item,
         content: Array.from(new Set(safeContent)),
