@@ -30,11 +30,11 @@ export function IdleDetector() {
       const userId = mx.getUserId();
       if (!userId) return;
       if (idle) {
-        if (chosenPresenceRef.current !== 'online') return;
+        if (chosenPresenceRef.current !== 'online' || ownedAway) return;
+        // Stays owned when the send fails: the sync already carries away, so coming back must
+        // still send online.
         ownedAway = true;
-        sendPresence(mx, 'unavailable').catch(() => {
-          ownedAway = false;
-        });
+        sendPresence(mx, 'unavailable').catch(() => undefined);
       } else if (ownedAway) {
         ownedAway = false;
         sendPresence(mx, 'online').catch(() => undefined);
@@ -47,6 +47,7 @@ export function IdleDetector() {
       applyPresence(idle);
     };
 
+    const onActivity = () => setIdle(false);
     const desktopIdle = window.pinnipedDesktop?.getSystemIdleTime;
     if (desktopIdle) {
       const poll = async () => {
@@ -59,9 +60,12 @@ export function IdleDetector() {
       };
       poll();
       const interval = setInterval(poll, DESKTOP_POLL_MS);
+      // The poll alone would leave you away for up to its period after you come back.
+      ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
       return () => {
         disposed = true;
         clearInterval(interval);
+        ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, onActivity));
         setUserIdle(false);
         applyPresence(false);
       };
@@ -72,16 +76,16 @@ export function IdleDetector() {
       clearTimeout(timer);
       timer = setTimeout(() => setIdle(true), IDLE_AFTER_MS);
     };
-    const onActivity = () => {
-      setIdle(false);
+    const onWindowActivity = () => {
+      onActivity();
       arm();
     };
-    ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, onWindowActivity, { passive: true }));
     arm();
     return () => {
       disposed = true;
       clearTimeout(timer);
-      ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, onActivity));
+      ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, onWindowActivity));
       setUserIdle(false);
       applyPresence(false);
     };

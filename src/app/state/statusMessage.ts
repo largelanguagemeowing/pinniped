@@ -59,9 +59,9 @@ export const sendPresence = async (
 };
 
 /**
- * Stores the status message and sends it with the presence this device chose. Not the one the
- * server reports: that is the most present device's, and a moment of offline (other devices
- * timing out) would otherwise make this one invisible for good.
+ * Stores the status message and sends it with the presence this device chose, instead of the one
+ * the server reports: that is the most present device's, and a moment of offline (other devices
+ * timing out) would make this one invisible for good.
  */
 export const saveStatusMessage = async (mx: MatrixClient, status: string) => {
   await mx.setAccountData(AccountDataEvent.PinnipedStatusMessage, { status });

@@ -165,6 +165,41 @@ describe('idling', () => {
     }
   });
 
+  describe('in the desktop app', () => {
+    let idleSeconds: number;
+    beforeEach(() => {
+      idleSeconds = IDLE_AFTER_MS / 1000;
+      (window as any).pinnipedDesktop.getSystemIdleTime = async () => idleSeconds;
+    });
+
+    it('sends away once per idle stretch, however often the idle time is read', async () => {
+      await mount(<IdleDetector />);
+      await advance(60_000);
+      expect(state.mx.setPresence).toHaveBeenCalledTimes(1);
+    });
+
+    it('ends away at the first input instead of at the next idle-time read', async () => {
+      await mount(<IdleDetector />);
+      await advance(1000);
+      state.mx.setPresence.mockClear();
+      await act(async () => window.dispatchEvent(new Event('keydown')));
+      expect(state.mx.setPresence).toHaveBeenCalledWith(
+        expect.objectContaining({ presence: 'online' })
+      );
+    });
+
+    it('still sends online on return when sending away failed', async () => {
+      state.mx.setPresence.mockRejectedValueOnce(new Error('offline'));
+      await mount(<IdleDetector />);
+      await advance(1000);
+      state.mx.setPresence.mockClear();
+      await act(async () => window.dispatchEvent(new Event('keydown')));
+      expect(state.mx.setPresence).toHaveBeenCalledWith(
+        expect.objectContaining({ presence: 'online' })
+      );
+    });
+  });
+
   it('shows someone who chose online as away', async () => {
     await mount(<IdleDetector />);
     await advance(IDLE_AFTER_MS);
