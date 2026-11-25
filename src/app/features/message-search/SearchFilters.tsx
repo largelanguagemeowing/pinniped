@@ -39,6 +39,7 @@ import {
 import { DebounceOptions, useDebounce } from '../../hooks/useDebounce';
 import { useRankOrderTruncated } from './useMessageSearch';
 import { VirtualTile } from '../../components/virtualizer';
+import { useScrollMargin } from '../../hooks/useScrollMargin';
 import { stopPropagation } from '../../utils/keyboard';
 
 type OrderButtonProps = {
@@ -156,8 +157,11 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
   );
   const rooms = Array.from(searchResult?.items ?? roomList).sort(factoryRoomIdByAtoZ(mx));
 
+  const [roomListElement, setRoomList] = useState<HTMLDivElement | null>(null);
+  const scrollMargin = useScrollMargin(scrollRef, roomListElement);
   const virtualizer = useVirtualizer({
     count: rooms.length,
+    scrollMargin,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 32,
     overscan: 5,
@@ -258,6 +262,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                     </Text>
                   )}
                   <div
+                    ref={setRoomList}
                     style={{
                       position: 'relative',
                       height: virtualizer.getTotalSize(),
@@ -272,6 +277,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                       return (
                         <VirtualTile
                           virtualItem={vItem}
+                          scrollMargin={scrollMargin}
                           style={{ paddingBottom: config.space.S100 }}
                           ref={virtualizer.measureElement}
                           key={vItem.index}

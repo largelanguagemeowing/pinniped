@@ -128,7 +128,8 @@ export function SearchResultGroup({
         return (
           <RenderMessageContent
             displayName={displayName}
-            msgType={event.content.msgtype ?? ''}
+            // an edit hit shows the replaced content, so the type comes from that
+            msgType={getContent<{ msgtype?: string }>().msgtype ?? ''}
             ts={event.origin_server_ts}
             getContent={getContent}
             mediaAutoLoad={mediaAutoLoad}

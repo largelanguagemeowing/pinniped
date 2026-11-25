@@ -1,4 +1,4 @@
-import React, { RefObject, useEffect, useMemo, useRef } from 'react';
+import React, { RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, Box, Icon, Icons, config, Spinner, IconButton, Line, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -14,7 +14,8 @@ import { SequenceCard } from '../../components/sequence-card';
 import { useRoomNavigate } from '../../hooks/useRoomNavigate';
 import { ScrollTopContainer } from '../../components/scroll-top-container';
 import { decodeSearchParamValueArray, encodeSearchParamValueArray } from '../../pages/pathUtils';
-import { useRooms } from '../../state/hooks/roomList';
+import { useScrollMargin } from '../../hooks/useScrollMargin';
+import { useDirects, useRooms } from '../../state/hooks/roomList';
 import { allRoomsAtom } from '../../state/room-list/roomList';
 import { mDirectAtom } from '../../state/mDirectList';
 import { MessageSearchParams, useMessageSearch } from './useMessageSearch';
@@ -59,7 +60,10 @@ export function MessageSearch({
 }: MessageSearchProps) {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
-  const allRooms = useRooms(mx, allRoomsAtom, mDirects);
+  const joinedRooms = useRooms(mx, allRoomsAtom, mDirects);
+  const joinedDirects = useDirects(mx, allRoomsAtom, mDirects);
+  // the server searches every joined room, direct messages included
+  const allRooms = useMemo(() => [...joinedRooms, ...joinedDirects], [joinedRooms, joinedDirects]);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const urlPreviewFor = useUrlPreviewSetting();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -78,7 +82,8 @@ export function MessageSearch({
       const joinedRoomIds = decodeSearchParamValueArray(searchPathSearchParams.rooms).filter(
         (rId) => allRooms.includes(rId)
       );
-      return joinedRoomIds;
+      // none left joined: the default scope instead of a search of no rooms
+      return joinedRoomIds.length > 0 ? joinedRoomIds : undefined;
     }
     return undefined;
   }, [allRooms, searchPathSearchParams.rooms]);
@@ -132,8 +137,11 @@ export function MessageSearch({
   const allRoomsEncrypted =
     searchedRooms.length > 0 && encryptedRooms.length === searchedRooms.length;
 
+  const [resultList, setResultList] = useState<HTMLDivElement | null>(null);
+  const scrollMargin = useScrollMargin(scrollRef, resultList);
   const virtualizer = useVirtualizer({
     count: groups.length,
+    scrollMargin,
     getScrollElement: () => scrollRef.current,
     // result groups render as full message cards; a low estimate makes the
     // virtualizer believe every group is on screen and fetch every page at once
@@ -316,6 +324,7 @@ export function MessageSearch({
             <Line size="300" variant="Surface" />
           </Box>
           <div
+            ref={setResultList}
             style={{
               position: 'relative',
               height: virtualizer.getTotalSize(),
@@ -330,6 +339,7 @@ export function MessageSearch({
               return (
                 <VirtualTile
                   virtualItem={vItem}
+                  scrollMargin={scrollMargin}
                   style={{ paddingBottom: config.space.S500 }}
                   ref={virtualizer.measureElement}
                   key={group.key}

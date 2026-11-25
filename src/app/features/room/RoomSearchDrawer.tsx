@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Chip, Icon, IconButton, Icons, Scroll, Spinner, Text, config } from 'folds';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -45,6 +45,7 @@ import {
 import { StateEvent } from '../../../types/matrix/room';
 import { SearchResultGroup } from '../message-search/SearchResultGroup';
 import { VirtualTile } from '../../components/virtualizer';
+import { useScrollMargin } from '../../hooks/useScrollMargin';
 import { ScrollTopContainer } from '../../components/scroll-top-container';
 import {
   roomSearchTermAtom,
@@ -160,19 +161,22 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
   const { text: term, rooms = [] } = search;
   const problems = searchProblems(search);
   const ready = problems.length === 0;
-  const resultFilter = useMemo(
-    () =>
-      search.needsClientFilter
-        ? makeResultFilter(search, (roomId) => {
-            const pinned = mx
-              .getRoom(roomId)
-              ?.currentState.getStateEvents(StateEvent.RoomPinnedEvents, '')
-              ?.getContent<RoomPinnedEventsEventContent>().pinned;
-            return new Set(pinned ?? []);
-          })
-        : undefined,
-    [mx, search]
+  const getPinned = useCallback(
+    (roomId: string): Set<string> => {
+      const pinned = mx
+        .getRoom(roomId)
+        ?.currentState.getStateEvents(StateEvent.RoomPinnedEvents, '')
+        ?.getContent<RoomPinnedEventsEventContent>().pinned;
+      return new Set(pinned ?? []);
+    },
+    [mx]
   );
+  const resultFilter = useMemo(
+    () => (search.needsClientFilter ? makeResultFilter(search, getPinned) : undefined),
+    [search, getPinned]
+  );
+  // what the filter reads, so a cached answer is not reused once it has changed
+  const pinnedInRooms = search.pinned ? rooms.map((roomId) => [...getPinned(roomId)]) : undefined;
   const emptyTerm = !term;
   // ranking nothing is meaningless, and the server lists by recency in that case
   const effectiveOrder = emptyTerm && order === 'rank' ? 'recent' : order;
@@ -203,7 +207,7 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
 
   const { status, data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     enabled: ready,
-    queryKey: ['room-sidebar-search', query, effectiveOrder, rooms],
+    queryKey: ['room-sidebar-search', search, effectiveOrder, pinnedInRooms],
     queryFn: ({ pageParam, signal }) => searchMessages(pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextToken,
@@ -217,8 +221,11 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
   // every page reports the same server-side total
   const totalCount = data?.pages[0]?.count;
 
+  const [resultList, setResultList] = useState<HTMLDivElement | null>(null);
+  const scrollMargin = useScrollMargin(scrollRef, resultList);
   const virtualizer = useVirtualizer({
     count: groups.length,
+    scrollMargin,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 200,
     overscan: 1,
@@ -342,6 +349,7 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
 
           <Box direction="Column" gap="400">
             <div
+              ref={setResultList}
               style={{
                 position: 'relative',
                 height: virtualizer.getTotalSize(),
@@ -356,6 +364,7 @@ function SearchResults({ query, search, order, onOpen }: SearchResultsProps) {
                 return (
                   <VirtualTile
                     virtualItem={vItem}
+                    scrollMargin={scrollMargin}
                     style={{ paddingBottom: config.space.S400 }}
                     key={group.key}
                     ref={virtualizer.measureElement}
