@@ -70,7 +70,7 @@ import {
   AttachmentGrid,
 } from '../../components/message';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { getAttachmentGroupId } from '../../utils/attachments';
+import { getAttachmentGroup } from '../../utils/attachments';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,
@@ -1239,26 +1239,13 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     if (!eventTimeline) return undefined;
     return getTimelineEvent(eventTimeline, getTimelineRelativeIndex(item, baseIndex));
   };
-  const isSameGroup = (a: MatrixEvent | undefined, b: MatrixEvent | undefined): boolean => {
-    if (!a || !b) return false;
-    const groupId = getAttachmentGroupId(a.getContent());
-    return (
-      groupId !== undefined &&
-      groupId === getAttachmentGroupId(b.getContent()) &&
-      a.getSender() === b.getSender()
-    );
-  };
-  const getAttachmentGroup = (item: number, mEvent: MatrixEvent): MatrixEvent[] => {
-    const members = [mEvent];
-    let next = getEventAtItem(item + 1);
-    while (next && isSameGroup(members[members.length - 1], next)) {
-      members.push(next);
-      next = getEventAtItem(item + members.length);
-    }
-    return members;
-  };
+  const isDrawnEvent = (mEvent: MatrixEvent): boolean =>
+    !mEvent.isRedacted() && !isHiddenEvent(mEvent);
+  const getGroupOf = (item: number, mEvent: MatrixEvent): MatrixEvent[] =>
+    getAttachmentGroup(mEvent, (offset) => getEventAtItem(item + offset), isDrawnEvent);
+  // only the first file of a group draws; it hosts the grid of them all
   const isGroupContinuation = (item: number, mEvent: MatrixEvent): boolean =>
-    item > 0 && isSameGroup(getEventAtItem(item - 1), mEvent);
+    getGroupOf(item, mEvent)[0] !== mEvent;
 
   const typeRenderers: EventRendererOpts<[string, MatrixEvent, number, EventTimelineSet, boolean]> =
     {
@@ -1276,9 +1263,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         const senderId = mEvent.getSender() ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId) ?? getMxIdLocalPart(senderId) ?? senderId;
-        const attachmentGroup = getAttachmentGroupId(mEvent.getContent())
-          ? getAttachmentGroup(item, mEvent)
-          : [mEvent];
+        const attachmentGroup = getGroupOf(item, mEvent);
         // The attachment group's caption is the first file's body when it differs from the
         // filename. It renders as a normal text message, above the grid.
         const groupCaptionContent = (() => {
