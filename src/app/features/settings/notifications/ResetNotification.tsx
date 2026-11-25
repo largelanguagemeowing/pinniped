@@ -179,6 +179,11 @@ function ResetPrompt({
     useCallback(() => run(mx), [mx, run])
   );
 
+  const handleReset = () => {
+    // the failure is shown from resetState
+    reset().catch(() => undefined);
+  };
+
   useEffect(() => {
     if (resetState.status === AsyncStatus.Success) {
       onDone();
@@ -224,13 +229,13 @@ function ResetPrompt({
               <Button
                 type="submit"
                 variant="Critical"
-                onClick={reset}
+                onClick={handleReset}
                 before={
                   resetState.status === AsyncStatus.Loading ? (
                     <Spinner fill="Solid" variant="Critical" size="200" />
                   ) : undefined
                 }
-                aria-disabled={
+                disabled={
                   resetState.status === AsyncStatus.Loading ||
                   resetState.status === AsyncStatus.Success
                 }
