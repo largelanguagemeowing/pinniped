@@ -270,7 +270,7 @@ export const useVirtualPaginator = <TScrollElement extends HTMLElement>(
       // find target or it's previous rendered element to scroll to
       const targetItems = generateItems({ start: currentRange.start, end: index + 1 });
       const targetItem = targetItems.reverse().find((i) => getItemElement(i) !== undefined);
-      const itemElement = targetItem && getItemElement(targetItem);
+      const itemElement = targetItem === undefined ? undefined : getItemElement(targetItem);
 
       if (!itemElement) {
         const scrollElement = getScrollElement();
