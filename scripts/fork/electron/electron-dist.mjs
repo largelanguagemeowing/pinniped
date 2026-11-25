@@ -13,11 +13,20 @@ Please see LICENSE in the repository root for full details.
 // download then runs).
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('../../..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../../..', import.meta.url));
 const { devDependencies } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const version = devDependencies.electron;
 const archiveName = `electron-v${version}-linux-x64.zip`;
@@ -41,10 +50,12 @@ const archive = findArchive(cacheRoot);
 if (!archive) process.exit(0);
 
 const target = join(homedir(), '.cache', 'electron-unpacked', version);
-if (!existsSync(join(target, 'electron'))) {
-  // Unpack beside the target and rename, so an interrupted unpack never looks complete.
-  const staging = `${target}.partial`;
-  rmSync(staging, { recursive: true, force: true });
+const unpacked = () => existsSync(join(target, 'electron'));
+if (!unpacked()) {
+  // Unpack beside the target and rename, so an interrupted unpack never looks complete. The
+  // staging directory is unique, so builds running at the same time do not clobber each other.
+  mkdirSync(dirname(target), { recursive: true });
+  const staging = mkdtempSync(`${target}.partial-`);
   const result = spawnSync('unzip', ['-q', archive, '-d', staging], {
     stdio: ['ignore', 'ignore', 'inherit'],
   });
@@ -52,8 +63,18 @@ if (!existsSync(join(target, 'electron'))) {
     rmSync(staging, { recursive: true, force: true });
     process.exit(0);
   }
-  rmSync(target, { recursive: true, force: true });
-  renameSync(staging, target);
+  try {
+    renameSync(staging, target);
+  } catch {
+    if (unpacked()) {
+      // Another build moved its unpack into place first.
+      rmSync(staging, { recursive: true, force: true });
+    } else {
+      // A target without electron is what an interrupted older run left behind.
+      rmSync(target, { recursive: true, force: true });
+      renameSync(staging, target);
+    }
+  }
 }
 
 process.stdout.write(`-c.electronDist=${target}`);

@@ -123,6 +123,7 @@
     "electron": "45.5.0",
     "electron-builder": "26.18.0",
     "electron-updater": "6.8.11",
+    "esbuild": "0.28.2",
     "eslint": "9.39.5",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react": "7.37.5",
