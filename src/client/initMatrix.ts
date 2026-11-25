@@ -199,6 +199,25 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
   window.location.reload();
 };
 
+const CLEAR_STORES_TIMEOUT_MS = 5000;
+
+/**
+ * Clears the client's stores. That never settles while another tab holds a database open, and
+ * what follows (clearing the saved session, reloading) must not wait for it.
+ */
+export const clearStoresUnlessBlocked = async (mx: MatrixClient | undefined): Promise<void> => {
+  try {
+    await Promise.race([
+      mx?.clearStores(),
+      new Promise((resolve) => {
+        setTimeout(resolve, CLEAR_STORES_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    // the session is gone either way; local data is cleared by the caller
+  }
+};
+
 export const logoutClient = async (mx: MatrixClient) => {
   pushSessionToSW();
   mx.stopClient();
@@ -209,7 +228,7 @@ export const logoutClient = async (mx: MatrixClient) => {
   } catch {
     // ignore if failed to logout
   }
-  await mx.clearStores();
+  await clearStoresUnlessBlocked(mx);
   await signedOut;
   window.localStorage.clear();
   window.location.reload();

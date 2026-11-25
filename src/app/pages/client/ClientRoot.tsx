@@ -19,6 +19,7 @@ import React, { MouseEventHandler, ReactNode, useCallback, useEffect, useState }
 import {
   clearCacheAndReload,
   clearLoginData,
+  clearStoresUnlessBlocked,
   initClient,
   logoutClient,
   startClient,
@@ -130,8 +131,6 @@ function ClientRootOptions({ mx }: { mx?: MatrixClient }) {
   );
 }
 
-const CLEAR_STORES_TIMEOUT_MS = 5000;
-
 // Returns the soft logout the server sent, if any; that session is kept so a new
 // login on the same device keeps its encryption keys. Any other end wipes local data.
 const useLogoutListener = (mx?: MatrixClient): SessionEnd | undefined => {
@@ -146,17 +145,7 @@ const useLogoutListener = (mx?: MatrixClient): SessionEnd | undefined => {
         return;
       }
       rememberLogoutReason(end.reason);
-      try {
-        // clearStores never settles while another tab holds the database open
-        await Promise.race([
-          mx?.clearStores(),
-          new Promise((resolve) => {
-            setTimeout(resolve, CLEAR_STORES_TIMEOUT_MS);
-          }),
-        ]);
-      } catch {
-        // the session is gone either way; local data is cleared below
-      }
+      await clearStoresUnlessBlocked(mx);
       window.localStorage.clear();
       window.location.reload();
     };
