@@ -10,14 +10,9 @@ import {
   StrikeRule,
   UnderlineRule,
 } from './rules';
-import {
-  InlineMDRange,
-  findInlineRule,
-  runInlineRule,
-  runInlineRules,
-  tokenizeInline,
-} from './runner';
+import { InlineMDRange, findInlineRule, tokenizeInline } from './runner';
 import { InlineMDParser } from './type';
+import { afterMatch, beforeMatch } from '../internal';
 
 const LeveledRules = [
   BoldRule,
@@ -31,20 +26,34 @@ const LeveledRules = [
   EscapeRule,
 ];
 
+// a code span wins over every other rule wherever it is; the others compete by position
+const findRule = (text: string): ReturnType<typeof findInlineRule> => {
+  const codeMatch = CodeRule.match(text);
+  if (codeMatch) return [CodeRule, codeMatch];
+  return findInlineRule(text, LeveledRules);
+};
+
 /**
  * Parses inline markdown text into HTML using defined rules.
+ *
+ * The text after a match is parsed by the loop instead of by a call, so a long text nests calls
+ * only as deep as its markup does.
  *
  * @param text - The markdown text to be parsed.
  * @returns The parsed HTML or the original text if no markdown was found.
  */
 export const parseInlineMD: InlineMDParser = (text) => {
-  if (text === '') return text;
-  let result: string | undefined;
-  if (!result) result = runInlineRule(text, CodeRule, parseInlineMD);
+  let html = '';
+  let rest = text;
+  while (rest !== '') {
+    const found = findRule(rest);
+    if (!found) return html + rest;
 
-  if (!result) result = runInlineRules(text, LeveledRules, parseInlineMD);
-
-  return result ?? text;
+    const [rule, match] = found;
+    html += parseInlineMD(beforeMatch(rest, match)) + rule.html(parseInlineMD, match);
+    rest = afterMatch(rest, match);
+  }
+  return html;
 };
 
 /**
@@ -56,14 +65,6 @@ export const parseInlineMD: InlineMDParser = (text) => {
  * @returns The ranges found in the text.
  */
 export const tokenizeInlineMD = (text: string, offset = 0): InlineMDRange[] =>
-  tokenizeInline(
-    text,
-    (t) => {
-      const codeMatch = CodeRule.match(t);
-      if (codeMatch) return [CodeRule, codeMatch];
-      return findInlineRule(t, LeveledRules);
-    },
-    offset
-  );
+  tokenizeInline(text, findRule, offset);
 
 export type { InlineMDRange };

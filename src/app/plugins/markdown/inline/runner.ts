@@ -1,5 +1,5 @@
-import { MatchResult, replaceMatch } from '../internal';
-import { InlineMDMark, InlineMDParser, InlineMDRule } from './type';
+import { MatchResult } from '../internal';
+import { InlineMDMark, InlineMDRule } from './type';
 
 /**
  * Finds the rule that matches earliest in the text.
@@ -34,49 +34,6 @@ export const findInlineRule = (
 };
 
 /**
- * Runs a single markdown rule on the provided text.
- *
- * @param text - The text to parse.
- * @param rule - The markdown rule to run.
- * @param parse - A function that run the parser on remaining parts.
- * @returns The text with the markdown rule applied or `undefined` if no match is found.
- */
-export const runInlineRule = (
-  text: string,
-  rule: InlineMDRule,
-  parse: InlineMDParser
-): string | undefined => {
-  const matchResult = rule.match(text);
-  if (matchResult) {
-    const content = rule.html(parse, matchResult);
-    return replaceMatch(text, matchResult, content, (txt) => [parse(txt)]).join('');
-  }
-  return undefined;
-};
-
-/**
- * Runs multiple rules at the same time to better handle nested rules.
- * Rules will be run in the order they appear.
- *
- * @param text - The text to parse.
- * @param rules - The markdown rules to run.
- * @param parse - A function that run the parser on remaining parts.
- * @returns The text with the markdown rules applied or `undefined` if no match is found.
- */
-export const runInlineRules = (
-  text: string,
-  rules: InlineMDRule[],
-  parse: InlineMDParser
-): string | undefined => {
-  const found = findInlineRule(text, rules);
-  if (!found) return undefined;
-
-  const [targetRule, targetResult] = found;
-  const content = targetRule.html(parse, targetResult);
-  return replaceMatch(text, targetResult, content, (txt) => [parse(txt)]).join('');
-};
-
-/**
  * A formatted or syntax range inside a text, relative to the start of the text.
  */
 export type InlineMDRange = {
@@ -103,29 +60,41 @@ export const tokenizeInline = (
   find: InlineRuleFinder,
   offset = 0
 ): InlineMDRange[] => {
-  if (text === '') return [];
-  const found = find(text);
-  if (!found) return [];
+  const ranges: InlineMDRange[] = [];
+  // the text after a match is the next turn of the loop, not a nested call
+  let rest = text;
+  let restOffset = offset;
+  while (rest !== '') {
+    const found = find(rest);
+    if (!found) break;
 
-  const [rule, match] = found;
-  const { token } = rule;
-  const index = match.index ?? 0;
-  const end = index + match[0].length;
-  const open = typeof token.open === 'number' ? token.open : token.open(match);
-  const close = typeof token.close === 'number' ? token.close : token.close(match);
+    const [rule, match] = found;
+    const { token } = rule;
+    const index = match.index ?? 0;
+    const end = index + match[0].length;
+    const open = typeof token.open === 'number' ? token.open : token.open(match);
+    const close = typeof token.close === 'number' ? token.close : token.close(match);
 
-  const ranges: InlineMDRange[] = [
-    ...tokenizeInline(text.slice(0, index), find, offset),
-    { mark: token.mark, start: offset + index, end: offset + end },
-  ];
-  if (open > 0) ranges.push({ mark: 'syntax', start: offset + index, end: offset + index + open });
-  if (close > 0) ranges.push({ mark: 'syntax', start: offset + end - close, end: offset + end });
-  if (!token.raw) {
-    ranges.push(
-      ...tokenizeInline(text.slice(index + open, end - close), find, offset + index + open)
-    );
+    ranges.push(...tokenizeInline(rest.slice(0, index), find, restOffset), {
+      mark: token.mark,
+      start: restOffset + index,
+      end: restOffset + end,
+    });
+    if (open > 0) {
+      ranges.push({ mark: 'syntax', start: restOffset + index, end: restOffset + index + open });
+    }
+    if (close > 0) {
+      ranges.push({ mark: 'syntax', start: restOffset + end - close, end: restOffset + end });
+    }
+    if (!token.raw) {
+      tokenizeInline(
+        rest.slice(index + open, end - close),
+        find,
+        restOffset + index + open
+      ).forEach((range) => ranges.push(range));
+    }
+    rest = rest.slice(end);
+    restOffset += end;
   }
-  ranges.push(...tokenizeInline(text.slice(end), find, offset + end));
-
   return ranges;
 };

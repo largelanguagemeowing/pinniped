@@ -1,8 +1,7 @@
 import { findAndReplace } from '../../utils/findAndReplace';
 import { ESC_BLOCK_SEQ, UN_ESC_BLOCK_SEQ } from './block/rules';
 import { EscapeRule, CAP_INLINE_SEQ } from './inline/rules';
-import { runInlineRule } from './inline/runner';
-import { replaceMatch } from './internal';
+import { afterMatch, beforeMatch, replaceMatch } from './internal';
 
 /**
  * Removes escape sequences from markdown inline elements in the given plain-text.
@@ -12,11 +11,19 @@ import { replaceMatch } from './internal';
  * @param text - The input markdown plain-text containing escape characters (e.g., `"some \*italic\*"`)
  * @returns The plain-text with markdown escape sequences removed (e.g., `"some *italic*"`)
  */
-export const unescapeMarkdownInlineSequences = (text: string): string =>
-  runInlineRule(text, EscapeRule, (t) => {
-    if (t === '') return t;
-    return unescapeMarkdownInlineSequences(t);
-  }) ?? text;
+export const unescapeMarkdownInlineSequences = (text: string): string => {
+  let unescaped = '';
+  // the text after an escape is the next turn of the loop, not a nested call
+  let rest = text;
+  while (rest !== '') {
+    const match = EscapeRule.match(rest);
+    if (!match) return unescaped + rest;
+    unescaped +=
+      unescapeMarkdownInlineSequences(beforeMatch(rest, match)) + EscapeRule.html((t) => t, match);
+    rest = afterMatch(rest, match);
+  }
+  return unescaped;
+};
 
 /**
  * Recovers the markdown escape sequences in the given plain-text.
