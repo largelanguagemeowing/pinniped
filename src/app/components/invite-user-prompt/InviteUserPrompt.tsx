@@ -226,7 +226,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                             <Scroll size="300" style={{ maxHeight: toRem(100) }}>
                               <div style={{ padding: config.space.S100 }}>
                                 {result.items.map((userId) => {
-                                  const username = `${getMxIdLocalPart(userId)}`;
+                                  const username = getUserIdString(userId);
                                   const userServer = getMxIdServer(userId);
 
                                   return (
@@ -248,9 +248,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                                         <Text size="T300" truncate>
                                           <b>
                                             {queryHighlighRegex
-                                              ? highlightText(queryHighlighRegex, [
-                                                  username ?? userId,
-                                                ])
+                                              ? highlightText(queryHighlighRegex, [username])
                                               : username}
                                           </b>
                                         </Text>
