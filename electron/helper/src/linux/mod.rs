@@ -132,19 +132,21 @@ impl Helper {
             .shortcuts
             .as_ref()
             .ok_or("the GlobalShortcuts portal is not available")?;
-        if self.session.is_none() {
-            self.session = Some(portal.create_session(Default::default()).await?);
+        // A portal session takes one BindShortcuts (GNOME refuses a second), so every call
+        // replaces the whole list on a session of its own and the previous one closes.
+        if let Some(previous) = self.session.take() {
+            previous.close().await?;
         }
-        let session = self.session.as_ref().expect("session was just created");
+        let session = portal.create_session(Default::default()).await?;
         let new: Vec<NewShortcut> = specs
             .into_iter()
             .map(|s| NewShortcut::new(s.id, s.description).preferred_trigger(s.trigger.as_deref()))
             .collect();
-        // BindShortcuts replaces the whole list, so every call sends all shortcuts.
         portal
-            .bind_shortcuts(session, &new, None, BindShortcutsOptions::default())
+            .bind_shortcuts(&session, &new, None, BindShortcutsOptions::default())
             .await?
             .response()?;
+        self.session = Some(session);
         Ok(())
     }
 
@@ -287,5 +289,48 @@ pub async fn main() {
     if let Err(err) = run().await {
         eprintln!("pinniped-helper: {err}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spec(trigger: &str) -> Vec<ShortcutSpec> {
+        vec![ShortcutSpec {
+            id: "mute".into(),
+            description: "Mute".into(),
+            trigger: Some(trigger.into()),
+        }]
+    }
+
+    /// Run with `cargo test -- --ignored`; the desktop may ask to allow the shortcuts.
+    #[tokio::test(flavor = "current_thread")]
+    #[ignore = "needs a desktop session with the GlobalShortcuts portal"]
+    async fn shortcuts_can_be_rebound() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let app_id = ashpd::AppID::try_from(APP_ID).unwrap();
+        ashpd::register_host_app_with_connection(conn.clone(), app_id)
+            .await
+            .unwrap();
+        let mut helper = Helper {
+            shortcuts: Some(
+                GlobalShortcuts::with_connection(conn.clone())
+                    .await
+                    .unwrap(),
+            ),
+            conn,
+            session: None,
+            screenshare: Default::default(),
+        };
+        helper
+            .shortcuts_command(spec("CTRL+SHIFT+M"))
+            .await
+            .unwrap();
+        // GNOME refuses a second BindShortcuts on one session
+        helper
+            .shortcuts_command(spec("CTRL+SHIFT+N"))
+            .await
+            .unwrap();
     }
 }
