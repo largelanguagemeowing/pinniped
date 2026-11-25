@@ -56,6 +56,20 @@ describe('matrixKeyProvider', () => {
     );
   });
 
+  test('stops listening to the session and the client once disposed', () => {
+    const keyProvider = new MatrixKeyProvider();
+    const session = mockRTCSession();
+    keyProvider.setRTCSession(session);
+
+    keyProvider.dispose();
+
+    expect(session.off).toHaveBeenCalledWith(
+      MatrixRTCSessionEvent.EncryptionKeyChanged,
+      expect.any(Function)
+    );
+    expect(session.room.client.off).toHaveBeenCalledTimes(1);
+  });
+
   test('logs key messages only for the current session', () => {
     const keyProvider = new MatrixKeyProvider();
     const session1 = mockRTCSession();

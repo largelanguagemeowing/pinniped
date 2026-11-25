@@ -21,12 +21,9 @@ export class MatrixKeyProvider extends BaseKeyProvider {
   }
 
   public setRTCSession(rtcSession: MatrixRTCSession): void {
-    if (this.rtcSession) {
-      this.rtcSession.off(MatrixRTCSessionEvent.EncryptionKeyChanged, this.onEncryptionKeyChanged);
-    }
+    this.stopListening();
 
     this.rtcSession = rtcSession;
-    this.stopKeyMessageLog?.();
     this.stopKeyMessageLog = watchKeyMessages(rtcSession);
 
     this.rtcSession.on(MatrixRTCSessionEvent.EncryptionKeyChanged, this.onEncryptionKeyChanged);
@@ -34,6 +31,21 @@ export class MatrixKeyProvider extends BaseKeyProvider {
     // The new session could be aware of keys of which the old session wasn't,
     // so emit key changed events
     this.rtcSession.reemitEncryptionKeys();
+  }
+
+  /**
+   * Stops listening to the session and the client. The room keeps one session for every call
+   * in it, so listeners left behind would feed keys to this provider in the calls that follow.
+   */
+  public dispose(): void {
+    this.stopListening();
+    this.rtcSession = undefined;
+  }
+
+  private stopListening(): void {
+    this.rtcSession?.off(MatrixRTCSessionEvent.EncryptionKeyChanged, this.onEncryptionKeyChanged);
+    this.stopKeyMessageLog?.();
+    this.stopKeyMessageLog = undefined;
   }
 
   private onEncryptionKeyChanged = (

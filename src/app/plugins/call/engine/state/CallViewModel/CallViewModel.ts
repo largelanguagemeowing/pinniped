@@ -433,7 +433,7 @@ export function createCallViewModel$(
   if (!(userId && deviceId))
     throw new UnknownCallError(new Error('userId and deviceId are required'));
 
-  const livekitKeyProvider = getE2eeKeyProvider(options.encryptionSystem, matrixRTCSession);
+  const livekitKeyProvider = getE2eeKeyProvider(scope, options.encryptionSystem, matrixRTCSession);
   const matrixRTCMode$ = options.matrixRTCMode$ ?? constant(MatrixRTCMode.Legacy);
 
   // Each hbar seperates a block of input variables required for the CallViewModel to function.
@@ -1698,6 +1698,7 @@ export function createCallViewModel$(
 }
 
 function getE2eeKeyProvider(
+  scope: ObservableScope,
   e2eeSystem: EncryptionSystem,
   rtcSession: MatrixRTCSession
 ): BaseKeyProvider | undefined {
@@ -1705,5 +1706,6 @@ function getE2eeKeyProvider(
 
   const keyProvider = new MatrixKeyProvider();
   keyProvider.setRTCSession(rtcSession);
+  scope.onEnd(() => keyProvider.dispose());
   return keyProvider;
 }
