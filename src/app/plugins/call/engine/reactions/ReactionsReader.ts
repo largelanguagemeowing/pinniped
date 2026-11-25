@@ -5,11 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import {
-  type CallMembership,
-  MatrixRTCSessionEvent,
-  type MatrixRTCSession,
-} from 'matrix-js-sdk/lib/matrixrtc';
+import { MatrixRTCSessionEvent, type MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc';
 import { logger } from 'matrix-js-sdk/lib/logger';
 import { type MatrixEvent, MatrixEventEvent } from 'matrix-js-sdk';
 import { type ReactionEventContent } from 'matrix-js-sdk/lib/types';
@@ -96,7 +92,7 @@ export class ReactionsReader {
     );
 
     // Run this once to ensure we have fetched the state from the call.
-    this.onMembershipsChanged([]);
+    this.onMembershipsChanged();
   }
 
   /**
@@ -125,16 +121,14 @@ export class ReactionsReader {
   }
 
   /**
-   * Will remove any hand raises by old members, and look for any
-   * existing hand raises by new members.
-   * @param oldMemberships Any members who have left the call.
+   * Will remove any hand raises by members no longer in the call, and look
+   * for any existing hand raises by current members.
    */
-  private onMembershipsChanged = (oldMemberships: CallMembership[]): void => {
-    // Remove any raised hands for users no longer joined to the call.
-    for (const identifier of Object.keys(this.raisedHandsSubject$.value).filter((rhId) =>
-      oldMemberships.find((u) => u.userId == rhId)
-    )) {
-      this.removeRaisedHand(identifier);
+  private onMembershipsChanged = (): void => {
+    // Raised hands are keyed userId:deviceId; drop those without a current member.
+    const joined = new Set(this.rtcSession.memberships.map((m) => `${m.userId}:${m.deviceId}`));
+    for (const identifier of Object.keys(this.raisedHandsSubject$.value)) {
+      if (!joined.has(identifier)) this.removeRaisedHand(identifier);
     }
 
     // For each member in the call, check to see if a reaction has
@@ -266,8 +260,11 @@ export class ReactionsReader {
         },
       });
     } else if (event.getType() === EventType.Reaction) {
-      const content = event.getContent() as ReactionEventContent;
-      const membershipEventId = content['m.relates_to'].event_id;
+      // a redacted or malformed reaction has no relation
+      const content = event.getContent() as Partial<ReactionEventContent>;
+      const relation = content['m.relates_to'];
+      const membershipEventId = relation?.event_id;
+      if (!relation || !membershipEventId) return;
 
       // Check to see if this reaction was made to a membership event (and the
       // sender of the reaction matches the membership)
@@ -279,7 +276,7 @@ export class ReactionsReader {
         return;
       }
 
-      if (content?.['m.relates_to'].key === '🖐️') {
+      if (relation.key === '🖐️') {
         this.addRaisedHand(`${membershipEvent.userId}:${membershipEvent.deviceId}`, {
           reactionEventId,
           membershipEventId,
