@@ -27,13 +27,16 @@ export function RoomSearchBar() {
   const [value, setValue] = useState(searchTerm ?? '');
   const [caret, setCaret] = useState(0);
   const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState<number>();
+  const [highlightIndex, setHighlight] = useState<number>();
 
   const suggestions = useMemo(
     () => (open ? getSearchSuggestions(value, caret, lookup) : undefined),
     [open, value, caret, lookup]
   );
   const items = suggestions?.items ?? [];
+  // the list changes under a highlight when the room or member lookup updates
+  const highlight =
+    highlightIndex !== undefined && highlightIndex < items.length ? highlightIndex : undefined;
 
   // a filter chip in the results edits the query from outside the box
   useEffect(() => {
@@ -72,10 +75,13 @@ export function RoomSearchBar() {
     if ((evt.key === 'ArrowDown' || evt.key === 'ArrowUp') && !evt.altKey) {
       evt.preventDefault();
       const step = evt.key === 'ArrowDown' ? 1 : -1;
-      setHighlight((h) => {
-        if (h === undefined) return step === 1 ? 0 : items.length - 1;
-        return (h + step + items.length) % items.length;
-      });
+      setHighlight(
+        highlight === undefined
+          ? step === 1
+            ? 0
+            : items.length - 1
+          : (highlight + step + items.length) % items.length
+      );
     } else if (evt.key === 'Tab' || (evt.key === 'Enter' && highlight !== undefined)) {
       evt.preventDefault();
       accept(highlight ?? 0);

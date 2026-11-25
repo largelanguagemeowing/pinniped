@@ -28,7 +28,8 @@ export const useListFocusIndex = (size: number, initialIndex: number) => {
   }, [initialIndex]);
 
   return {
-    index,
+    // the list can shrink without a keystroke (search results arrive in chunks)
+    index: Math.min(index, Math.max(size - 1, 0)),
     next,
     previous,
     reset,
