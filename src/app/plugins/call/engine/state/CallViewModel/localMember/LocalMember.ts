@@ -371,15 +371,16 @@ export const createLocalMembership$ = ({
       if (shouldJoinAndPublish && !isPublishing) {
         try {
           await publisher?.startPublishing();
+          clearPublishError('publishing');
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          setPublishError(new FailToStartLivekitConnection(message));
+          setPublishError('publishing', new FailToStartLivekitConnection(message));
         }
       } else if (isPublishing) {
         try {
           await publisher?.stopPublishing();
         } catch (error) {
-          setPublishError(new UnknownCallError(error as Error));
+          setPublishError('publishing', new UnknownCallError(error as Error));
         }
       }
     }
@@ -388,13 +389,29 @@ export const createLocalMembership$ = ({
   // STATE COMPUTATION
 
   // These are non fatal since we can join a room and concume media even though publishing failed.
+  // Each failing condition has its own slot, so a later failure never hides an earlier one and
+  // each clears once its own condition recovers. The most severe one is shown.
+  type PublishErrorSlot = 'denied' | 'publishing' | 'audioinput' | 'videoinput';
+  const SLOTS_BY_SEVERITY: PublishErrorSlot[] = [
+    'denied',
+    'publishing',
+    'audioinput',
+    'videoinput',
+  ];
+  const publishErrors = new Map<PublishErrorSlot, ElementCallError>();
   const publishError$ = new BehaviorSubject<ElementCallError | null>(null);
-  const setPublishError = (e: ElementCallError): void => {
-    if (publishError$.value !== null) {
-      logger.error('Multiple Media Errors:', e);
-    } else {
-      publishError$.next(e);
-    }
+  const updatePublishError = (): void => {
+    const slot = SLOTS_BY_SEVERITY.find((s) => publishErrors.has(s));
+    const shown = (slot && publishErrors.get(slot)) ?? null;
+    if (shown !== publishError$.value) publishError$.next(shown);
+  };
+  const setPublishError = (slot: PublishErrorSlot, e: ElementCallError): void => {
+    publishErrors.set(slot, e);
+    updatePublishError();
+  };
+  const clearPublishError = (slot: PublishErrorSlot): void => {
+    publishErrors.delete(slot);
+    updatePublishError();
   };
 
   // Pinniped: the JWT service decides whether we may publish (LiveKit's
@@ -426,9 +443,9 @@ export const createLocalMembership$ = ({
     .subscribe((deniedBy) => {
       if (deniedBy !== null) {
         logger.error(`Media server ${deniedBy} does not allow us to publish`);
-        setPublishError(new PublishNotAllowedError(deniedBy));
-      } else if (publishError$.value instanceof PublishNotAllowedError) {
-        publishError$.next(null);
+        setPublishError('denied', new PublishNotAllowedError(deniedBy));
+      } else {
+        clearPublishError('denied');
       }
     });
 
@@ -452,7 +469,7 @@ export const createLocalMembership$ = ({
       logger.error('Failed to create local tracks:', error);
       if (kind !== 'audioinput' && kind !== 'videoinput') return;
       const failure = MediaDeviceFailure.getFailure(error) ?? MediaDeviceFailure.Other;
-      setPublishError(new MediaDeviceError(failure, kind));
+      setPublishError(kind, new MediaDeviceError(failure, kind));
     });
 
   // Once that kind of track is published the problem is gone.
@@ -470,11 +487,8 @@ export const createLocalMembership$ = ({
       scope.bind()
     )
     .subscribe((source) => {
-      const current = publishError$.value;
-      if (!(current instanceof MediaDeviceError)) return;
-      const published =
-        current.kind === 'audioinput' ? Track.Source.Microphone : Track.Source.Camera;
-      if (source === published) publishError$.next(null);
+      if (source === Track.Source.Microphone) clearPublishError('audioinput');
+      if (source === Track.Source.Camera) clearPublishError('videoinput');
     });
 
   const fatalTransportError$ = new BehaviorSubject<ElementCallError | null>(null);

@@ -41,6 +41,7 @@ import {
   FailToGetOpenIdToken,
   MatrixRTCTransportMissingError,
   MediaDeviceError,
+  PublishNotAllowedError,
   MembershipManagerError,
 } from '../../../../../../src/app/plugins/call/engine/utils/errors';
 import {
@@ -813,6 +814,8 @@ describe('LocalMembership', () => {
   });
 
   describe('microphone and camera that cannot start', () => {
+    // the permission check names the media server by its URL
+    const sfuTransport = { livekit_service_url: 'https://sfu.example.org' } as LivekitTransport;
     const start = () => {
       const scope = new ObservableScope();
       const room = mockLivekitRoom({
@@ -825,7 +828,7 @@ describe('LocalMembership', () => {
       });
       const connection = {
         state$: constant(ConnectionState.LivekitConnected),
-        transport: aTransport,
+        transport: sfuTransport,
         livekitRoom: room,
       } as unknown as Connection;
       const data = new ConnectionManagerData();
@@ -835,8 +838,8 @@ describe('LocalMembership', () => {
         ...defaultCreateLocalMemberValues,
         connectionManager: { connectionManagerData$: constant(new Epoch(data)) },
         localTransport$: new BehaviorSubject({
-          advertised$: new BehaviorSubject(aTransport),
-          active$: new BehaviorSubject(aTransportWithSFUConfig),
+          advertised$: new BehaviorSubject(sfuTransport),
+          active$: new BehaviorSubject({ ...aTransportWithSFUConfig, transport: sfuTransport }),
         } as LocalTransport),
       });
       return { scope, room, membership };
@@ -890,6 +893,53 @@ describe('LocalMembership', () => {
       room.emit(RoomEvent.LocalTrackPublished, { source: Track.Source.Microphone });
       expect(membership.publishError$.value).toBeNull();
       scope.end();
+    });
+
+    describe('several at once', () => {
+      const setCanPublish = (room: ReturnType<typeof start>['room'], canPublish: boolean) => {
+        Object.assign(room.localParticipant, { permissions: { canPublish } });
+        room.emit(RoomEvent.ParticipantPermissionsChanged);
+      };
+
+      it('does not let an earlier camera failure hide the media server denying us', async () => {
+        const { scope, room, membership } = start();
+        await flushPromises();
+        room.emit(RoomEvent.MediaDevicesError, permissionDenied(), 'videoinput');
+
+        setCanPublish(room, false);
+
+        expect(membership.publishError$.value).toBeInstanceOf(PublishNotAllowedError);
+        scope.end();
+      });
+
+      it('shows the next failure once the more severe one is gone', async () => {
+        const { scope, room, membership } = start();
+        await flushPromises();
+        room.emit(RoomEvent.MediaDevicesError, permissionDenied(), 'videoinput');
+        setCanPublish(room, false);
+
+        setCanPublish(room, true);
+
+        expect(membership.publishError$.value).toBeInstanceOf(MediaDeviceError);
+        scope.end();
+      });
+
+      it('reports a microphone failure that follows a camera failure once the camera recovers', async () => {
+        const { scope, room, membership } = start();
+        await flushPromises();
+        room.emit(RoomEvent.MediaDevicesError, permissionDenied(), 'videoinput');
+        room.emit(RoomEvent.MediaDevicesError, permissionDenied(), 'audioinput');
+        // the microphone is the more severe one: nobody hears us
+        expect(membership.publishError$.value?.localisedTitle).toBe(
+          'Access to your microphone is blocked'
+        );
+
+        room.emit(RoomEvent.LocalTrackPublished, { source: Track.Source.Microphone });
+        expect(membership.publishError$.value?.localisedTitle).toBe(
+          'Access to your camera is blocked'
+        );
+        scope.end();
+      });
     });
   });
 
