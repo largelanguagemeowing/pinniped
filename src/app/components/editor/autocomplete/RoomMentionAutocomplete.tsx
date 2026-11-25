@@ -1,4 +1,4 @@
-import React, { KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect } from 'react';
+import React, { KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useMemo } from 'react';
 import { Editor } from 'slate';
 import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
 import { JoinRule, MatrixClient } from 'matrix-js-sdk';
@@ -82,7 +82,12 @@ export function RoomMentionAutocomplete({
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
 
-  const allRooms = useAtomValue(allRoomsAtom).sort(factoryRoomIdByActivity(mx));
+  const joinedRooms = useAtomValue(allRoomsAtom);
+  // a copy: the atom's list is shared, and the search needs a stable list between renders
+  const allRooms = useMemo(
+    () => [...joinedRooms].sort(factoryRoomIdByActivity(mx)),
+    [joinedRooms, mx]
+  );
 
   const [result, search, resetSearch] = useAsyncSearch(
     allRooms,
