@@ -8,13 +8,16 @@ import {
   type ShortcutCall,
 } from '../../../src/app/features/call/stage/useStageShortcuts';
 
-const fakeCall = () => {
+const fakeCall = (microphoneOn = false) => {
   const setEnabled = vi.fn();
   const call: ShortcutCall = {
     toggleMicrophone: vi.fn(),
     toggleVideo: vi.fn(),
     muteStates: {
-      audio: { setEnabled$: new BehaviorSubject<typeof setEnabled | null>(setEnabled) },
+      audio: {
+        enabled$: new BehaviorSubject(microphoneOn),
+        setEnabled$: new BehaviorSubject<typeof setEnabled | null>(setEnabled),
+      },
     },
   };
   return { call, setEnabled };
@@ -62,6 +65,14 @@ describe('call view shortcuts', () => {
     expect(setEnabled.mock.calls).toEqual([[true]]);
     shortcuts.onKeyUp(key(' ', tile));
     expect(setEnabled.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('keeps a microphone that was already on when space is released', () => {
+    const { call, setEnabled } = fakeCall(true);
+    const shortcuts = createStageShortcuts(call);
+    shortcuts.onKeyDown(key(' ', tile));
+    shortcuts.onKeyUp(key(' ', tile));
+    expect(setEnabled).not.toHaveBeenLastCalledWith(false);
   });
 
   it('leaves space to a focused button', () => {

@@ -18,22 +18,25 @@ export interface StageShortcutHandlers {
 
 /** What the shortcuts control. */
 export type ShortcutCall = Pick<Call, 'toggleMicrophone' | 'toggleVideo'> & {
-  muteStates: { audio: { setEnabled$: Call['muteStates']['audio']['setEnabled$'] } };
+  muteStates: {
+    audio: Pick<Call['muteStates']['audio'], 'enabled$' | 'setEnabled$'>;
+  };
 };
 
 /**
  * Shortcuts while focus is inside the call view (never globally): m toggles the microphone,
- * v the camera, and holding space talks (the microphone is on while it is held). The handlers
- * go on the call view's root.
+ * v the camera, and holding space talks (the microphone is on while it is held, and goes back to
+ * what it was when released). The handlers go on the call view's root.
  */
 export function createStageShortcuts(call: ShortcutCall): StageShortcutHandlers {
   let spaceHeld = false;
+  let microphoneWasOn = false;
   const setMicrophone = (enabled: boolean): void =>
     call.muteStates.audio.setEnabled$.value?.(enabled);
   const releaseSpace = (): void => {
     if (!spaceHeld) return;
     spaceHeld = false;
-    setMicrophone(false);
+    if (!microphoneWasOn) setMicrophone(false);
   };
 
   return {
@@ -50,6 +53,7 @@ export function createStageShortcuts(call: ShortcutCall): StageShortcutHandlers 
         evt.preventDefault();
         if (!spaceHeld) {
           spaceHeld = true;
+          microphoneWasOn = call.muteStates.audio.enabled$.value;
           setMicrophone(true);
         }
       }
