@@ -50,6 +50,9 @@ class Helper extends EventEmitter {
         env: this.console ? { ...process.env, PINNIPED_HELPER_DEBUG: '1' } : process.env,
       });
       this.child = child;
+      // A write to a helper that stopped listening reports through its own callback; without a
+      // listener here the error event would take the main process down.
+      child.stdin.on('error', () => undefined);
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', (chunk) => this.onData(chunk, resolve));
       child.on('error', () => resolve(undefined));
@@ -109,8 +112,14 @@ class Helper extends EventEmitter {
     const started = await this.start();
     if (!started || !this.child) return { ok: false, error: 'the desktop helper is not available' };
     return new Promise((resolve) => {
-      this.pending.push({ resolve });
-      this.child.stdin.write(`${JSON.stringify(command)}\n`);
+      const entry = { resolve };
+      this.pending.push(entry);
+      this.child.stdin.write(`${JSON.stringify(command)}\n`, (error) => {
+        if (!error) return;
+        // No result will come, and the next one must not be taken for this command's.
+        this.pending = this.pending.filter((p) => p !== entry);
+        resolve({ ok: false, error: 'the desktop helper is not reachable' });
+      });
     });
   }
 
