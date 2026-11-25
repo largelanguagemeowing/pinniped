@@ -1,10 +1,11 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */
-import React, { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import * as css from './ImageViewer.css';
+import { AsyncStatus, useAsyncLoad } from '../../hooks/useAsyncCallback';
 import { useZoom } from '../../hooks/useZoom';
 import { usePan } from '../../hooks/usePan';
 import { useMagnifier } from '../../hooks/useMagnifier';
@@ -37,10 +38,12 @@ export const ImageViewer = as<'div', ImageViewerProps>(
     // pan takes over once the image is persistently zoomed via the header.
     const magnifier = useMagnifier(imgRef, zoom === 1);
 
-    const handleDownload = async () => {
-      const fileContent = await downloadMedia(src);
-      FileSaver.saveAs(fileContent, alt);
-    };
+    const [downloadState, download] = useAsyncLoad(
+      useCallback(async () => {
+        FileSaver.saveAs(await downloadMedia(src), alt);
+      }, [src, alt])
+    );
+    const downloadFailed = downloadState.status === AsyncStatus.Error;
 
     return (
       <Box
@@ -88,12 +91,13 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               <Icon size="50" src={Icons.Plus} />
             </IconButton>
             <Chip
-              variant="Primary"
-              onClick={handleDownload}
+              variant={downloadFailed ? 'Critical' : 'Primary'}
+              onClick={download}
+              disabled={downloadState.status === AsyncStatus.Loading}
               radii="300"
               before={<Icon size="50" src={Icons.Download} />}
             >
-              <Text size="B300">Download</Text>
+              <Text size="B300">{downloadFailed ? 'Retry Download' : 'Download'}</Text>
             </Chip>
           </Box>
         </Header>

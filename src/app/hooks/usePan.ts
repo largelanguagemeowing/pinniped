@@ -16,10 +16,6 @@ export const usePan = (active: boolean) => {
     active ? 'grab' : 'initial'
   );
 
-  useEffect(() => {
-    setCursor(active ? 'grab' : 'initial');
-  }, [active]);
-
   // Detaches the in-progress drag's document listeners, if any.
   const stopDragRef = useRef<() => void>(undefined);
 
@@ -66,8 +62,13 @@ export const usePan = (active: boolean) => {
   // Don't leave document listeners behind if the viewer closes mid-drag.
   useEffect(() => () => stopDragRef.current?.(), []);
 
+  // Not pannable any more: end a drag still running, so its listeners stop moving the image.
   useEffect(() => {
-    if (!active) setPan(INITIAL_PAN);
+    if (!active) {
+      stopDragRef.current?.();
+      setPan(INITIAL_PAN);
+    }
+    setCursor(active ? 'grab' : 'initial');
   }, [active]);
 
   return {
