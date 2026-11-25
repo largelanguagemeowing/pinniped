@@ -82,7 +82,7 @@ export function CallMemberRenderer({
 }) {
   const [viewMore, setViewMore] = useState(false);
 
-  const truncatedMembers = viewMore ? members : members.slice(0, 4);
+  const truncatedMembers = viewMore ? members : members.slice(0, max);
   const remaining = members.length - truncatedMembers.length;
 
   return (
@@ -105,7 +105,7 @@ export function CallMemberRenderer({
               </Text>
             ) : (
               <Text size="L400" truncate>
-                {remaining === 0 ? `+${remaining} Other` : `+${remaining} Others`}
+                {remaining === 1 ? `+${remaining} Other` : `+${remaining} Others`}
               </Text>
             )}
           </Box>
