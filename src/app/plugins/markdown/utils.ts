@@ -85,6 +85,6 @@ export const escapeMarkdownBlockSequences = (
 
   if (!match) return processPart(text);
 
-  const [, g1] = match;
-  return replaceMatch(text, match, `\\${g1}`, (t) => [processPart(t)]).join('');
+  // one more backslash, the inverse of what unescapeMarkdownBlockSequences strips
+  return replaceMatch(text, match, `\\${match[0]}`, (t) => [processPart(t)]).join('');
 };
