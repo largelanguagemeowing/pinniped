@@ -138,6 +138,25 @@ describe('block markdown', () => {
   });
 });
 
+describe('editing a message that another client sent in paragraphs', () => {
+  const resent = (html: string) => {
+    const editor = createEditor();
+    editor.children = htmlToEditorInput(html, true);
+    return md(editorText(editor));
+  };
+
+  it('keeps text that looks like block markdown as the text it was', () => {
+    // sent as plain text, so the editor must escape it or saving makes it a heading, list, quote
+    expect(resent('<p>a</p><p># b</p>')).toBe('a<br/># b');
+    expect(resent('<p>- not a list</p>')).toBe('- not a list');
+    expect(resent('<p>&gt; not a quote</p>')).toBe('> not a quote');
+  });
+
+  it('leaves text inside a paragraph alone', () => {
+    expect(resent('<p>a # b</p>')).toBe('a # b');
+  });
+});
+
 describe('editing round trip', () => {
   const roundTrip = (text: string) => {
     const html = md(text);

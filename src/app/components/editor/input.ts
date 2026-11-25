@@ -454,9 +454,16 @@ export const domToEditorInput = (
 
       if (node.name === 'p') {
         appendLine();
+        // like text after a line break, the first text of a paragraph starts a line
+        let atLineStart = true;
+        const processParagraphText: ProcessTextCallback = (text) => {
+          const process = atLineStart ? processLineStartText : processText;
+          atLineStart = false;
+          return process(text);
+        };
         children.push({
           type: BlockType.Paragraph,
-          children: getInlineElement(node, processText),
+          children: getInlineElement(node, processParagraphText),
         });
         return;
       }
