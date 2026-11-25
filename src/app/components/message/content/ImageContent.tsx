@@ -28,6 +28,7 @@ import { FALLBACK_MIMETYPE } from '../../../utils/mimeTypes';
 import { stopPropagation } from '../../../utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '../../../utils/matrix';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { useObjectURL } from '../../../hooks/useObjectURL';
 import { AttachmentLoadError } from './AttachmentLoadError';
 import { validBlurHash } from '../../../utils/blurHash';
 import { useHoverPlay } from '../../../hooks/useHoverPlay';
@@ -104,7 +105,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     );
 
     const [srcState, loadSrc] = useAsyncLoad(
-      useCallback(async () => {
+      useCallback(async (): Promise<string | Blob> => {
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
         // A URL that just failed is not asked again until its wait is over; Retry clears it.
@@ -115,7 +116,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
             );
             clearFailure(mediaUrl);
-            return URL.createObjectURL(fileContent);
+            return fileContent;
           } catch (err) {
             recordFailure(mediaUrl);
             throw err;
@@ -124,6 +125,11 @@ export const ImageContent = as<'div', ImageContentProps>(
         return mediaUrl;
       }, [mx, url, useAuthentication, mimeType, encInfo])
     );
+
+    // a plain URL is used as it is; a decrypted blob is shown through an object URL tied to it
+    const loaded = srcState.status === AsyncStatus.Success ? srcState.data : undefined;
+    const blobUrl = useObjectURL(loaded instanceof Blob ? loaded : undefined);
+    const src = typeof loaded === 'string' ? loaded : blobUrl;
 
     // `is_animated` is the sender's claim; it only decides the badge and pausing, so it is not verified
     const animated = info?.is_animated === true;
@@ -135,8 +141,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     const sizeBadge = !load && sizeLabel !== undefined;
 
     // The URL the <img> loads directly; encrypted media is a blob whose failures are not remote.
-    const directSrc =
-      !encInfo && srcState.status === AsyncStatus.Success ? srcState.data : undefined;
+    const directSrc = !encInfo ? src : undefined;
 
     const handleLoad = (event: SyntheticEvent<HTMLImageElement>) => {
       if (directSrc) clearFailure(directSrc);
@@ -170,7 +175,7 @@ export const ImageContent = as<'div', ImageContentProps>(
 
     return (
       <Box className={classNames(css.RelativeBase, className)} {...hoverProps} {...props} ref={ref}>
-        {srcState.status === AsyncStatus.Success && (
+        {src && (
           <Overlay open={viewer} backdrop={<OverlayBackdrop />}>
             <OverlayCenter>
               <FocusTrap
@@ -182,7 +187,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                 }}
               >
                 {renderViewer({
-                  src: srcState.data,
+                  src,
                   alt: body,
                   requestClose: () => setViewer(false),
                 })}
@@ -221,7 +226,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             <StillImage source={stillSource} />
           </Box>
         )}
-        {srcState.status === AsyncStatus.Success && (
+        {src && (
           // hidden by opacity while paused, so it stays clickable and focusable
           <Box
             className={classNames(css.AbsoluteContainer, blurred && css.Blur)}
@@ -230,7 +235,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             {renderImage({
               alt: body,
               title: body,
-              src: srcState.data,
+              src,
               onLoad: handleLoad,
               onError: handleError,
               onClick: () => setViewer(true),

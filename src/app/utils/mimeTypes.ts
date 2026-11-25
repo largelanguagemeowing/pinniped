@@ -148,6 +148,11 @@ export const getFileNameExt = (fileName: string): string => {
   const extStart = fileName.lastIndexOf('.') + 1;
   return fileName.slice(extStart);
 };
+/** Source-file mime type for a file name's extension; own keys only, so `constructor` is no extension. */
+export const getReadableMimeTypeByExt = (fileName: string): string | undefined => {
+  const ext = getFileNameExt(fileName);
+  return Object.hasOwn(READABLE_EXT_TO_MIME_TYPE, ext) ? READABLE_EXT_TO_MIME_TYPE[ext] : undefined;
+};
 export const getFileNameWithoutExt = (fileName: string): string => {
   const extStart = fileName.lastIndexOf('.');
   if (extStart === 0 || extStart === -1) return fileName;

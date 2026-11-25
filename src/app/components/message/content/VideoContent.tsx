@@ -32,6 +32,7 @@ import {
   mxcUrlToHttp,
 } from '../../../utils/matrix';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { useObjectURL } from '../../../hooks/useObjectURL';
 import { validBlurHash } from '../../../utils/blurHash';
 
 type RenderVideoProps = {
@@ -87,9 +88,10 @@ export const VideoContent = as<'div', VideoContentProps>(
               decryptFile(encBuf, mimeType, encInfo)
             )
           : await downloadMedia(mediaUrl);
-        return URL.createObjectURL(fileContent);
+        return fileContent;
       }, [mx, url, useAuthentication, mimeType, encInfo])
     );
+    const src = useObjectURL(srcState.status === AsyncStatus.Success ? srcState.data : undefined);
 
     const handleLoad = () => {
       setLoad(true);
@@ -142,11 +144,11 @@ export const VideoContent = as<'div', VideoContentProps>(
             </Button>
           </Box>
         )}
-        {srcState.status === AsyncStatus.Success && (
+        {src && (
           <Box className={classNames(css.AbsoluteContainer, blurred && css.Blur)}>
             {renderVideo({
               title: body,
-              src: srcState.data,
+              src,
               onLoadedMetadata: handleLoad,
               onError: handleError,
             })}

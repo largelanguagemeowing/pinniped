@@ -22,9 +22,8 @@ import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { bytesToSize } from '../../../utils/common';
 import {
-  READABLE_EXT_TO_MIME_TYPE,
   READABLE_TEXT_MIME_TYPES,
-  getFileNameExt,
+  getReadableMimeTypeByExt,
   mimeTypeToExt,
 } from '../../../utils/mimeTypes';
 import { stopPropagation } from '../../../utils/keyboard';
@@ -37,6 +36,7 @@ import {
   mxcUrlToHttp,
 } from '../../../utils/matrix';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { useObjectURL } from '../../../hooks/useObjectURL';
 import { ModalWide } from '../../../styles/Modal.css';
 import { AttachmentLoadError } from './AttachmentLoadError';
 
@@ -127,7 +127,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
                   text: textState.data,
                   langName: READABLE_TEXT_MIME_TYPES.includes(mimeType)
                     ? mimeTypeToExt(mimeType)
-                    : mimeTypeToExt(READABLE_EXT_TO_MIME_TYPE[getFileNameExt(body)] ?? mimeType),
+                    : mimeTypeToExt(getReadableMimeTypeByExt(body) ?? mimeType),
                   requestClose: () => setTextViewer(false),
                 })}
               </Modal>
@@ -189,13 +189,14 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
         ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
         : await downloadMedia(mediaUrl);
       setPdfViewer(true);
-      return URL.createObjectURL(fileContent);
+      return fileContent;
     }, [mx, url, useAuthentication, mimeType, encInfo])
   );
+  const pdfUrl = useObjectURL(pdfState.status === AsyncStatus.Success ? pdfState.data : undefined);
 
   return (
     <>
-      {pdfState.status === AsyncStatus.Success && (
+      {pdfUrl && (
         <Overlay open={pdfViewer} backdrop={<OverlayBackdrop />}>
           <OverlayCenter>
             <FocusTrap
@@ -213,7 +214,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
               >
                 {renderViewer({
                   name: body,
-                  src: pdfState.data,
+                  src: pdfUrl,
                   requestClose: () => setPdfViewer(false),
                 })}
               </Modal>
@@ -267,9 +268,8 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
         ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
         : await downloadMedia(mediaUrl);
 
-      const fileURL = URL.createObjectURL(fileContent);
-      FileSaver.saveAs(fileURL, body);
-      return fileURL;
+      FileSaver.saveAs(fileContent, body);
+      return fileContent;
     }, [mx, url, useAuthentication, mimeType, encInfo, body])
   );
 
@@ -313,8 +313,7 @@ type FileContentProps = {
 export const FileContent = as<'div', FileContentProps>(
   ({ body, mimeType, renderAsTextFile, renderAsPdfFile, children, ...props }, ref) => (
     <Box direction="Column" gap="300" {...props} ref={ref}>
-      {(READABLE_TEXT_MIME_TYPES.includes(mimeType) ||
-        READABLE_EXT_TO_MIME_TYPE[getFileNameExt(body)]) &&
+      {(READABLE_TEXT_MIME_TYPES.includes(mimeType) || getReadableMimeTypeByExt(body)) &&
         renderAsTextFile()}
       {mimeType === 'application/pdf' && renderAsPdfFile()}
       {children}

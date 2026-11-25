@@ -52,10 +52,13 @@ export const getImageMsgContent = async (
   mxc: string
 ): Promise<IContent> => {
   const { file, originalFile, encInfo, metadata } = item;
+  const imageUrl = getImageFileUrl(originalFile);
   const [[imgError, imgEl], animation] = await Promise.all([
-    to(loadImageElement(getImageFileUrl(originalFile))),
+    to(loadImageElement(imageUrl)),
     detectImageAnimation(originalFile),
   ]);
+  // the element holds the decoded image
+  URL.revokeObjectURL(imageUrl);
   if (imgError) console.warn(imgError);
 
   const content: IContent = {
@@ -91,7 +94,8 @@ export const getVideoMsgContent = async (
 ): Promise<IContent> => {
   const { file, originalFile, encInfo, metadata } = item;
 
-  const [videoError, videoEl] = await to(loadVideoElement(getVideoFileUrl(originalFile)));
+  const videoUrl = getVideoFileUrl(originalFile);
+  const [videoError, videoEl] = await to(loadVideoElement(videoUrl));
   if (videoError) console.warn(videoError);
 
   const content: IContent = {
@@ -122,6 +126,8 @@ export const getVideoMsgContent = async (
       ...thumbContent,
     };
   }
+  // the thumbnail and blur hash are drawn from the element, which streams from the URL
+  URL.revokeObjectURL(videoUrl);
   if (encInfo) {
     content.file = {
       ...encInfo,

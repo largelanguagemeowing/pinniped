@@ -47,9 +47,7 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
         ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
         : await downloadMedia(mediaUrl);
 
-      const fileURL = URL.createObjectURL(fileContent);
-      FileSaver.saveAs(fileURL, filename);
-      return fileURL;
+      FileSaver.saveAs(fileContent, filename);
     }, [mx, url, useAuthentication, mimeType, encInfo, filename])
   );
 

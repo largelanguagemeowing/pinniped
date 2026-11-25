@@ -10,6 +10,7 @@ import {
   mxcUrlToHttp,
 } from '../../../utils/matrix';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { useObjectURL } from '../../../hooks/useObjectURL';
 import { FALLBACK_MIMETYPE } from '../../../utils/mimeTypes';
 import { AttachmentLoadError } from './AttachmentLoadError';
 
@@ -22,7 +23,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
   const useAuthentication = useMediaAuthentication();
 
   const [thumbSrcState, loadThumbSrc] = useAsyncLoad(
-    useCallback(async () => {
+    useCallback(async (): Promise<string | Blob> => {
       const thumbInfo = info.thumbnail_info;
       const thumbMxcUrl = info.thumbnail_file?.url ?? info.thumbnail_url;
       const encInfo = info.thumbnail_file;
@@ -36,18 +37,22 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
         const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
           decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo)
         );
-        return URL.createObjectURL(fileContent);
+        return fileContent;
       }
 
       return mediaUrl;
     }, [mx, info, useAuthentication])
   );
 
+  const loaded = thumbSrcState.status === AsyncStatus.Success ? thumbSrcState.data : undefined;
+  const blobUrl = useObjectURL(loaded instanceof Blob ? loaded : undefined);
+  const src = typeof loaded === 'string' ? loaded : blobUrl;
+
   useEffect(() => {
     loadThumbSrc();
   }, [loadThumbSrc]);
 
-  if (thumbSrcState.status === AsyncStatus.Success) return renderImage(thumbSrcState.data);
+  if (src) return renderImage(src);
   // A thumbnail is decoration. A missing or non-mxc one (which the client never fetches) stays
   // silent, so it cannot cover the media's own controls. A tampered or undecryptable thumbnail
   // is still shown, because the user must know it was not displayed.
