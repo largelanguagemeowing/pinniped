@@ -3,7 +3,7 @@ import { Menu, Box, Text, Chip } from 'folds';
 import dayjs from 'dayjs';
 import * as css from './styles.css';
 import { PickerColumn } from './PickerColumn';
-import { hour12to24, hour24to12, hoursToMs, inSameDay, minutesToMs } from '../../utils/time';
+import { hour12to24, hour24to12, inSameDay, withTime } from '../../utils/time';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 
@@ -28,24 +28,16 @@ export const TimePicker = forwardRef<HTMLDivElement, TimePickerProps>(
     };
 
     const handleHour = (hour: number) => {
-      const seconds = hoursToMs(hour24Clock ? hour : hour12to24(hour, selectedPM));
-      const lastSeconds = hoursToMs(hour24);
-      const newValue = value + (seconds - lastSeconds);
-      handleSubmit(newValue);
+      const newHour24 = hour24Clock ? hour : hour12to24(hour, selectedPM);
+      handleSubmit(withTime(value, newHour24, selectedMinute));
     };
 
     const handleMinute = (minute: number) => {
-      const seconds = minutesToMs(minute);
-      const lastSeconds = minutesToMs(selectedMinute);
-      const newValue = value + (seconds - lastSeconds);
-      handleSubmit(newValue);
+      handleSubmit(withTime(value, hour24, minute));
     };
 
     const handlePeriod = (pm: boolean) => {
-      const seconds = hoursToMs(hour12to24(selectedHour, pm));
-      const lastSeconds = hoursToMs(hour24);
-      const newValue = value + (seconds - lastSeconds);
-      handleSubmit(newValue);
+      handleSubmit(withTime(value, hour12to24(selectedHour, pm), selectedMinute));
     };
 
     const minHour24 = dayjs(min).hour();

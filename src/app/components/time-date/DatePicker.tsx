@@ -3,7 +3,7 @@ import { Menu, Box, Text, Chip } from 'folds';
 import dayjs from 'dayjs';
 import * as css from './styles.css';
 import { PickerColumn } from './PickerColumn';
-import { dateFor, daysInMonth, daysToMs } from '../../utils/time';
+import { daysInMonth, withDate } from '../../utils/time';
 
 type DatePickerProps = {
   min: number;
@@ -22,21 +22,11 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
     };
 
     const handleDay = (day: number) => {
-      const seconds = daysToMs(day);
-      const lastSeconds = daysToMs(selectedDay);
-      const newValue = value + (seconds - lastSeconds);
-      handleSubmit(newValue);
+      handleSubmit(withDate(value, selectedYear, selectedMonth, day));
     };
 
     const handleMonthAndYear = (month: number, year: number) => {
-      const mDays = daysInMonth(month, year);
-      const currentDate = dateFor(selectedYear, selectedMonth, selectedDay);
-      const time = value - currentDate;
-
-      const newDate = dateFor(year, month, mDays < selectedDay ? mDays : selectedDay);
-
-      const newValue = newDate + time;
-      handleSubmit(newValue);
+      handleSubmit(withDate(value, year, month, selectedDay));
     };
 
     const handleMonth = (month: number) => {

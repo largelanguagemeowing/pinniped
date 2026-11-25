@@ -32,6 +32,23 @@ export const daysInMonth = (month: number, year: number): number =>
 export const dateFor = (year: number, month: number, day: number): number =>
   dayjs(`${year}-${month}-${day}`).valueOf();
 
+/**
+ * `ts` moved to another calendar date, keeping its time of day; a day the month lacks becomes the
+ * month's last. Works on the wall clock, so a daylight saving change in between does not shift
+ * the time or the date.
+ */
+export const withDate = (ts: number, year: number, month: number, day: number): number => {
+  const monthStart = dayjs(ts)
+    .date(1)
+    .year(year)
+    .month(month - 1);
+  return monthStart.date(Math.min(day, monthStart.daysInMonth())).valueOf();
+};
+
+/** `ts` at another time of day on the same calendar date (wall clock, as `withDate`). */
+export const withTime = (ts: number, hour24: number, minute: number): number =>
+  dayjs(ts).hour(hour24).minute(minute).valueOf();
+
 export const inSameDay = (ts1: number, ts2: number): boolean => {
   const dt1 = new Date(ts1);
   const dt2 = new Date(ts2);
@@ -65,14 +82,6 @@ export const hour12to24 = (hour: number, pm: boolean): number => {
   return pm ? hour + 12 : hour;
 };
 
-export const secondsToMs = (seconds: number) => seconds * 1000;
-
-export const minutesToMs = (minutes: number) => minutes * secondsToMs(60);
-
-export const hoursToMs = (hour: number) => hour * minutesToMs(60);
-
-export const daysToMs = (days: number) => days * hoursToMs(24);
-
 export const getToday = () => {
   const nowTs = Date.now();
   const date = dayjs(nowTs);
@@ -80,7 +89,6 @@ export const getToday = () => {
 };
 
 export const getYesterday = () => {
-  const nowTs = Date.now() - daysToMs(1);
-  const date = dayjs(nowTs);
+  const date = dayjs().subtract(1, 'day');
   return dateFor(date.year(), date.month() + 1, date.date());
 };
