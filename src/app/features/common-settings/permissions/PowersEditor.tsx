@@ -26,7 +26,8 @@ import { IPowerLevels } from '../../../hooks/usePowerLevels';
 import { SequenceCard } from '../../../components/sequence-card';
 import { SequenceCardStyle } from '../styles.css';
 import { SettingTile } from '../../../components/setting-tile';
-import { getPowers, getUsedPowers, usePowerLevelTags } from '../../../hooks/usePowerLevelTags';
+import { getPowers, getUsedPowers, resolvePowerLevelTags } from '../../../hooks/usePowerLevelTags';
+import { useStateEvent } from '../../../hooks/useStateEvent';
 import { PowerLevelTags } from '../../../../types/matrix/room';
 import { useRoom } from '../../../hooks/useRoom';
 import { HexColorPickerPopOut } from '../../../components/HexColorPickerPopOut';
@@ -384,7 +385,10 @@ export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
     return [up, Math.max(...Array.from(up))];
   }, [powerLevels]);
 
-  const powerLevelTags = usePowerLevelTags(room, powerLevels);
+  // Only what the room stores is edited and sent; built-in and generated tags are resolved for display.
+  const tagsEvent = useStateEvent(room, StateEvent.PowerLevelTags);
+  const storedTags = useMemo(() => tagsEvent?.getContent<PowerLevelTags>() ?? {}, [tagsEvent]);
+  const [developerTools] = useSetting(settingsAtom, 'developerTools');
   const [editedPowerTags, setEditedPowerTags] = useState<PowerLevelTags>();
   const [deleted, setDeleted] = useState<Set<number>>(new Set());
 
@@ -405,22 +409,22 @@ export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
   const handleSaveTag = useCallback(
     (power: number, tag: MemberPowerTag) => {
       setEditedPowerTags((tags) => {
-        const editedTags = { ...(tags ?? powerLevelTags) };
+        const editedTags = { ...(tags ?? storedTags) };
         editedTags[power] = tag;
         return editedTags;
       });
     },
-    [powerLevelTags]
+    [storedTags]
   );
 
   const [applyState, applyChanges] = useAsyncCallback(
     useCallback(async () => {
-      const content: PowerLevelTags = { ...(editedPowerTags ?? powerLevelTags) };
+      const content: PowerLevelTags = { ...(editedPowerTags ?? storedTags) };
       deleted.forEach((power) => {
         delete content[power];
       });
       await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags, content);
-    }, [mx, room, powerLevelTags, editedPowerTags, deleted])
+    }, [mx, room, storedTags, editedPowerTags, deleted])
   );
 
   const resetChanges = useCallback(() => {
@@ -439,7 +443,10 @@ export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
   const applyingChanges = applyState.status === AsyncStatus.Loading;
   const hasChanges = editedPowerTags || deleted.size > 0;
 
-  const powerTags = editedPowerTags ?? powerLevelTags;
+  const powerTags = useMemo(
+    () => resolvePowerLevelTags(editedPowerTags ?? storedTags, powerLevels, developerTools),
+    [editedPowerTags, storedTags, powerLevels, developerTools]
+  );
   return (
     <Page>
       <PageHeader outlined={false} balance>
