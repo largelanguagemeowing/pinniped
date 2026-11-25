@@ -46,6 +46,7 @@ import { stopPropagation } from '../../../utils/keyboard';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { BackRouteHandler } from '../../../components/BackRouteHandler';
 import { stripOptionalText } from '../../../utils/sanitize';
+import { MAX_ROOMS_LIMIT, parseRoomsLimit } from './roomsLimit';
 
 const useServerSearchParams = (searchParams: URLSearchParams): ExploreServerPathSearchParams =>
   useMemo(
@@ -81,8 +82,6 @@ const useRoomTypeFilters = (): RoomTypeFilter[] =>
     ],
     []
   );
-
-const FALLBACK_ROOMS_LIMIT = 24;
 
 type SearchProps = {
   active?: boolean;
@@ -311,6 +310,7 @@ function LimitButton({ limit, onLimitChange }: LimitButtonProps) {
                     variant="Background"
                     defaultValue={limit}
                     min={1}
+                    max={MAX_ROOMS_LIMIT}
                     step={1}
                     outlined
                     type="number"
@@ -358,11 +358,10 @@ export function PublicRooms() {
   const navigate = useNavigate();
   const roomTypeFilters = useRoomTypeFilters();
 
-  const currentLimit: number = useMemo(() => {
-    const limitParam = serverSearchParams.limit;
-    if (!limitParam) return FALLBACK_ROOMS_LIMIT;
-    return parseInt(limitParam, 10) || FALLBACK_ROOMS_LIMIT;
-  }, [serverSearchParams.limit]);
+  const currentLimit: number = useMemo(
+    () => parseRoomsLimit(serverSearchParams.limit),
+    [serverSearchParams.limit]
+  );
 
   const resetScroll = useCallback(() => {
     const scroll = scrollRef.current;
@@ -370,10 +369,7 @@ export function PublicRooms() {
   }, []);
 
   const fetchPublicRooms = useCallback(() => {
-    const limit =
-      typeof serverSearchParams.limit === 'string'
-        ? parseInt(serverSearchParams.limit, 10)
-        : FALLBACK_ROOMS_LIMIT;
+    const limit = parseRoomsLimit(serverSearchParams.limit);
     const roomType: string | null | undefined =
       serverSearchParams.type === 'null' ? null : serverSearchParams.type;
 
