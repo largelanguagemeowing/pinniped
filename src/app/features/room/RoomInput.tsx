@@ -371,6 +371,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const submit = useCallback(() => {
+      // The caption, the files and the reply go out together once every file is up; sending now
+      // would send the caption alone and leave the files behind without it.
+      if (uploadBoardHandlers.current?.isUploading()) return;
       const commandName = getBeginCommand(editor);
       let plainText = toPlainText(editor.children, true).trim();
       let customHtml = trimCustomHtml(
@@ -829,6 +832,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   setAttachMenuAnchor(undefined);
                   pickFile('*');
                 }}
+                aria-label="Attach"
                 aria-pressed={!!attachMenuAnchor}
                 variant="SurfaceVariant"
                 size="300"
