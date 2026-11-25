@@ -128,8 +128,9 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
 
     const handleUploadComplete = useCallback(
       async (data: UploadSuccess) => {
+        const fileUrl = getImageFileUrl(data.file);
         const [imgEl, animation] = await Promise.all([
-          loadImageElement(getImageFileUrl(data.file)),
+          loadImageElement(fileUrl).finally(() => URL.revokeObjectURL(fileUrl)),
           detectImageAnimation(data.file),
         ]);
         const packImage: PackImage = {
@@ -239,6 +240,8 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
       deleteImages.size > 0;
     const canApplyChanges = !metaEditing && imagesEditing.size === 0 && files.length === 0;
     const applying = applyState.status === AsyncStatus.Loading;
+    // an edit made after the request was built would be reset away when it succeeds
+    const canEditNow = canEdit && !applying;
 
     const renderImage = (image: PackImageReader) => (
       <SequenceCard
@@ -264,7 +267,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
             image={savedImages.get(image.shortcode) ?? image}
             packUsage={currentMeta.usage}
             useAuthentication={useAuthentication}
-            canEdit={canEdit}
+            canEdit={canEditNow}
             onEdit={handleImageEdit}
             deleted={deleteImages.has(image.shortcode)}
             onDeleteToggle={handleDeleteToggle}
@@ -331,7 +334,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
             ) : (
               <ImagePackProfile
                 meta={currentMeta}
-                canEdit={canEdit}
+                canEdit={canEditNow}
                 onEdit={() => setMetaEditing(true)}
               />
             )}
@@ -348,7 +351,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
               after={
                 <UsageSwitcher
                   usage={currentMeta.usage}
-                  canEdit={canEdit}
+                  canEdit={canEditNow}
                   onChange={handlePackUsageChange}
                 />
               }
@@ -397,6 +400,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
                       radii="300"
                       type="button"
                       outlined
+                      disabled={applying}
                       onClick={() => pickFiles('image/*')}
                     >
                       <Text size="B300">Select</Text>
