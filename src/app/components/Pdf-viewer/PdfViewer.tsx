@@ -60,19 +60,23 @@ export const PdfViewer = as<'div', PdfViewerProps>(
     }, [pdfJSState, loadPdfDocument]);
 
     useEffect(() => {
-      if (docState.status === AsyncStatus.Success) {
-        const doc = docState.data;
-        if (pageNo < 0 || pageNo > doc.numPages) return;
-        createPage(doc, pageNo, { scale: zoom }).then((canvas) => {
-          const container = containerRef.current;
-          if (!container) return;
-          container.textContent = '';
-          container.append(canvas);
-          scrollRef.current?.scrollTo({
-            top: 0,
-          });
+      if (docState.status !== AsyncStatus.Success) return undefined;
+      const doc = docState.data;
+      if (pageNo < 0 || pageNo > doc.numPages) return undefined;
+      // a page that finishes after the page or zoom changed is not shown
+      let current = true;
+      createPage(doc, pageNo, { scale: zoom }).then((canvas) => {
+        const container = containerRef.current;
+        if (!current || !container) return;
+        container.textContent = '';
+        container.append(canvas);
+        scrollRef.current?.scrollTo({
+          top: 0,
         });
-      }
+      });
+      return () => {
+        current = false;
+      };
     }, [docState, pageNo, zoom]);
 
     const handleDownload = () => {
