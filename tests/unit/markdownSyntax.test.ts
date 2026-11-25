@@ -122,6 +122,16 @@ describe('block markdown', () => {
     );
     expect(md('```\n**not bold**\n```')).toContain('**not bold**');
   });
+
+  it('keeps markup in a fence label and in the code out of the HTML', () => {
+    const html = md('```x"onmouseover="alert(1).js\n<b>\n```');
+    expect(html).toBe(
+      '<pre data-md="```"><code class="language-js" data-label="x&quot;onmouseover=&quot;alert(1).js">&lt;b&gt;\n</code></pre>'
+    );
+    // and what comes back to the editor is the typed text
+    const nodes = htmlToEditorInput(html, true);
+    expect(JSON.stringify(nodes)).toContain('```x\\"onmouseover=\\"alert(1).js');
+  });
 });
 
 describe('editing round trip', () => {
