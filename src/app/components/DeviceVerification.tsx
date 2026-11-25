@@ -103,11 +103,24 @@ function VerificationWaitStart() {
 
 type VerificationStartProps = {
   onStart: () => Promise<void>;
+  onClose: () => void;
 };
-function AutoVerificationStart({ onStart }: VerificationStartProps) {
+function AutoVerificationStart({ onStart, onClose }: VerificationStartProps) {
+  const [startState, start] = useAsyncCallback<void, Error, []>(onStart);
+
   useEffect(() => {
-    onStart();
-  }, [onStart]);
+    // the failure is shown from startState
+    start().catch(() => undefined);
+  }, [start]);
+
+  if (startState.status === AsyncStatus.Error) {
+    return (
+      <VerificationUnexpected
+        message={`Failed to start verification. ${startState.error.message}`}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <Box direction="Column" gap="400">
@@ -177,13 +190,26 @@ type SasVerificationProps = {
 };
 function SasVerification({ verifier, onCancel }: SasVerificationProps) {
   const [sasData, setSasData] = useState<ShowSasCallbacks>();
+  const [verifyState, verify] = useAsyncCallback<void, Error, []>(
+    useCallback(() => verifier.verify(), [verifier])
+  );
 
   useVerifierShowSas(verifier, setSasData);
   useVerifierCancel(verifier, onCancel);
 
   useEffect(() => {
-    verifier.verify();
-  }, [verifier]);
+    // a cancel by the other device also ends here; the request phase then replaces this view
+    verify().catch(() => undefined);
+  }, [verify]);
+
+  if (verifyState.status === AsyncStatus.Error) {
+    return (
+      <VerificationUnexpected
+        message={`Verification failed. ${verifyState.error.message}`}
+        onClose={onCancel}
+      />
+    );
+  }
 
   if (sasData) {
     return <CompareEmoji sasData={sasData} />;
@@ -261,7 +287,7 @@ export function DeviceVerificationFlow({ request, onExit }: DeviceVerificationPr
         ))}
       {phase === VerificationPhase.Ready &&
         (request.initiatedByMe ? (
-          <AutoVerificationStart onStart={handleStart} />
+          <AutoVerificationStart onStart={handleStart} onClose={handleCancel} />
         ) : (
           <VerificationWaitStart />
         ))}
