@@ -155,7 +155,7 @@ export class Connection {
   private _livekitAlias?: string;
 
   /**
-   * Whether the connection has been stopped.
+   * Whether the connection has been stopped. A stopped connection stays stopped.
    * @see Connection.stop
    * */
   protected stopped = false;
@@ -219,7 +219,7 @@ export class Connection {
   // TODO consider an autostart pattern...
   public async start(): Promise<void> {
     this.logger.debug('Starting Connection');
-    this.stopped = false;
+    if (this.stopped) return;
     try {
       this._state$.next(ConnectionState.FetchingConfig);
       // We should already have this information after creating the localTransport.
@@ -253,7 +253,7 @@ export class Connection {
 
       try {
         this.logger.info(`livekitRoom.connect ${url}`);
-        await this.livekitRoom.connect(url, jwt);
+        if (!(await this.connectUnlessStopped(url, jwt))) return;
         this.logger.info(`livekitRoom.connect SUCCESS ${url}`);
         this.advertiseRejoin();
       } catch (e) {
@@ -280,10 +280,10 @@ export class Connection {
         }
         throw e;
       }
-      // If we were stopped while connecting, don't proceed to update state.
-      if (this.stopped) return;
       this.watchForDrops();
     } catch (error) {
+      // Stopping while connecting aborts the connect; that is not a failure to report.
+      if (this.stopped) return;
       this.logger.debug(`Failed to connect to LiveKit room: ${error}`);
       this._state$.next(
         error instanceof ElementCallError
@@ -329,6 +329,18 @@ export class Connection {
       .catch((e) => this.logger.warn('Failed to advertise rejoin support', e));
   }
 
+  /**
+   * Connects the room. A stop that lands while connecting has already disconnected and
+   * released the room, so the connect that resolves afterwards is undone here.
+   * @returns whether the connection is still wanted.
+   */
+  private async connectUnlessStopped(url: string, jwt: string): Promise<boolean> {
+    await this.livekitRoom.connect(url, jwt);
+    if (!this.stopped) return true;
+    await this.livekitRoom.disconnect();
+    return false;
+  }
+
   private async rejoin(): Promise<void> {
     this.rejoining = true;
     try {
@@ -340,7 +352,7 @@ export class Connection {
             this.getSFUConfigForRemoteConnection());
           if (this.stopped) return;
           this._livekitAlias = livekitAlias;
-          await this.livekitRoom.connect(url, jwt);
+          if (!(await this.connectUnlessStopped(url, jwt))) return;
           this.logger.info(`Rejoined after ${attempt + 1} attempt(s)`);
           this.advertiseRejoin();
           return;
@@ -379,6 +391,8 @@ export class Connection {
   public async stop(): Promise<void> {
     this.logger.debug(`stop: disconnecing from lk room ${this.transport.livekit_service_url}`);
     if (this.stopped) return;
+    // Before the first await: a connect in flight checks this when it resolves.
+    this.stopped = true;
     try {
       await this.livekitRoom.disconnect();
     } finally {
@@ -387,7 +401,6 @@ export class Connection {
       if (e2ee !== undefined && 'worker' in e2ee) e2ee.worker.terminate();
     }
     this._state$.next(ConnectionState.Stopped);
-    this.stopped = true;
     this.logger.debug(`stop: DONE disconnecing from lk room ${this.transport.livekit_service_url}`);
   }
 }

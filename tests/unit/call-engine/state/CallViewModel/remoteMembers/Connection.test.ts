@@ -770,3 +770,101 @@ describe('Rejoining after the SFU drops us', () => {
     expect(fakeLivekitRoom.connect).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Stopping while a connect is in flight', () => {
+  const config = {
+    url: 'wss://matrix-rtc.m.localhost/livekit/sfu',
+    jwt: testJWTToken,
+    livekitAlias: 'alias',
+    livekitIdentity: '@me:example.org:ABCDEF',
+  };
+
+  /** A room whose connect resolves when told to, and which is connected until disconnected. */
+  function setupSlowConnect(refreshSFUConfig?: () => Promise<typeof config>) {
+    setupTest();
+    const worker = giveE2EEWorker();
+    let finishConnect: () => void = () => {};
+    fakeLivekitRoom.connect.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishConnect = () => {
+            fakeLivekitRoom.state = LivekitConnectionState.Connected;
+            resolve();
+          };
+        })
+    );
+    fakeLivekitRoom.disconnect.mockImplementation(async () => {
+      fakeLivekitRoom.state = LivekitConnectionState.Disconnected;
+    });
+    const connection = new Connection(
+      {
+        client,
+        roomId: ROOM_ID,
+        transport: livekitFocus,
+        scope: testScope,
+        ownMembershipIdentity: ownMemberMock,
+        livekitRoomFactory: () => fakeLivekitRoom,
+        existingSFUConfig: config,
+        refreshSFUConfig,
+      },
+      logger
+    );
+    return { connection, worker, finishConnect: () => finishConnect() };
+  }
+
+  it('leaves no connected room behind when stopped during the first connect', async () => {
+    const { connection, finishConnect } = setupSlowConnect();
+    const started = connection.start();
+    await connection.stop();
+
+    finishConnect();
+    await started;
+
+    expect(fakeLivekitRoom.state).toBe(LivekitConnectionState.Disconnected);
+    expect(connection.state$.getValue()).toBe(ConnectionState.Stopped);
+  });
+
+  it('does not report the aborted connect as a failure', async () => {
+    const { connection } = setupSlowConnect();
+    let abort: (e: Error) => void = () => {};
+    fakeLivekitRoom.connect.mockImplementation(
+      () => new Promise<void>((_, reject) => (abort = reject))
+    );
+    const started = connection.start();
+    await connection.stop();
+
+    abort(new Error('Client initiated disconnect'));
+
+    await expect(started).resolves.toBeUndefined();
+    expect(connection.state$.getValue()).toBe(ConnectionState.Stopped);
+  });
+
+  it('does not connect when started after it was stopped', async () => {
+    const { connection } = setupSlowConnect();
+    await connection.stop();
+
+    await connection.start();
+
+    expect(fakeLivekitRoom.connect).not.toHaveBeenCalled();
+  });
+
+  it('leaves no connected room behind when stopped during a rejoin', async () => {
+    vi.useFakeTimers();
+    const refresh = vi.fn().mockResolvedValue(config);
+    const { connection, finishConnect } = setupSlowConnect(refresh);
+    const started = connection.start();
+    finishConnect();
+    await started;
+
+    fakeLivekitRoom.state = LivekitConnectionState.Disconnected;
+    fakeLivekitRoom.emit(RoomEvent.Disconnected, DisconnectReason.UNKNOWN_REASON);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fakeLivekitRoom.connect).toHaveBeenCalledTimes(2);
+
+    await connection.stop();
+    finishConnect();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(fakeLivekitRoom.state).toBe(LivekitConnectionState.Disconnected);
+  });
+});
