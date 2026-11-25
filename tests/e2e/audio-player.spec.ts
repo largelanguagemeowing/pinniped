@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { matrixRequest, uploadMedia } from './support/matrix';
 import { createRoom, leaveRooms } from './support/rooms';
 const AUDIO_DURATION_SECONDS = 4;
@@ -25,34 +25,39 @@ const createSilentWav = (): number[] => {
   return Array.from(wav);
 };
 
+/** Sends an audio message with a known duration, as another client would; returns its event ID. */
+async function sendAudio(page: Page, roomId: string, filename: string): Promise<string> {
+  const audioBytes = createSilentWav();
+  const contentUri = await uploadMedia(page, {
+    bytes: audioBytes,
+    contentType: 'audio/wav',
+    filename,
+  });
+
+  const result = await matrixRequest<{ event_id: string }>(page, {
+    method: 'PUT',
+    path: `/rooms/${encodeURIComponent(roomId)}/send/m.room.message/${Date.now()}`,
+    body: {
+      msgtype: 'm.audio',
+      body: filename,
+      url: contentUri,
+      info: {
+        duration: AUDIO_DURATION_SECONDS * 1000,
+        mimetype: 'audio/wav',
+        size: audioBytes.length,
+      },
+    },
+  });
+  const eventId = result?.event_id;
+  if (!eventId) throw new Error('Missing sent event ID');
+  return eventId;
+}
+
 test('audio timeline supports pointer and keyboard seeking', async ({ page }) => {
   const roomId = await createRoom(page, { name: `audio e2e ${Date.now()}` });
 
   try {
-    // an audio message with a known duration, as another client would send it
-    const audioBytes = createSilentWav();
-    const contentUri = await uploadMedia(page, {
-      bytes: audioBytes,
-      contentType: 'audio/wav',
-      filename: 'scrub-test.wav',
-    });
-
-    const result = await matrixRequest<{ event_id: string }>(page, {
-      method: 'PUT',
-      path: `/rooms/${encodeURIComponent(roomId)}/send/m.room.message/${Date.now()}`,
-      body: {
-        msgtype: 'm.audio',
-        body: 'Audio scrubber test',
-        url: contentUri,
-        info: {
-          duration: AUDIO_DURATION_SECONDS * 1000,
-          mimetype: 'audio/wav',
-          size: audioBytes.length,
-        },
-      },
-    });
-    const eventId = result?.event_id;
-    if (!eventId) throw new Error('Missing sent event ID');
+    const eventId = await sendAudio(page, roomId, 'scrub-test.wav');
 
     const message = page.locator(`[data-message-id="${eventId}"]`);
     await expect(message).toBeVisible();
@@ -113,6 +118,32 @@ test('audio timeline supports pointer and keyboard seeking', async ({ page }) =>
     await expect
       .poll(() => audio.evaluate((element: HTMLMediaElement) => element.currentTime))
       .toBeLessThan(beforeKeyboardSeek);
+  } finally {
+    await leaveRooms(page, [roomId]);
+  }
+});
+
+test('a playback speed chosen before the audio loads is the speed it plays at', async ({
+  page,
+}) => {
+  const roomId = await createRoom(page, { name: `audio speed e2e ${Date.now()}` });
+
+  try {
+    const eventId = await sendAudio(page, roomId, 'speed-test.wav');
+    const message = page.locator(`[data-message-id="${eventId}"]`);
+    await expect(message).toBeVisible();
+
+    // the source is attached when playing starts, after the speed is picked
+    const speed = message.getByRole('button', { name: /^Playback speed/ });
+    await speed.click();
+    await expect(speed).toHaveAccessibleName('Playback speed, 1.25 times');
+
+    await message.getByRole('button', { name: 'Play', exact: true }).click();
+    const audio = message.locator('audio');
+    await expect(audio).toHaveAttribute('src', /^blob:/);
+    await expect
+      .poll(() => audio.evaluate((element: HTMLMediaElement) => element.playbackRate))
+      .toBe(1.25);
   } finally {
     await leaveRooms(page, [roomId]);
   }

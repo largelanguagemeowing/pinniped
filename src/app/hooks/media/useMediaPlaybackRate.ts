@@ -16,6 +16,9 @@ export const useMediaPlaybackRate = (
     (playbackRate: number) => {
       const targetEl = getTargetElement();
       if (!targetEl) return;
+      // loading a source resets playbackRate to the default, and the source of an audio
+      // message is attached after the speed can be chosen
+      targetEl.defaultPlaybackRate = playbackRate;
       targetEl.playbackRate = playbackRate;
     },
     [getTargetElement]
