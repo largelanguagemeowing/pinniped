@@ -31,6 +31,7 @@ import {
   CustomLoginResponse,
   LoginError,
   factoryGetBaseUrl,
+  getAccountStateMessage,
   login,
   useLoginComplete,
 } from './loginUtil';
@@ -125,6 +126,10 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
   >(useCallback(login, []));
 
   useLoginComplete(loginState.status === AsyncStatus.Success ? loginState.data : undefined);
+  const accountStateMessage =
+    loginState.status === AsyncStatus.Error
+      ? getAccountStateMessage(loginState.error.errcode)
+      : undefined;
 
   const handleUsernameLogin = (username: string, password: string) => {
     startLogin(baseUrl, {
@@ -170,6 +175,10 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
+    // Enter still submits from the focused field while the spinner covers the form
+    if (loginState.status === AsyncStatus.Loading || loginState.status === AsyncStatus.Success) {
+      return;
+    }
     const { usernameInput, passwordInput } = evt.target as HTMLFormElement & {
       usernameInput: HTMLInputElement;
       passwordInput: HTMLInputElement;
@@ -235,9 +244,7 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
               {loginState.error.errcode === LoginError.Forbidden && (
                 <FieldError message="Wrong username or password. Check both and try again." />
               )}
-              {loginState.error.errcode === LoginError.UserDeactivated && (
-                <FieldError message="This account has been deactivated." />
-              )}
+              {accountStateMessage && <FieldError message={accountStateMessage} />}
               {loginState.error.errcode === LoginError.InvalidRequest && (
                 <FieldError message="Failed to login. Part of your request data is invalid." />
               )}

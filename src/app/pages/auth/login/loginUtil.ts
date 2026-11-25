@@ -48,10 +48,36 @@ export enum LoginError {
   InvalidServer = 'InvalidServer',
   Forbidden = 'Forbidden',
   UserDeactivated = 'UserDeactivated',
+  UserLocked = 'UserLocked',
+  UserSuspended = 'UserSuspended',
+  AwaitingApproval = 'AwaitingApproval',
+  ConsentRequired = 'ConsentRequired',
   InvalidRequest = 'InvalidRequest',
   RateLimited = 'RateLimited',
   Unknown = 'Unknown',
 }
+
+/** Accounts the server holds back, which a wrong password does not explain. */
+const ACCOUNT_STATE_MESSAGES: Record<string, string> = {
+  [LoginError.UserDeactivated]: 'This account has been deactivated.',
+  [LoginError.UserLocked]: 'This account has been locked by the server.',
+  [LoginError.UserSuspended]: 'This account has been suspended by the server.',
+  [LoginError.AwaitingApproval]: 'This account is waiting for approval by a server administrator.',
+  [LoginError.ConsentRequired]:
+    "This account has to accept the server's terms before it can sign in.",
+};
+
+export const getAccountStateMessage = (errcode?: string): string | undefined =>
+  errcode ? ACCOUNT_STATE_MESSAGES[errcode] : undefined;
+
+// errcodes outrank the HTTP status: the server answers these with 401 or 403
+const ACCOUNT_STATE_ERRORS: Record<string, LoginError> = {
+  [ErrorCode.M_USER_DEACTIVATED]: LoginError.UserDeactivated,
+  [ErrorCode.M_USER_LOCKED]: LoginError.UserLocked,
+  [ErrorCode.M_USER_SUSPENDED]: LoginError.UserSuspended,
+  [ErrorCode.ORG_MATRIX_MSC3866_USER_AWAITING_APPROVAL]: LoginError.AwaitingApproval,
+  [ErrorCode.M_CONSENT_NOT_GIVEN]: LoginError.ConsentRequired,
+};
 
 export type CustomLoginResponse = {
   baseUrl: string;
@@ -86,9 +112,10 @@ export const login = async (
         errcode: LoginError.RateLimited,
       });
     }
-    if (err.errcode === ErrorCode.M_USER_DEACTIVATED) {
+    const accountState = err.errcode ? ACCOUNT_STATE_ERRORS[err.errcode] : undefined;
+    if (accountState) {
       throw new MatrixError({
-        errcode: LoginError.UserDeactivated,
+        errcode: accountState,
       });
     }
 

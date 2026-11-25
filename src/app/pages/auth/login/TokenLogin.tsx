@@ -15,7 +15,13 @@ import { MatrixError } from 'matrix-js-sdk';
 import { useAutoDiscoveryInfo } from '../../../hooks/useAutoDiscoveryInfo';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { getDeviceDisplayName } from '../../../utils/device';
-import { CustomLoginResponse, LoginError, login, useLoginComplete } from './loginUtil';
+import {
+  CustomLoginResponse,
+  LoginError,
+  getAccountStateMessage,
+  login,
+  useLoginComplete,
+} from './loginUtil';
 
 function LoginTokenError({ message }: { message: string }) {
   return (
@@ -63,6 +69,10 @@ export function TokenLogin({ token }: TokenLoginProps) {
   }, [baseUrl, token, startLogin]);
 
   useLoginComplete(loginState.status === AsyncStatus.Success ? loginState.data : undefined);
+  const accountStateMessage =
+    loginState.status === AsyncStatus.Error
+      ? getAccountStateMessage(loginState.error.errcode)
+      : undefined;
 
   return (
     <>
@@ -71,9 +81,7 @@ export function TokenLogin({ token }: TokenLoginProps) {
           {loginState.error.errcode === LoginError.Forbidden && (
             <LoginTokenError message="Invalid login token." />
           )}
-          {loginState.error.errcode === LoginError.UserDeactivated && (
-            <LoginTokenError message="This account has been deactivated." />
-          )}
+          {accountStateMessage && <LoginTokenError message={accountStateMessage} />}
           {loginState.error.errcode === LoginError.InvalidRequest && (
             <LoginTokenError message="Failed to login. Part of your request data is invalid." />
           )}
