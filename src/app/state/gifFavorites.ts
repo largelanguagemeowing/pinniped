@@ -88,24 +88,26 @@ export const getGifFavorites = (mx: MatrixClient): StoredFavorite[] => {
 const setGifFavorites = (mx: MatrixClient, favorites: StoredFavorite[]): Promise<unknown> =>
   mx.setAccountData(AccountDataEvent.PinnipedGifFavorites, { favorites });
 
-// Toggles run one after another, each against the newest account data, so quick
-// successive toggles don't overwrite each other with a stale list.
-let toggleQueue: Promise<unknown> = Promise.resolve();
+// Writes run one after another, each against the newest account data, so quick
+// successive toggles (and the migration) don't overwrite each other with a stale list.
+let writeQueue: Promise<unknown> = Promise.resolve();
 
-export const toggleGifFavorite = (mx: MatrixClient, fav: FavoriteGif): Promise<unknown> => {
-  toggleQueue = toggleQueue
-    .catch(() => undefined)
-    .then(() => {
-      const id = getFavoriteGifId(fav);
-      const current = getGifFavorites(mx);
-      const exists = current.some((f) => f.id === id);
-      const next = exists
-        ? current.filter((f) => f.id !== id)
-        : [{ id, fav, addedAt: Date.now() }, ...current];
-      return setGifFavorites(mx, next);
-    });
-  return toggleQueue;
+const enqueueWrite = <T>(task: () => Promise<T>): Promise<T> => {
+  const run = writeQueue.catch(() => undefined).then(task);
+  writeQueue = run;
+  return run;
 };
+
+export const toggleGifFavorite = (mx: MatrixClient, fav: FavoriteGif): Promise<unknown> =>
+  enqueueWrite(async () => {
+    const id = getFavoriteGifId(fav);
+    const current = getGifFavorites(mx);
+    const exists = current.some((f) => f.id === id);
+    const next = exists
+      ? current.filter((f) => f.id !== id)
+      : [{ id, fav, addedAt: Date.now() }, ...current];
+    await setGifFavorites(mx, next);
+  });
 
 /**
  * Reactively returns the user's favourite GIFs, updating when the
@@ -152,12 +154,14 @@ export const migrateGifFavorites = async (mx: MatrixClient): Promise<void> => {
   }
 
   if (legacy.length) {
-    const existing = getGifFavorites(mx);
-    const existingIds = new Set(existing.map((f) => f.id));
-    const merged = [...existing, ...legacy.filter((f) => !existingIds.has(f.id))].sort(
-      (a, b) => b.addedAt - a.addedAt
-    );
-    await setGifFavorites(mx, merged);
+    await enqueueWrite(async () => {
+      const existing = getGifFavorites(mx);
+      const existingIds = new Set(existing.map((f) => f.id));
+      const merged = [...existing, ...legacy.filter((f) => !existingIds.has(f.id))].sort(
+        (a, b) => b.addedAt - a.addedAt
+      );
+      await setGifFavorites(mx, merged);
+    });
   }
 
   try {
