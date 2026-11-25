@@ -241,8 +241,16 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
   const [file, setFile] = useState<File>();
   const [newEmoji, setNewEmoji] = useState<string>();
   const [newMode, setNewMode] = useState<SoundMode>('add');
-  const pendingPreview = useRef<HTMLAudioElement>(undefined);
-  useEffect(() => () => pendingPreview.current?.pause(), []);
+  // The chosen file's preview; its object URL lives exactly as long as the audio is the current one.
+  const pendingPreview = useRef<{ audio: HTMLAudioElement; url: string }>(undefined);
+  const stopPending = useCallback(() => {
+    const pending = pendingPreview.current;
+    pendingPreview.current = undefined;
+    if (!pending) return;
+    pending.audio.pause();
+    URL.revokeObjectURL(pending.url);
+  }, []);
+  useEffect(() => stopPending, [stopPending]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -257,10 +265,17 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
     (apply: (content: SoundPackContent) => SoundPackContent) => {
       const run = queue.current
         .catch(() => undefined)
-        .then(() => {
-          const next = apply(latest.current);
+        .then(async () => {
+          const previous = latest.current;
+          const next = apply(previous);
           latest.current = next;
-          return onUpdate(next);
+          try {
+            return await onUpdate(next);
+          } catch (e) {
+            // a write that failed must not ride along with the next change
+            if (latest.current === next) latest.current = previous;
+            throw e;
+          }
         });
       queue.current = run;
       return run;
@@ -303,7 +318,7 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
       setFile(undefined);
       setNewEmoji(undefined);
       setNewMode('add');
-      pendingPreview.current?.pause();
+      stopPending();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed.');
     } finally {
@@ -314,12 +329,17 @@ export function SoundPackEditor({ pack, canEdit, onUpdate }: SoundPackEditorProp
   // Listen to the chosen file before uploading it.
   const previewPending = () => {
     if (!file) return;
-    pendingPreview.current?.pause();
+    stopPending();
     const url = URL.createObjectURL(file);
     const audio = new Audio(url);
-    audio.addEventListener('ended', () => URL.revokeObjectURL(url));
-    pendingPreview.current = audio;
-    audio.play().catch(() => undefined);
+    const pending = { audio, url };
+    pendingPreview.current = pending;
+    const finish = () => {
+      if (pendingPreview.current === pending) stopPending();
+    };
+    audio.addEventListener('ended', finish);
+    audio.addEventListener('error', finish);
+    audio.play().catch(finish);
   };
 
   const handleSave = (id: string, name: string, emoji: string, mode: SoundMode) => {
