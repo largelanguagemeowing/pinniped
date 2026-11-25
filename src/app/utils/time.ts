@@ -59,14 +59,8 @@ export const inSameDay = (ts1: number, ts2: number): boolean => {
   );
 };
 
-export const minuteDifference = (ts1: number, ts2: number): number => {
-  const dt1 = new Date(ts1);
-  const dt2 = new Date(ts2);
-
-  let diff = (dt2.getTime() - dt1.getTime()) / 1000;
-  diff /= 60;
-  return Math.abs(Math.round(diff));
-};
+/** Gap between two timestamps in minutes, fractions included. */
+export const minuteDifference = (ts1: number, ts2: number): number => Math.abs(ts2 - ts1) / 60_000;
 
 export const hour24to12 = (hour24: number): number => {
   const h = hour24 % 12;

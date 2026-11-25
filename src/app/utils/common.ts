@@ -26,8 +26,10 @@ export const millisecondsToMinutes = (milliseconds: number): string => {
 };
 
 export const secondsToMinutesAndSeconds = (seconds: number): string => {
-  const mm = Math.floor(seconds / 60);
-  const ss = Math.round(seconds % 60);
+  // round first so 59.7 s carries into the minutes instead of showing 0:60
+  const total = Math.round(seconds);
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
   return `${mm}:${ss < 10 ? '0' : ''}${ss}`;
 };
 
