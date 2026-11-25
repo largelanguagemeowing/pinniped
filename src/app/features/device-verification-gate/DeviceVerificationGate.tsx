@@ -151,14 +151,17 @@ function ChooseView({
   onDevice,
   onKey,
   onSkip,
+  resetOpen,
+  onResetOpenChange,
 }: {
   canUseKey: boolean;
   onDevice: () => void;
   onKey: () => void;
   onSkip: () => void;
+  resetOpen: boolean;
+  onResetOpenChange: (open: boolean) => void;
 }) {
   const devices = useOtherVerifiedDevices();
-  const [resetOpen, setResetOpen] = useState(false);
   // Nothing can approve this device and there is no key to unlock the account with.
   const stuck = devices === 'none' && !canUseKey;
 
@@ -178,7 +181,12 @@ function ChooseView({
           locked, and anyone who verified you will see a security warning.
         </Text>
         <Box>
-          <Button variant="Secondary" fill="Soft" size="400" onClick={() => setResetOpen(true)}>
+          <Button
+            variant="Secondary"
+            fill="Soft"
+            size="400"
+            onClick={() => onResetOpenChange(true)}
+          >
             <Text as="span" size="B400">
               Reset encryption identity
             </Text>
@@ -228,7 +236,7 @@ function ChooseView({
           </Text>
         </Button>
       </Box>
-      {resetOpen && <DeviceVerificationResetOverlay onCancel={() => setResetOpen(false)} />}
+      {resetOpen && <DeviceVerificationResetOverlay onCancel={() => onResetOpenChange(false)} />}
     </Box>
   );
 }
@@ -318,10 +326,14 @@ function KeyView({
   keyId,
   keyContent,
   onBack,
+  resetOpen,
+  onResetOpenChange,
 }: {
   keyId: string;
   keyContent: SecretStorageKeyContent;
   onBack: () => void;
+  resetOpen: boolean;
+  onResetOpenChange: (open: boolean) => void;
 }) {
   const hasPassphrase = !!keyContent.passphrase;
   const [method, setMethod] = useState(
@@ -330,7 +342,6 @@ function KeyView({
       : ManualVerificationMethod.RecoveryKey
   );
   const { verifyState, verify, verifying } = useVerifyWithRecoveryKey(keyId);
-  const [resetOpen, setResetOpen] = useState(false);
 
   return (
     <Box direction="Column" gap="500">
@@ -364,13 +375,13 @@ function KeyView({
       )}
       <Box gap="200" wrap="Wrap">
         <BackButton onClick={onBack} />
-        <Button variant="Secondary" fill="None" size="400" onClick={() => setResetOpen(true)}>
+        <Button variant="Secondary" fill="None" size="400" onClick={() => onResetOpenChange(true)}>
           <Text as="span" size="B400">
             Lost your recovery key?
           </Text>
         </Button>
       </Box>
-      {resetOpen && <DeviceVerificationResetOverlay onCancel={() => setResetOpen(false)} />}
+      {resetOpen && <DeviceVerificationResetOverlay onCancel={() => onResetOpenChange(false)} />}
     </Box>
   );
 }
@@ -495,6 +506,10 @@ export function DeviceVerificationGate() {
   // skipped, so the screen cannot flip to verification part-way through.
   const [setupActive, setSetupActive] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<string>();
+  // A reset signs this device with the new identity before it shows the new recovery key, so
+  // the device turns verified while the reset is still running. The reset stays on screen
+  // until it is closed, or its progress and the key it shows once would go with it.
+  const [resetOpen, setResetOpen] = useState(false);
   const wasVerifying = useRef(false);
 
   const asked = gateKind({ identity, status, dismissed });
@@ -516,18 +531,20 @@ export function DeviceVerificationGate() {
   const settingUp = setupActive || recoveryKey !== undefined;
 
   useEffect(() => {
-    if (settingUp) return;
+    if (settingUp || resetOpen) return;
     if (asked === 'verify') {
       wasVerifying.current = true;
     } else if (justVerified(wasVerifying.current, { identity, status, dismissed })) {
       wasVerifying.current = false;
       setFinished(true);
     }
-  }, [settingUp, asked, identity, status, dismissed]);
+  }, [settingUp, resetOpen, asked, identity, status, dismissed]);
 
   const kind: GateKind = settingUp ? 'setup' : (asked ?? 'verify');
 
-  if (!settingUp && !shouldShowGate({ identity, status, dismissed, finished })) return null;
+  if (!settingUp && !resetOpen && !shouldShowGate({ identity, status, dismissed, finished })) {
+    return null;
+  }
 
   const handleSkip = () => {
     setView('choose');
@@ -568,7 +585,15 @@ export function DeviceVerificationGate() {
         />
       );
     } else if (view === 'key' && keyId && keyContent) {
-      content = <KeyView keyId={keyId} keyContent={keyContent} onBack={() => setView('choose')} />;
+      content = (
+        <KeyView
+          keyId={keyId}
+          keyContent={keyContent}
+          onBack={() => setView('choose')}
+          resetOpen={resetOpen}
+          onResetOpenChange={setResetOpen}
+        />
+      );
     } else if (view === 'skip') {
       content = <SkipView kind="verify" onBack={() => setView('choose')} onContinue={handleSkip} />;
     } else {
@@ -578,6 +603,8 @@ export function DeviceVerificationGate() {
           onDevice={() => setView('device')}
           onKey={() => setView('key')}
           onSkip={() => setView('skip')}
+          resetOpen={resetOpen}
+          onResetOpenChange={setResetOpen}
         />
       );
     }

@@ -262,6 +262,40 @@ describe('DeviceVerificationGate', () => {
       expect(rendered(r)).toContain('Enter your recovery key');
     });
 
+    describe('while the encryption identity is being reset', () => {
+      // resetting signs this device with the new identity before it shows the new recovery key
+      const verifyDuringReset = async () => {
+        state.status = VerificationStatus.Verified;
+        await rerender();
+      };
+
+      it('keeps the reset on screen when the device turns verified part-way (recovery key view)', async () => {
+        await mount();
+        click(r, 'Use recovery key or passphrase');
+        click(r, 'Lost your recovery key?');
+
+        await verifyDuringReset();
+        expect(rendered(r)).toContain('reset-dialog');
+        expect(rendered(r)).not.toContain('This device is verified');
+
+        // the new recovery key was shown and dismissed: now the gate is done
+        click(r, 'reset-dialog');
+        expect(rendered(r)).toContain('This device is verified');
+      });
+
+      it('keeps the reset on screen when the device turns verified part-way (no other way)', async () => {
+        state.devices = 'none';
+        state.keyId = undefined;
+        state.keyContent = undefined;
+        await mount();
+        click(r, 'Reset encryption identity');
+
+        await verifyDuringReset();
+        expect(rendered(r)).toContain('reset-dialog');
+        expect(rendered(r)).not.toContain('This device is verified');
+      });
+    });
+
     it('goes back from the skip screen to verification', async () => {
       await mount();
       click(r, 'Continue without verifying');
