@@ -95,11 +95,13 @@ export type ExportImageRef = {
   height?: number;
 };
 
-/** Media an image message or sticker references. */
-export const getExportImageRef = (mEvent: MatrixEvent): ExportImageRef | undefined => {
+/** Media an image message or sticker references; `content` is the edited one when there is an edit. */
+export const getExportImageRef = (
+  mEvent: MatrixEvent,
+  content: IContent = mEvent.getContent()
+): ExportImageRef | undefined => {
   if (mEvent.isRedacted() || mEvent.isDecryptionFailure()) return undefined;
 
-  const content = mEvent.getContent();
   const isImageMessage = content.msgtype === MsgType.Image;
   const isSticker = mEvent.getType() === MessageEvent.Sticker;
   if (!isImageMessage && !isSticker) return undefined;
@@ -250,7 +252,7 @@ const getFormattedBody = (content: IContent): string | undefined => {
 export type ExportMessageOptions = {
   timelineSet?: EventTimelineSet;
   getSenderName: (userId: string) => string;
-  resolveFile?: (mEvent: MatrixEvent) => ExportFile | undefined;
+  resolveFile?: (mEvent: MatrixEvent, content: IContent) => ExportFile | undefined;
 };
 
 /** Maps a timeline event to its export representation, or undefined to skip it. */
@@ -298,7 +300,7 @@ export const toExportMessage = (
   if (typeof mEvent.replyEventId === 'string') message.replyTo = mEvent.replyEventId;
   if (typeof mEvent.threadRootId === 'string') message.threadId = mEvent.threadRootId;
 
-  const file = options.resolveFile?.(mEvent);
+  const file = options.resolveFile?.(mEvent, content);
   if (file) message.file = file;
 
   const poll = parsePollStart(content);

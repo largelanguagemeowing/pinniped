@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
-import { Direction, MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
+import { Direction, IContent, MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
 import {
   CHAT_EXPORT_FILES_DIR,
   CHAT_EXPORT_GENERATOR,
@@ -64,8 +64,8 @@ export class ChatExportImageCollector {
 
   private usedNames = new Set<string>();
 
-  collect(mEvent: MatrixEvent): ExportFile | undefined {
-    const ref = getExportImageRef(mEvent);
+  collect(mEvent: MatrixEvent, content?: IContent): ExportFile | undefined {
+    const ref = getExportImageRef(mEvent, content);
     if (!ref) return undefined;
 
     const existing = this.tasksByMxc.get(ref.mxcUrl);
@@ -258,7 +258,7 @@ export const buildChatExport = (
     const message = toExportMessage(mEvent, {
       timelineSet,
       getSenderName: (userId) => defaultSenderName(room, userId),
-      resolveFile: (evt) => collector.collect(evt),
+      resolveFile: (evt, content) => collector.collect(evt, content),
     });
     if (message) messages.push(message);
   });
