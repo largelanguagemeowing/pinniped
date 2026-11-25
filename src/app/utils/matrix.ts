@@ -372,7 +372,9 @@ export const mxcUrlToHttp = (
     allowRedirects,
     useAuthentication
   );
-  if (url === null || animated === undefined) return url;
+  // the SDK answers an mxc it rejects with an empty string
+  if (!url) return null;
+  if (animated === undefined) return url;
   // the SDK method cannot send `animated`; without it servers thumbnail only the first frame
   const withAnimated = new URL(url);
   withAnimated.searchParams.set('animated', String(animated));
