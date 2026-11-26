@@ -99,12 +99,14 @@ import {
 } from '../../state/room/composerTiles';
 import { prepareUploadFiles } from './prepareUploadFiles';
 import { describeSendGate, getSendGate } from './sendGate';
+import { getUploadTotals } from './uploadProgress';
 import { buildUploadContents, describeLeftBehind, getLeftBehind } from './sendUploads';
 import { useMediaConfig } from '../../hooks/useMediaConfig';
 import {
   UploadBoard,
   UploadBoardContent,
   UploadBoardImperativeHandlers,
+  UploadBoardProgress,
   UploadBoardSender,
 } from '../../components/upload-board';
 import { UploadSuccess, createUploadFamilyObserverAtom } from '../../state/upload';
@@ -668,6 +670,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               onSend={handleSendUpload}
               imperativeHandlerRef={uploadBoardHandlers}
             />
+            <UploadBoardProgress totals={getUploadTotals(uploadStates)} />
             <Scroll size="300" hideTrack visibility="Hover">
               <UploadBoardContent>
                 <ComposerTiles
