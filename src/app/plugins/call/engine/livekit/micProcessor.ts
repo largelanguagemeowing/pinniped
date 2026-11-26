@@ -18,6 +18,7 @@ import { callSettings } from '../settings';
 import { type Behavior } from '../state/Behavior';
 import { type ObservableScope } from '../state/ObservableScope';
 import { createMonoMix } from './monoMix';
+import { sendingAudioContext } from './processingAudioContext';
 import { attachVoiceGate, loadVoiceGate, type VoiceGateConfig } from './voiceGate';
 
 type AudioProcessor = TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>;
@@ -30,35 +31,57 @@ export type MicStages = {
   gate: Observable<VoiceGateConfig> | null;
 };
 
-/** The microphone's audio graph: capture, then the mono mix, then the voice gate, then out. */
+/**
+ * The microphone's audio graph: capture, then the mono mix, then the voice gate, then out.
+ *
+ * It runs in an audio context of its own that an output device clocks (see
+ * `sendingAudioContext`), not in the one LiveKit hands a processor: that one has no output
+ * (patches/livekit-client), so a timer renders it, and where the timer is coarse it rendered a
+ * third less audio than the microphone delivered. The voice came out cut up, and played with
+ * gaps for everyone else.
+ */
 export class MicProcessor implements AudioProcessor {
   public readonly name = 'mic-processing';
   public processedTrack?: MediaStreamTrack;
 
   private teardown?: () => void;
 
-  public constructor(private readonly stages: MicStages) {}
-
-  // livekit-client's restartTrack calls restart() without an audioContext, so
-  // keep the one init() was given and fall back to it.
-  private audioContext?: AudioContext;
+  private ctx?: AudioContext;
 
   // Counts starts and destroys, so a graph is not built for a start that was destroyed while
   // the gate's worklet was loading.
   private epoch = 0;
 
+  /**
+   * @param onFailed - Called when the context's output device fails, which stops the graph: the
+   * microphone is silent until another processor (with a new context) replaces this one.
+   */
+  public constructor(
+    private readonly stages: MicStages,
+    private readonly onFailed?: () => void
+  ) {}
+
+  private readonly failed = (): void => this.onFailed?.();
+
+  /** The graph's context, made on the first start and again after a destroy. */
+  private context(): AudioContext {
+    if (this.ctx === undefined || this.ctx.state === 'closed') {
+      this.ctx = sendingAudioContext({ latencyHint: 'interactive' });
+      this.ctx.addEventListener('error', this.failed);
+    }
+    return this.ctx;
+  }
+
   public async init(opts: AudioProcessorOptions): Promise<void> {
-    this.audioContext = opts.audioContext;
     const epoch = ++this.epoch;
-    if (this.stages.gate) await loadVoiceGate(opts.audioContext);
-    if (epoch === this.epoch) this.build(opts.track, opts.audioContext);
+    const ctx = this.context();
+    if (this.stages.gate) await loadVoiceGate(ctx);
+    if (epoch === this.epoch) this.build(opts.track, ctx);
   }
 
   public async restart(opts: AudioProcessorOptions): Promise<void> {
-    const ctx = opts.audioContext ?? this.audioContext;
-    if (!ctx) throw new Error('MicProcessor: no AudioContext to restart with');
-    this.audioContext = ctx;
     const epoch = ++this.epoch;
+    const ctx = this.context();
     if (this.stages.gate) await loadVoiceGate(ctx);
     if (epoch !== this.epoch) return;
     this.teardown?.();
@@ -70,6 +93,11 @@ export class MicProcessor implements AudioProcessor {
     this.teardown?.();
     this.teardown = undefined;
     this.processedTrack = undefined;
+    const ctx = this.ctx;
+    this.ctx = undefined;
+    ctx?.removeEventListener('error', this.failed);
+    // Its output stream goes with it.
+    await ctx?.close().catch(() => undefined);
   }
 
   private build(source: MediaStreamTrack, ctx: AudioContext): void {
@@ -108,15 +136,24 @@ const gateConfig$: Observable<VoiceGateConfig> = combineLatest([
   callSettings.voiceTuning$,
 ]).pipe(map(([auto, threshold, tuning]) => ({ auto, threshold, tuning })));
 
+/** A processor whose device fails is replaced at most this often, so a dead device cannot spin. */
+const RESTART_INTERVAL_MS = 10_000;
+
 /** Which stages a track has, so repeat emissions stay no-ops. */
 const applied = new WeakMap<LocalAudioTrack, { mono: boolean; gate: boolean }>();
 
-async function applyStages(track: LocalAudioTrack, stages: MicStages): Promise<void> {
+async function applyStages(
+  track: LocalAudioTrack,
+  stages: MicStages,
+  onFailed: () => void
+): Promise<void> {
   if (!stages.mono && !stages.gate) {
     await track.stopProcessor();
     return;
   }
-  const processor = new MicProcessor(stages);
+  const processor: MicProcessor = new MicProcessor(stages, () => {
+    if (track.getProcessor() === processor) onFailed();
+  });
   try {
     await track.setProcessor(processor);
   } catch (e) {
@@ -136,6 +173,7 @@ export function micProcessingSync(
   logger: Logger
 ): void {
   let previous: LocalAudioTrack | null = null;
+  let lastRestart = -Infinity;
   combineLatest([audioTrack$, callSettings.voiceGate$, callSettings.monoMic$])
     .pipe(scope.bind())
     .subscribe(([track, gate, mono]) => {
@@ -149,17 +187,32 @@ export function micProcessingSync(
       if (track === null) return;
       const before = applied.get(track);
       if ((before?.gate ?? false) === gate && (before?.mono ?? false) === mono) return;
-      // Claim the state while applying so concurrent emissions don't apply twice, but release it
-      // on failure so a later emission retries.
-      const claim = { gate, mono };
-      applied.set(track, claim);
-      const stages: MicStages = {
-        mono,
-        gate: gate ? gateConfig$ : null,
+      const apply = (): void => {
+        // Claim the state while applying so concurrent emissions don't apply twice, but release
+        // it on failure so a later emission retries.
+        const claim = { gate, mono };
+        applied.set(track, claim);
+        const stages: MicStages = {
+          mono,
+          gate: gate ? gateConfig$ : null,
+        };
+        const restart = (): void => {
+          // Only while this is still the microphone and these are still its stages.
+          if (previous !== track || applied.get(track) !== claim) return;
+          const now = Date.now();
+          if (now - lastRestart < RESTART_INTERVAL_MS) {
+            logger.error("The microphone processing's audio device keeps failing; giving up");
+            return;
+          }
+          lastRestart = now;
+          logger.warn("The microphone processing's audio device failed; restarting it");
+          apply();
+        };
+        applyStages(track, stages, restart).catch((e) => {
+          if (applied.get(track) === claim) applied.delete(track);
+          logger.error('Failed to process the microphone', e);
+        });
       };
-      applyStages(track, stages).catch((e) => {
-        if (applied.get(track) === claim) applied.delete(track);
-        logger.error('Failed to process the microphone', e);
-      });
+      apply();
     });
 }

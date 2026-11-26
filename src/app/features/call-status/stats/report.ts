@@ -4,7 +4,13 @@ import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/c
 import type { EncryptionEvent } from '../../../plugins/call/engine/livekit/encryptionLog';
 import type { CallPlayback } from '../../../state/call';
 import type { PowerSource } from '../../../hooks/usePowerSource';
-import { formatBitrate, formatBytes, StatPoint, valueSeries } from '../../../plugins/call/stats';
+import {
+  formatBitrate,
+  formatBytes,
+  statNumber,
+  StatPoint,
+  valueSeries,
+} from '../../../plugins/call/stats';
 import { APP_VERSION, isDesktop } from '../../../utils/device';
 import {
   ChartSpec,
@@ -100,13 +106,20 @@ const duration = (ms: number): string => {
  * network counters stay clean: microphone audio that never reached us (the others hear it), and
  * WebRTC's playout running dry (we hear it).
  */
-const deviceLines = ({ microphone, playout }: CallStatsConnection): string[] => [
+const deviceLines = (
+  { microphone, playout }: CallStatsConnection,
+  micPacketRate: number | undefined
+): string[] => [
   ...(microphone
     ? [
         `- Microphone: ${millis(microphone.droppedSeconds)} dropped by the capture device in ${Math.round(microphone.capturedSeconds)} s, ${
           microphone.processed
             ? 'processed in an audio graph (voice gate or mono mix) before it is sent'
             : 'sent as captured'
+        }${
+          micPacketRate === undefined
+            ? ''
+            : `, sent at ${micPacketRate.toFixed(1)} packets/s (50 is real time)`
         }`,
       ]
     : []),
@@ -116,6 +129,27 @@ const deviceLines = ({ microphone, playout }: CallStatsConnection): string[] => 
       ]
     : []),
 ];
+
+/**
+ * How many packets a second the microphone sent over the history. Opus sends one every 20 ms,
+ * silence included, so fewer than 50 means the track delivered less audio than time passed: its
+ * processing graph ran slow, and the voice is cut up for everyone else.
+ */
+const micPacketRate = (samples: CallStatsSample[], idx: number): number | undefined => {
+  const points = samples.flatMap((s) => {
+    const mic = s.connections[idx]?.outbound.find(
+      (st) => st.kind === 'audio' && st.track === 'Microphone'
+    );
+    const packets = statNumber(mic?.stats, 'packetsSent');
+    return packets === undefined ? [] : [{ time: s.time, packets }];
+  });
+  if (points.length < 2) return undefined;
+  const first = points[0];
+  const last = points[points.length - 1];
+  const sent = last.packets - first.packets;
+  // The counter restarts when the track is published anew.
+  return last.time > first.time && sent >= 0 ? (sent * 1000) / (last.time - first.time) : undefined;
+};
 
 const transportSection = (samples: CallStatsSample[], idx: number, c: CallStatsConnection) => {
   const specs: [
@@ -141,7 +175,7 @@ const transportSection = (samples: CallStatsSample[], idx: number, c: CallStatsC
     '',
     `- Protocol: ${c.transport.protocol?.toUpperCase() ?? 'unknown'}`,
     `- Streams: ${c.outbound.length} outbound, ${c.inbound.length} inbound`,
-    ...deviceLines(c),
+    ...deviceLines(c, micPacketRate(samples, idx)),
     '',
     rows.length > 0 ? table(METRIC_HEAD, rows) : '_No transport samples yet._',
   ].join('\n');

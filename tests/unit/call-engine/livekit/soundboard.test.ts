@@ -117,7 +117,7 @@ describe('the soundboard', () => {
     vi.unstubAllGlobals();
   });
 
-  it("sends sounds to the call and the user's copy to the call's playback, with no output of its own", async () => {
+  it("sends sounds to the call and the user's copy to the call's playback, and plays nothing itself", async () => {
     const monitor$ = new BehaviorSubject<MediaStream | null>(null);
     const { lk, published } = room();
     const soundboard = new Soundboard(lk, new BehaviorSubject(false), monitor$, logger);
@@ -126,7 +126,8 @@ describe('the soundboard', () => {
 
     expect(Context.made).toHaveLength(1);
     const [ctx] = Context.made;
-    expect(ctx.options.sinkId).toEqual({ type: 'none' });
+    // a device clocks it: a context without an output is rendered by a timer, which can run slow
+    expect(ctx.options).toEqual({ latencyHint: 'interactive' });
     const [sent, copy] = ctx.streams;
     expect(published).toEqual([sent.stream.getAudioTracks()[0]]);
     expect(monitor$.value).toBe(copy.stream);

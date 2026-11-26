@@ -16,7 +16,7 @@ import { type BehaviorSubject, combineLatest, type Observable, type Subscription
 
 import { callSettings } from '../settings';
 import { type Behavior } from '../state/Behavior';
-import { processingAudioContext } from './processingAudioContext';
+import { sendingAudioContext } from './processingAudioContext';
 
 /**
  * Play a sound into the call, or stop every sound playing. `url` is a blob: URL of an audio file
@@ -98,7 +98,7 @@ export class Soundboard {
   /** The soundboard's audio, made (and its monitor announced) on first use. */
   private ensureAudio(): SoundboardAudio {
     if (!this.audio) {
-      const ctx = processingAudioContext({ latencyHint: 'interactive' });
+      const ctx = sendingAudioContext({ latencyHint: 'interactive' });
       this.audio = {
         ctx,
         destination: createMonoDestination(ctx),

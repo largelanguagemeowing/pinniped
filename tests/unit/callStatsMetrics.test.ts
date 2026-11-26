@@ -533,6 +533,28 @@ describe('call report', () => {
     expect(section(report(samples))).toContain('processed in an audio graph');
   });
 
+  it('says how fast the microphone is sent, which is under 50 packets a second when its processing runs slow', () => {
+    // 4 s of history; a graph rendered at 64 ticks of 10 ms a second sends 32 packets a second
+    const mic = (packetsSent: number): CallStatsStream => ({
+      kind: 'audio',
+      ssrc: SSRC,
+      codec: 'audio/opus',
+      stats: { packetsSent },
+      track: 'Microphone',
+    });
+    const samples = samplesOfStreams('outbound', [1000, 1032, 1064, 1096, 1128].map(mic));
+    const [latest] = samples[samples.length - 1].connections;
+    latest.microphone = { droppedSeconds: 0, capturedSeconds: 30, processed: true };
+    expect(report(samples)).toContain(
+      'before it is sent, sent at 32.0 packets/s (50 is real time)'
+    );
+
+    // a single sample has no rate, and neither has a counter that restarted
+    expect(report(samples.slice(-1))).not.toContain('packets/s');
+    latest.outbound[0].stats.packetsSent = 10;
+    expect(report(samples)).not.toContain('packets/s');
+  });
+
   it('says what the machine runs on, where that is known', () => {
     const text = (power?: 'battery' | 'mains') =>
       buildCallReport({

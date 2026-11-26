@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { processingAudioContext } from './processingAudioContext';
+import { sendingAudioContext } from './processingAudioContext';
 
 /**
  * Sample rate of the screen share audio Pinniped's desktop app captures itself (the `pcm` source;
@@ -79,7 +79,7 @@ registerProcessor("pcm-player", PcmPlayer);
 /** An audio track that plays what `push` is given; publish `track` as the share's audio. */
 export class PcmAudioSource {
   public static async create(): Promise<PcmAudioSource> {
-    const ctx = processingAudioContext({
+    const ctx = sendingAudioContext({
       sampleRate: SHARE_AUDIO_RATE,
       latencyHint: 'interactive',
     });

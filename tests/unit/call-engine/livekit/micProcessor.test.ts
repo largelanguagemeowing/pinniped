@@ -143,7 +143,31 @@ class GraphContext {
 
   currentTime = 0;
 
+  state: AudioContextState = 'running';
+
+  /** What `new AudioContext` was given, once the processor has made this context. */
+  options: (AudioContextOptions & { sinkId?: unknown }) | undefined;
+
+  private readonly listeners = new Set<() => void>();
+
+  addEventListener(_type: 'error', listener: () => void): void {
+    this.listeners.add(listener);
+  }
+
+  removeEventListener(_type: 'error', listener: () => void): void {
+    this.listeners.delete(listener);
+  }
+
+  /** What Chromium does when the context's output device fails. */
+  failOutput(): void {
+    this.listeners.forEach((listener) => listener());
+  }
+
   async resume(): Promise<void> {}
+
+  close = vi.fn(async () => {
+    this.state = 'closed';
+  });
 
   private node(kind: string, extra: object = {}): FakeNode {
     const n = new FakeNode(kind, extra);
@@ -193,27 +217,59 @@ class FakeNode {
   }
 }
 
+/** Makes `ctx` the audio context the next processor creates for itself. */
+const useContext = (ctx: GraphContext): void => {
+  vi.stubGlobal(
+    'AudioContext',
+    class {
+      constructor(options: AudioContextOptions) {
+        ctx.options = options;
+        return ctx;
+      }
+    }
+  );
+};
+
+const stubGraphNodes = (): void => {
+  vi.stubGlobal('MediaStream', class {});
+  vi.stubGlobal(
+    'AudioWorkletNode',
+    class {
+      constructor(ctx: GraphContext, name: string, options: object) {
+        return Object.assign(ctx.worklet(options), { name });
+      }
+    }
+  );
+};
+
 describe('the microphone graph', () => {
   const gateConfig = { auto: false, threshold: 0.5, tuning: {} as never };
+  /** The context LiveKit hands a processor: it has no output device (patches/livekit-client). */
+  const given = new GraphContext();
   const build = (stages: ConstructorParameters<typeof MicProcessor>[0]) => {
-    vi.stubGlobal('MediaStream', class {});
-    vi.stubGlobal(
-      'AudioWorkletNode',
-      class {
-        constructor(ctx: GraphContext, name: string, options: object) {
-          return Object.assign(ctx.worklet(options), { name });
-        }
-      }
-    );
+    stubGraphNodes();
     const ctx = new GraphContext();
+    useContext(ctx);
     const processor = new MicProcessor(stages);
     return processor
-      .init({ track: {}, audioContext: ctx } as never)
+      .init({ track: {}, audioContext: given } as never)
       .then(() => ({ ctx, processor }));
   };
   const kinds = (ctx: GraphContext, kind: string) => ctx.nodes.filter((n) => n.kind === kind);
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it('runs in a context of its own that a device clocks, not the one LiveKit hands it', async () => {
+    const { ctx, processor } = await build({ mono: true, gate: of(gateConfig) });
+    // a context without an output is rendered by a timer, which can run slow
+    expect(ctx.options).toEqual({ latencyHint: 'interactive' });
+    expect(ctx.nodes.length).toBeGreaterThan(0);
+    expect(given.nodes).toHaveLength(0);
+    expect(given.audioWorklet.addModule).not.toHaveBeenCalled();
+
+    await processor.destroy();
+    expect(ctx.close).toHaveBeenCalledTimes(1);
+  });
 
   it('mixes to one channel before the output, which then has one channel too', async () => {
     const { ctx, processor } = await build({ mono: true, gate: null });
@@ -269,7 +325,8 @@ describe('the microphone graph', () => {
 
   it('loads the worklet once per context, however often the graph is rebuilt', async () => {
     const { ctx, processor } = await build({ mono: false, gate: of(gateConfig) });
-    await processor.restart({ track: {}, audioContext: ctx } as never);
+    // livekit-client restarts a processor without an audio context
+    await processor.restart({ track: {} } as never);
     expect(ctx.audioWorklet.addModule).toHaveBeenCalledTimes(1);
     expect(kinds(ctx, 'gate')).toHaveLength(2);
     await processor.destroy();
@@ -278,27 +335,30 @@ describe('the microphone graph', () => {
   it('builds no graph for a start that was destroyed while the worklet loaded', async () => {
     vi.stubGlobal('MediaStream', class {});
     const ctx = new GraphContext();
+    useContext(ctx);
     let loaded!: () => void;
     ctx.audioWorklet.addModule = vi.fn(
       () => new Promise<undefined>((r) => (loaded = () => r(undefined)))
     );
     const processor = new MicProcessor({ mono: false, gate: of(gateConfig) });
-    const starting = processor.init({ track: {}, audioContext: ctx } as never);
+    const starting = processor.init({ track: {}, audioContext: given } as never);
     await processor.destroy();
     loaded();
     await starting;
     expect(ctx.nodes).toHaveLength(0);
+    expect(ctx.state).toBe('closed');
   });
 
   it('retries the worklet load after a failure', async () => {
     vi.stubGlobal('MediaStream', class {});
     const ctx = new GraphContext();
+    useContext(ctx);
     ctx.audioWorklet.addModule = vi
       .fn<() => Promise<undefined>>()
       .mockRejectedValueOnce(new Error('load failed'))
       .mockResolvedValue(undefined);
     const processor = new MicProcessor({ mono: false, gate: of(gateConfig) });
-    await expect(processor.init({ track: {}, audioContext: ctx } as never)).rejects.toThrow(
+    await expect(processor.init({ track: {}, audioContext: given } as never)).rejects.toThrow(
       'load failed'
     );
     vi.stubGlobal(
@@ -309,9 +369,86 @@ describe('the microphone graph', () => {
         }
       }
     );
-    await processor.init({ track: {}, audioContext: ctx } as never);
+    await processor.init({ track: {}, audioContext: given } as never);
     expect(ctx.audioWorklet.addModule).toHaveBeenCalledTimes(2);
     expect(kinds(ctx, 'gate')).toHaveLength(1);
     await processor.destroy();
+  });
+});
+
+describe("a microphone processor whose context's audio device fails", () => {
+  // A microphone track that starts the processors it is given, as LiveKit does.
+  const startingTrack = () => {
+    let processor: MicProcessor | undefined;
+    const track = {
+      setProcessor: vi.fn(async (p: MicProcessor) => {
+        await p.init({ track: {} } as never);
+        processor = p;
+      }),
+      getProcessor: () => processor,
+      stopProcessor: vi.fn(async () => {
+        processor = undefined;
+      }),
+    };
+    return track as typeof track & LocalAudioTrack;
+  };
+
+  let contexts: GraphContext[];
+  beforeEach(() => {
+    setMono(true);
+    stubGraphNodes();
+    contexts = [];
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        constructor() {
+          const ctx = new GraphContext();
+          contexts.push(ctx);
+          return ctx;
+        }
+      }
+    );
+    vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('is replaced by one with a new context, so the microphone is not left silent', async () => {
+    const track = startingTrack();
+    micProcessingSync(scope, new BehaviorSubject<LocalAudioTrack | null>(track), logger);
+    await settle();
+    const first = track.getProcessor();
+    expect(contexts).toHaveLength(1);
+
+    contexts[0].failOutput();
+    await settle();
+    expect(track.setProcessor).toHaveBeenCalledTimes(2);
+    expect(track.getProcessor()).not.toBe(first);
+    expect(contexts).toHaveLength(2);
+    expect(contexts[1].nodes.length).toBeGreaterThan(0);
+  });
+
+  it('is not replaced over and over while the device keeps failing', async () => {
+    const track = startingTrack();
+    micProcessingSync(scope, new BehaviorSubject<LocalAudioTrack | null>(track), logger);
+    await settle();
+    contexts[0].failOutput();
+    await settle();
+    contexts[1].failOutput();
+    await settle();
+    expect(track.setProcessor).toHaveBeenCalledTimes(2);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
+  it('is left alone once the microphone no longer uses it', async () => {
+    const track = startingTrack();
+    micProcessingSync(scope, new BehaviorSubject<LocalAudioTrack | null>(track), logger);
+    await settle();
+    setMono(false);
+    await settle();
+    contexts[0].failOutput();
+    await settle();
+    expect(track.setProcessor).toHaveBeenCalledTimes(1);
   });
 });
