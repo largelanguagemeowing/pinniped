@@ -216,7 +216,7 @@ one, so an install over an NSIS one takes it over; the old NSIS uninstaller is n
 the Start Menu and desktop shortcuts with the AppUserModelID. It asks before closing a running app
 on a hand-run install (an update closes it silently), blocks logoff/shutdown while it works, tells
 Explorer to refresh, and starts the app through its Start Menu shortcut. On updates only shortcuts that
-still exist are refreshed. It refuses to replace a folder that is not a Pinniped install. The
+still exist are refreshed. It refuses to replace a folder that is not a Pinniped install. It moves its own working directory to `%TEMP%` first: electron-updater starts it in the app's working directory, the install folder, and a folder that is some process's working directory cannot be renamed (os error 32). A failed update with `--force-run` starts the version that is still installed. Check an installer change under Wine by starting it with `start /wait /d <install folder> <installer> --updated /S --force-run` over an existing install (running it through `cmd` with `cd` makes `cmd` hold the folder instead). The
 uninstaller copies itself to `%TEMP%`, removes everything there and then deletes itself;
 `%LOCALAPPDATA%\pinniped-updater` goes too, user data in `%APPDATA%` stays. The setup log is
 `%TEMP%\Pinniped-Setup.log`, the only record of why a silent update did not apply. There are no
