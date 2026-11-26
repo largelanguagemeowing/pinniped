@@ -1,6 +1,7 @@
 import React, {
   CSSProperties,
   KeyboardEventHandler,
+  RefCallback,
   RefObject,
   forwardRef,
   useCallback,
@@ -30,6 +31,8 @@ import {
   Scroll,
   Spinner,
   Text,
+  Tooltip,
+  TooltipProvider,
   color,
   config,
   toRem,
@@ -95,6 +98,7 @@ import {
   getReadyItems,
 } from '../../state/room/composerTiles';
 import { prepareUploadFiles } from './prepareUploadFiles';
+import { describeSendGate, getSendGate } from './sendGate';
 import { buildUploadContents, describeLeftBehind, getLeftBehind } from './sendUploads';
 import { useMediaConfig } from '../../hooks/useMediaConfig';
 import {
@@ -194,10 +198,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       legacyUsernameColor || direct ? colorMXID(replyUserID ?? '') : replyPowerColor;
 
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(roomId));
-    const uploadFamilyObserverAtom = createUploadFamilyObserverAtom(
-      roomUploadAtomFamily,
-      getReadyItems(selectedFiles).map((f) => f.file)
+    const uploadFamilyObserverAtom = useMemo(
+      () =>
+        createUploadFamilyObserverAtom(
+          roomUploadAtomFamily,
+          getReadyItems(selectedFiles).map((f) => f.file)
+        ),
+      [selectedFiles]
     );
+    const uploadStates = useAtomValue(uploadFamilyObserverAtom);
+    const sendGate = getSendGate(selectedFiles, uploadStates);
+    const sendWaitReason = describeSendGate(sendGate);
     const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>(undefined);
 
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
@@ -350,7 +361,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const submit = useCallback(() => {
       // The caption, the files and the reply go out together once every file is up; sending now
       // would send the caption alone and leave the files behind without it.
-      if (uploadBoardHandlers.current?.isUploading()) return;
+      if (sendGate.kind !== 'ready') return;
       const commandName = getBeginCommand(editor);
       let plainText = toPlainText(editor.children, true).trim();
       let customHtml = trimCustomHtml(
@@ -439,6 +450,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       commands,
       isMobile,
       selectedFiles,
+      sendGate.kind,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -621,6 +633,31 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           : await getImageMsgContent(mx, item, mxc);
         return gifSender(videoGif ? markGifVideo(content) : content);
       });
+
+    // While the send waits the button stays focusable and pressable, so its tooltip can say why;
+    // a press does nothing until the wait is over.
+    const renderSendButton = (triggerRef?: RefCallback<HTMLElement | SVGElement>) => (
+      <IconButton
+        ref={triggerRef}
+        aria-label="Send"
+        aria-disabled={sendWaitReason !== undefined}
+        style={sendWaitReason ? { opacity: config.opacity.Disabled } : undefined}
+        onTouchEnd={(evt) => {
+          evt.preventDefault();
+          lastSendTouchEndRef.current = evt.timeStamp;
+          submit();
+        }}
+        onClick={(evt) => {
+          if (evt.timeStamp - lastSendTouchEndRef.current < 1000) return;
+          submit();
+        }}
+        variant="SurfaceVariant"
+        size="300"
+        radii="300"
+      >
+        <Icon src={Icons.Send} />
+      </IconButton>
+    );
 
     return (
       <div ref={ref}>
@@ -901,27 +938,32 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   </PopOut>
                 )}
               </UseStateProvider>
-              <IconButton
-                onTouchEnd={(evt) => {
-                  evt.preventDefault();
-                  lastSendTouchEndRef.current = evt.timeStamp;
-                  submit();
-                }}
-                onClick={(evt) => {
-                  if (evt.timeStamp - lastSendTouchEndRef.current < 1000) return;
-                  submit();
-                }}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-              >
-                <Icon src={Icons.Send} />
-              </IconButton>
+              {sendWaitReason ? (
+                <TooltipProvider
+                  position="Top"
+                  offset={4}
+                  tooltip={<Tooltip>{sendWaitReason}</Tooltip>}
+                >
+                  {renderSendButton}
+                </TooltipProvider>
+              ) : (
+                renderSendButton()
+              )}
             </>
           }
           bottom={
-            sendError || preparingMedia > 0 ? (
+            sendError || preparingMedia > 0 || sendWaitReason ? (
               <Box direction="Column">
+                {sendWaitReason && (
+                  <Text
+                    role="status"
+                    size="T200"
+                    priority="300"
+                    style={{ padding: config.space.S200 }}
+                  >
+                    {sendWaitReason}
+                  </Text>
+                )}
                 {preparingMedia > 0 && (
                   <Box
                     role="status"

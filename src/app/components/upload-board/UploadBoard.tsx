@@ -19,8 +19,6 @@ export const UploadBoard = as<'div'>(({ children, ...props }, ref) => (
 
 export type UploadBoardImperativeHandlers = {
   handleSend: (caption?: IContent) => Promise<void>;
-  /** Whether a file has not finished uploading; sending now would leave it behind. */
-  isUploading: () => boolean;
 };
 
 type UploadBoardSenderProps = {
@@ -52,13 +50,7 @@ export function UploadBoardSender({
     sendingRef.current = false;
   };
 
-  useImperativeHandle(imperativeHandlerRef, () => ({
-    handleSend,
-    isUploading: () =>
-      uploads.some(
-        (upload) => upload.status === UploadStatus.Idle || upload.status === UploadStatus.Loading
-      ),
-  }));
+  useImperativeHandle(imperativeHandlerRef, () => ({ handleSend }));
 
   return null;
 }
