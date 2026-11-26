@@ -1,4 +1,6 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { type Browser, expect, type Locator, type Page } from '@playwright/test';
+import { signIn } from './auth';
+import { type Credentials } from './env';
 import { matrixRequest } from './matrix';
 
 export type NewRoom = {
@@ -138,6 +140,24 @@ export async function leaveRooms(page: Page, roomIds: string[]): Promise<void> {
     const path = `/rooms/${encodeURIComponent(roomId)}`;
     await matrixRequest(page, { method: 'POST', path: `${path}/leave`, body: {} });
     await matrixRequest(page, { method: 'POST', path: `${path}/forget`, body: {} });
+  }
+}
+
+/**
+ * Declines a pending invite as the invited person. The inviter cannot take it back: in a direct
+ * message on version 12 the invited person is a creator, whom nobody can kick, and leaving
+ * leaves the invite in their list for the rest of the run.
+ */
+export async function declineInvite(
+  browser: Browser,
+  credentials: Credentials,
+  roomId: string
+): Promise<void> {
+  const invited = await signIn(browser, credentials);
+  try {
+    await leaveRooms(invited, [roomId]);
+  } finally {
+    await invited.context().close();
   }
 }
 

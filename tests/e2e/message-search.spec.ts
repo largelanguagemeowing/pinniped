@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { e2eCredentials, peerCredentials } from './support/env';
-import { createDirectMessage, leaveRooms, roomPath } from './support/rooms';
+import { createDirectMessage, declineInvite, leaveRooms, roomPath } from './support/rooms';
 import { sendMessageViaApi } from './support/timeline';
 
 // the narrow layout has no search box in the room header, so the button opens the search page
 test.use({ viewport: { width: 600, height: 900 } });
 
-test('searching from a direct message finds what was said in it', async ({ page }) => {
+test('searching from a direct message finds what was said in it', async ({ page, browser }) => {
   const peerId = `@${peerCredentials().username}:${e2eCredentials.homeserver}`;
   const dmId = await createDirectMessage(page, peerId);
   const word = `needle${Date.now()}`;
@@ -22,5 +22,6 @@ test('searching from a direct message finds what was said in it', async ({ page 
     await expect(page.getByText(`look for the`, { exact: false }).first()).toBeVisible();
   } finally {
     await leaveRooms(page, [dmId]);
+    await declineInvite(browser, peerCredentials(), dmId);
   }
 });

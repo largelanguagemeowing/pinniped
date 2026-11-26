@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { e2eCredentials, peerCredentials } from './support/env';
-import { createDirectMessage, createRoom, leaveRooms } from './support/rooms';
+import { createDirectMessage, createRoom, declineInvite, leaveRooms } from './support/rooms';
 
 const peerLocalPart = peerCredentials().username;
 const peerId = `@${peerLocalPart}:${e2eCredentials.homeserver}`;
@@ -12,8 +12,9 @@ test.beforeEach(async ({ page }) => {
   dmId = await createDirectMessage(page, peerId);
   roomId = await createRoom(page, { name: `invite e2e ${Date.now()}` });
 });
-test.afterEach(async ({ page }) => {
+test.afterEach(async ({ page, browser }) => {
   await leaveRooms(page, [roomId, dmId]);
+  await declineInvite(browser, peerCredentials(), dmId);
 });
 
 test('pasting a complete user ID over a partly typed name clears the suggestions', async ({
