@@ -39,6 +39,15 @@ pub fn run(args: &Args, payload: Payload) -> i32 {
             if !silent {
                 ui::message(&format!("{PRODUCT_NAME} Setup"), &format!("{PRODUCT_NAME} could not be installed.\n\n{e}"), true);
             }
+            // The updater already closed the app; a failed update must not leave the user
+            // without it, so start what is still installed.
+            if args.force_run {
+                let dir = target_dir(args);
+                if dir.join(EXE_NAME).is_file() {
+                    log::line("starting the previous version");
+                    launch(&dir);
+                }
+            }
             1
         }
     }

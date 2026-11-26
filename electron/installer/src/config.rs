@@ -11,4 +11,4 @@ pub const DEFAULT_DIR_NAME: &str = "Pinniped";
 /// electron-builder derives this from the app id (uuid v5), and its NSIS installers keyed
 /// their uninstall entry and `HKCU\Software\<guid>` on it. Keeping it means an install made
 /// by this installer takes over the entry of an NSIS one instead of listing Pinniped twice.
-pub const UNINSTALL_GUID: &str = "fd91c319-e291-5c4d-8a67-87c2c4a92006";
+pub const UNINSTALL_GUID: &str = "695de2f9-063d-5a3c-b9af-dfbae24b888e";
