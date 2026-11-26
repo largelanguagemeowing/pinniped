@@ -1,9 +1,10 @@
 import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai-family';
-import { MatrixClient, UploadResponse, UploadProgress, MatrixError } from 'matrix-js-sdk';
+import { MatrixClient, UploadResponse, UploadProgress } from 'matrix-js-sdk';
 import { useCallback, useEffect, useRef } from 'react';
 import { useThrottle } from '../hooks/useThrottle';
 import { uploadContent, TUploadContent } from '../utils/matrix';
+import { UploadFailure } from '../utils/uploadFailure';
 
 export enum UploadStatus {
   Idle = 'idle',
@@ -33,7 +34,7 @@ export type UploadSuccess = {
 export type UploadError = {
   file: TUploadContent;
   status: UploadStatus.Error;
-  error: MatrixError;
+  error: UploadFailure;
 };
 
 export type Upload = UploadIdle | UploadLoading | UploadSuccess | UploadError;
@@ -49,7 +50,7 @@ export type UploadAtomAction =
       mxc: string;
     }
   | {
-      error: MatrixError;
+      error: UploadFailure;
     };
 
 export const createUploadAtom = (file: TUploadContent) => {

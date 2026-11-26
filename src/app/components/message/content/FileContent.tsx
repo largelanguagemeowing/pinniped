@@ -19,7 +19,6 @@ import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FocusTrap from 'focus-trap-react';
 import { IFileInfo } from '../../../../types/matrix/common';
 import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
-import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { bytesToSize } from '../../../utils/common';
 import {
   READABLE_TEXT_MIME_TYPES,
@@ -27,18 +26,12 @@ import {
   mimeTypeToExt,
 } from '../../../utils/mimeTypes';
 import { stopPropagation } from '../../../utils/keyboard';
-import {
-  AttachmentTamperedError,
-  AttachmentUnreadableError,
-  decryptFile,
-  downloadEncryptedMedia,
-  downloadMedia,
-  mxcUrlToHttp,
-} from '../../../utils/matrix';
-import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { AttachmentTamperedError, AttachmentUnreadableError } from '../../../utils/matrix';
+import { useMediaLoader } from '../../../hooks/useMediaLoader';
 import { useObjectURL } from '../../../hooks/useObjectURL';
 import { ModalWide } from '../../../styles/Modal.css';
 import { AttachmentLoadError } from './AttachmentLoadError';
+import { MediaLoadProgress } from './MediaLoadProgress';
 
 const renderErrorButton = (error: unknown, retry: () => void, text: string) =>
   error instanceof AttachmentTamperedError || error instanceof AttachmentUnreadableError ? (
@@ -86,22 +79,17 @@ type ReadTextFileProps = {
   renderViewer: (props: RenderTextViewerProps) => ReactNode;
 };
 export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: ReadTextFileProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const media = useMediaLoader({ mxc: url, mimeType, encInfo }, 'finish');
   const [textViewer, setTextViewer] = useState(false);
 
   const [textState, loadText] = useAsyncLoad(
     useCallback(async () => {
-      const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+      const fileContent = await media.load();
 
       const text = fileContent.text();
       setTextViewer(true);
       return text;
-    }, [mx, useAuthentication, mimeType, encInfo, url])
+    }, [media])
   );
 
   return (
@@ -158,6 +146,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
           <Text size="B400" truncate>
             Open File
           </Text>
+          <MediaLoadProgress url={media.httpUrl} />
         </Button>
       )}
     </>
@@ -177,20 +166,15 @@ export type ReadPdfFileProps = {
   renderViewer: (props: RenderPdfViewerProps) => ReactNode;
 };
 export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: ReadPdfFileProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const media = useMediaLoader({ mxc: url, mimeType, encInfo }, 'finish');
   const [pdfViewer, setPdfViewer] = useState(false);
 
   const [pdfState, loadPdf] = useAsyncLoad(
     useCallback(async () => {
-      const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+      const fileContent = await media.load();
       setPdfViewer(true);
       return fileContent;
-    }, [mx, url, useAuthentication, mimeType, encInfo])
+    }, [media])
   );
   const pdfUrl = useObjectURL(pdfState.status === AsyncStatus.Success ? pdfState.data : undefined);
 
@@ -243,6 +227,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
           <Text size="B400" truncate>
             Open PDF
           </Text>
+          <MediaLoadProgress url={media.httpUrl} />
         </Button>
       )}
     </>
@@ -257,20 +242,15 @@ export type DownloadFileProps = {
   encInfo?: EncryptedAttachmentInfo;
 };
 export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFileProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const media = useMediaLoader({ mxc: url, mimeType, encInfo }, 'finish');
 
   const [downloadState, download] = useAsyncLoad(
     useCallback(async () => {
-      const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+      const fileContent = await media.load();
 
       FileSaver.saveAs(fileContent, body);
       return fileContent;
-    }, [mx, url, useAuthentication, mimeType, encInfo, body])
+    }, [media, body])
   );
 
   return downloadState.status === AsyncStatus.Error ? (
@@ -300,6 +280,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
       }
     >
       <Text size="B400" truncate>{`Download (${bytesToSize(info.size ?? 0)})`}</Text>
+      <MediaLoadProgress url={media.httpUrl} />
     </Button>
   );
 }

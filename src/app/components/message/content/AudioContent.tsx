@@ -14,7 +14,6 @@ import {
 } from 'folds';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
-import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
 import { AttachmentLoadError } from './AttachmentLoadError';
 import { IAudioInfo } from '../../../../types/matrix/common';
@@ -29,13 +28,7 @@ import {
 } from '../../../hooks/media';
 import { useThrottle } from '../../../hooks/useThrottle';
 import { secondsToMinutesAndSeconds } from '../../../utils/common';
-import {
-  decryptFile,
-  downloadEncryptedMedia,
-  downloadMedia,
-  mxcUrlToHttp,
-} from '../../../utils/matrix';
-import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { useMediaLoader } from '../../../hooks/useMediaLoader';
 import { useObjectURL } from '../../../hooks/useObjectURL';
 import { VoiceWaveform } from './VoiceWaveform';
 
@@ -74,19 +67,8 @@ export function AudioContent({
   waveform,
   renderMediaControl,
 }: AudioContentProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
-
-  const [srcState, loadSrc] = useAsyncLoad(
-    useCallback(async () => {
-      const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
-      return fileContent;
-    }, [mx, url, useAuthentication, mimeType, encInfo])
-  );
+  const media = useMediaLoader({ mxc: url, mimeType, encInfo }, 'abandon');
+  const [srcState, loadSrc] = useAsyncLoad(media.load);
   const src = useObjectURL(srcState.status === AsyncStatus.Success ? srcState.data : undefined);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);

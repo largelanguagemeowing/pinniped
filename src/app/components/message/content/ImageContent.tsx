@@ -21,15 +21,16 @@ import FocusTrap from 'focus-trap-react';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { IImageInfo, MATRIX_BLUR_HASH_PROPERTY_NAME } from '../../../../types/matrix/common';
 import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
-import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import * as css from './style.css';
 import { bytesToSize } from '../../../utils/common';
 import { FALLBACK_MIMETYPE } from '../../../utils/mimeTypes';
 import { stopPropagation } from '../../../utils/keyboard';
-import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '../../../utils/matrix';
-import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { isAbortError } from '../../../utils/abortError';
+import { discardMedia } from '../../../utils/cachedMedia';
+import { useMediaLoader } from '../../../hooks/useMediaLoader';
 import { useObjectURL } from '../../../hooks/useObjectURL';
 import { AttachmentLoadError } from './AttachmentLoadError';
+import { MediaLoadProgress } from './MediaLoadProgress';
 import { validBlurHash } from '../../../utils/blurHash';
 import { useHoverPlay } from '../../../hooks/useHoverPlay';
 import { clearFailure, isBackedOff, recordFailure } from '../../../utils/requestBackoff';
@@ -79,8 +80,6 @@ export const ImageContent = as<'div', ImageContentProps>(
     },
     ref
   ) => {
-    const mx = useMatrixClient();
-    const useAuthentication = useMediaAuthentication();
     const blurHash = validBlurHash(info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
     const sizeLabel = typeof info?.size === 'number' ? bytesToSize(info.size) : undefined;
 
@@ -104,26 +103,29 @@ export const ImageContent = as<'div', ImageContentProps>(
       []
     );
 
+    const media = useMediaLoader(
+      { mxc: url, mimeType: mimeType ?? FALLBACK_MIMETYPE, encInfo },
+      'abandon'
+    );
     const [srcState, loadSrc] = useAsyncLoad(
       useCallback(async (): Promise<string | Blob> => {
-        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+        const mediaUrl = media.httpUrl;
         if (!mediaUrl) throw new Error('Invalid media URL');
         // A URL that just failed is not asked again until its wait is over; Retry clears it.
         if (isBackedOff(mediaUrl)) throw new Error('This image failed to load a moment ago');
         if (encInfo) {
           try {
-            const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-              decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
-            );
+            const fileContent = await media.load();
             clearFailure(mediaUrl);
             return fileContent;
           } catch (err) {
-            recordFailure(mediaUrl);
+            // leaving while it loads says nothing about the media
+            if (!isAbortError(err)) recordFailure(mediaUrl);
             throw err;
           }
         }
         return mediaUrl;
-      }, [mx, url, useAuthentication, mimeType, encInfo])
+      }, [media, encInfo])
     );
 
     // a plain URL is used as it is; a decrypted blob is shown through an object URL tied to it
@@ -149,6 +151,8 @@ export const ImageContent = as<'div', ImageContentProps>(
       setLoadedImage(event.currentTarget);
     };
     const handleError = () => {
+      // the element could not show this blob; a retry must not get it back from the cache
+      if (loaded instanceof Blob) discardMedia(loaded);
       setLoad(false);
       if (retryCount < maxRetries) {
         retryTimerRef.current = setTimeout(() => {
@@ -162,8 +166,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     };
 
     const handleRetry = () => {
-      const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-      if (mediaUrl) clearFailure(mediaUrl);
+      if (media.httpUrl) clearFailure(media.httpUrl);
       setError(false);
       setRetryCount(0);
       loadSrc();
@@ -279,8 +282,14 @@ export const ImageContent = as<'div', ImageContentProps>(
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
           !blurred && (
-            <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
+            <Box
+              className={css.AbsoluteContainer}
+              alignItems="Center"
+              justifyContent="Center"
+              gap="200"
+            >
               <Spinner variant="Secondary" />
+              <MediaLoadProgress url={media.httpUrl} />
             </Box>
           )}
         {(error || srcState.status === AsyncStatus.Error) && (
