@@ -40,3 +40,5 @@ electron/updater.bundle.cjs
 
 # call stage layout harness output
 tests/call-stage-harness/out/
+
+/docs/
