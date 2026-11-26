@@ -15,17 +15,9 @@ import React, { ReactNode, useCallback } from 'react';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FileSaver from 'file-saver';
 import { mimeTypeToExt } from '../../utils/mimeTypes';
-import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
+import { useMediaLoader } from '../../hooks/useMediaLoader';
 import { AsyncStatus, useAsyncLoad } from '../../hooks/useAsyncCallback';
-import {
-  AttachmentTamperedError,
-  AttachmentUnreadableError,
-  decryptFile,
-  downloadEncryptedMedia,
-  downloadMedia,
-  mxcUrlToHttp,
-} from '../../utils/matrix';
+import { AttachmentTamperedError, AttachmentUnreadableError } from '../../utils/matrix';
 
 const badgeStyles = { maxWidth: toRem(100) };
 
@@ -36,19 +28,12 @@ type FileDownloadButtonProps = {
   encInfo?: EncryptedAttachmentInfo;
 };
 export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDownloadButtonProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const media = useMediaLoader({ mxc: url, mimeType, encInfo }, 'finish');
 
   const [downloadState, download] = useAsyncLoad(
     useCallback(async () => {
-      const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
-
-      FileSaver.saveAs(fileContent, filename);
-    }, [mx, url, useAuthentication, mimeType, encInfo, filename])
+      FileSaver.saveAs(await media.load(), filename);
+    }, [media, filename])
   );
 
   const downloading = downloadState.status === AsyncStatus.Loading;

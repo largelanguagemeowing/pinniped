@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import {
   Badge,
   Box,
@@ -21,17 +21,11 @@ import {
   MATRIX_BLUR_HASH_PROPERTY_NAME,
 } from '../../../../types/matrix/common';
 import * as css from './style.css';
-import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
 import { AttachmentLoadError } from './AttachmentLoadError';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '../../../utils/common';
-import {
-  decryptFile,
-  downloadEncryptedMedia,
-  downloadMedia,
-  mxcUrlToHttp,
-} from '../../../utils/matrix';
-import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
+import { discardMedia } from '../../../utils/cachedMedia';
+import { useMediaLoader } from '../../../hooks/useMediaLoader';
 import { useObjectURL } from '../../../hooks/useObjectURL';
 import { validBlurHash } from '../../../utils/blurHash';
 
@@ -71,32 +65,22 @@ export const VideoContent = as<'div', VideoContentProps>(
     },
     ref
   ) => {
-    const mx = useMatrixClient();
-    const useAuthentication = useMediaAuthentication();
     const blurHash = validBlurHash(info.thumbnail_info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
     const [error, setError] = useState(false);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
 
-    const [srcState, loadSrc] = useAsyncLoad(
-      useCallback(async () => {
-        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-        if (!mediaUrl) throw new Error('Invalid media URL');
-        const fileContent = encInfo
-          ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-              decryptFile(encBuf, mimeType, encInfo)
-            )
-          : await downloadMedia(mediaUrl);
-        return fileContent;
-      }, [mx, url, useAuthentication, mimeType, encInfo])
-    );
+    const media = useMediaLoader({ mxc: url, mimeType, encInfo }, 'abandon');
+    const [srcState, loadSrc] = useAsyncLoad(media.load);
     const src = useObjectURL(srcState.status === AsyncStatus.Success ? srcState.data : undefined);
 
     const handleLoad = () => {
       setLoad(true);
     };
     const handleError = () => {
+      // the element could not play this blob; a retry must not get it back from the cache
+      if (srcState.status === AsyncStatus.Success) discardMedia(srcState.data);
       setLoad(false);
       setError(true);
     };
