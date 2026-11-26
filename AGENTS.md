@@ -176,7 +176,7 @@ A successful deploy: both pods run `$REF`, the live hash changed from the previo
 
 ## Desktop builds
 
-`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak; in a privileged Fedora 45 container, so its build tools come from dnf rather than the runner's slow apt mirrors), Windows (NSIS exe) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags (the rpm is packaged with nfpm from electron-builder's unpacked build: `electron/linux/nfpm.yaml`). The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
+`.github/workflows/desktop.yml` builds the Electron app on Linux (AppImage, rpm, flatpak; in a privileged Fedora 45 container, so its build tools come from dnf rather than the runner's slow apt mirrors), Windows (Rust installer, see below) and macOS (dmg) from `electron/electron-builder.yml`, uploads the installers as workflow artifacts, and attaches them to a GitHub release on `v*` tags (the rpm is packaged with nfpm from electron-builder's unpacked build: `electron/linux/nfpm.yaml`). The app ID is `club.stablecat.pinniped`; the flatpak pins the 25.08 runtime and base app (electron-builder defaults to the EOL 20.08, which Flathub rejects). Flathub's AI policy forbids AI-written manifests and AI-opened submission PRs, so a human writes and submits those.
 
 On Linux everything is named after the app ID: the desktop entry (`club.stablecat.pinniped.desktop`), the icon (`hicolor/512x512/apps/club.stablecat.pinniped.png`), its `Icon=` and `StartupWMClass=`, in the rpm (`electron/linux/`), the Nix package and the autostart entry `main.cjs` writes. `app.setDesktopName` makes it the window's Wayland app ID and X11 `WM_CLASS`, and Electron names the audio streams' icon after it (`application.icon_name`, which pavucontrol shows). The AppImage keeps electron-builder's naming (`pinniped`), which AppImage tooling expects.
 
@@ -187,17 +187,54 @@ close the window, which leaves the call first. File → Quit (Linux and Windows)
 "Quit with Ctrl+Q" is on, saved in `quit-shortcut.json` in userData (`electron/quit-shortcut.cjs`; the
 `quit-shortcut:get/set` IPC rebuilds the menu at once, so no restart). macOS keeps Cmd+Q in its app menu.
 
-### Windows auto-update
+### Windows installer and auto-update
 
-The Windows build is a per-user one-click NSIS installer (not MSI: `electron-updater` cannot
-update MSI). The installed app (`electron/updater.cjs`, Windows and packaged only) checks the
-GitHub release's `latest.yml` on launch and every 4 h, downloads the delta in the background and
-installs on quit, or via "Restart to update" in the tray. To ship an update: bump `version` in
-`package.json`, push, tag `v<version>`; the `release` job uploads the `.exe`, `.blockmap` and
-`latest.yml`. The release must be published, not a draft or prerelease, and the repo public.
+The Windows build is a per-user, one-click installer written in Rust (`electron/installer`,
+crate `pinniped-installer`), not electron-builder's NSIS target: that target's stub is linked
+without a relocation table, so it crashes with `0xc0000374` (heap corruption) on any machine
+that enforces Mandatory ASLR ("Force randomization for images", turned on by some Windows
+hardening tools), and so does its uninstaller. The Rust installer is a normal relocatable
+binary. Check `RELOCS_STRIPPED`/`DYNAMICBASE` in the PE header of anything new we ship.
+
+`npm run electron:dist:win` (`scripts/fork/electron/build-windows-installer.mjs`) runs
+electron-builder with `--win dir` (just `win-unpacked`), writes `resources/app-update.yml`
+(electron-builder only does that for its NSIS target), builds the crate, appends the app to the
+stub with `pinniped-pack` (pure-Rust LZMA2 in independent 64 MB chunks, so it packs and unpacks
+on several threads; a self-extracting `[stub][payload][trailer]` file, see `src/payload.rs`;
+`--preset 0-9`, default 9, about 139 MB for the 460 MB app) and writes `latest.yml` (SHA-512) next to
+`Pinniped-Setup-<version>-x64.exe`. `cargo` must run inside `electron/installer`: its
+`.cargo/config.toml` links the C runtime statically, and cargo reads that from the working
+directory.
+
+The installer speaks `electron-updater`'s NSIS command line, so the updater needed no changes:
+`--updated`, `/S` (silent), `--force-run` (start the app afterwards), `/D=<dir>`. Without
+arguments it shows a small progress window. It installs to `%LOCALAPPDATA%\Programs\Pinniped`
+(or where the previous install is recorded), unpacks into `<dir>.install-new`, stops the
+running app, swaps the folders (rolling back on failure), writes the uninstaller (`Uninstall
+Pinniped.exe`, the same stub with no payload), the HKCU uninstall entry (same GUID as the NSIS
+one, so an install over an NSIS one takes it over; the old NSIS uninstaller is never run) and
+the Start Menu and desktop shortcuts with the AppUserModelID. It asks before closing a running app
+on a hand-run install (an update closes it silently), blocks logoff/shutdown while it works, tells
+Explorer to refresh, and starts the app through its Start Menu shortcut. On updates only shortcuts that
+still exist are refreshed. It refuses to replace a folder that is not a Pinniped install. The
+uninstaller copies itself to `%TEMP%`, removes everything there and then deletes itself;
+`%LOCALAPPDATA%\pinniped-updater` goes too, user data in `%APPDATA%` stays. The setup log is
+`%TEMP%\Pinniped-Setup.log`, the only record of why a silent update did not apply. There are no
+delta updates (`disableDifferentialDownload`): the installer is downloaded whole.
+
+The installed app (`electron/updater.cjs`, Windows and packaged only) checks the GitHub
+release's `latest.yml` on launch and every 4 h, downloads in the background and installs on
+quit, or via "Restart to update" in the tray. To ship an update: bump `version` in
+`package.json`, push, tag `v<version>`; the `release` job uploads the `.exe` and `latest.yml`.
+The release must be published, not a draft or prerelease, and the repo public.
 `electron-updater` is bundled into `electron/updater.bundle.cjs` by the `beforePack` hook
 (`scripts/fork/electron/before-pack.cjs`) because the app ships no node_modules. Builds are
 unsigned, so SmartScreen warns on the first install; updates themselves are silent.
+
+Test it for real (it touches the registry and `%LOCALAPPDATA%`): pack a `win-unpacked` with
+`pinniped-pack`, run the result with `/S`, run it again with `--updated /S` while something from
+the install folder is running, then `"Uninstall Pinniped.exe" /currentuser /S`. Do this with
+Mandatory ASLR on (`Set-ProcessMitigation -System -Enable ForceRelocateImages`) at least once.
 
 ## Nix flake
 

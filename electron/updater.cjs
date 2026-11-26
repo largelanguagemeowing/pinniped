@@ -1,6 +1,6 @@
 // Silent self-update for the installed Windows build, in the style of Discord: check on
 // launch and every few hours, download in the background, and install when the app quits
-// (or on "Restart to update" in the tray). No prompts, no UAC (the NSIS install is per-user).
+// (or on "Restart to update" in the tray). No prompts, no UAC (the install is per-user).
 // Updates come from the GitHub release's latest.yml (see `publish` in electron-builder.yml).
 //
 // electron-updater is bundled into electron/updater.bundle.cjs by scripts/fork/electron/
@@ -41,6 +41,9 @@ function startUpdater({ log, onReady, onStatus }) {
   }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  // Delta downloads need a .blockmap, which only electron-builder's NSIS target makes; the
+  // Rust installer (electron/installer) is downloaded whole.
+  autoUpdater.disableDifferentialDownload = true;
   autoUpdater.logger = {
     info: (m) => log(`updater: ${m}`),
     warn: (m) => log(`updater: ${m}`),

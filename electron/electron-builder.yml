@@ -85,23 +85,17 @@ dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}
 
 win:
+  # electron-builder only packages the unpacked app here; the installer is our own Rust one
+  # (electron/installer), put together by scripts/fork/electron/build-windows-installer.mjs.
+  # Its NSIS stub has no relocation table and crashes under Windows' Mandatory ASLR.
   target:
-    - nsis
+    - dir
   # Desktop helper (per-application screen share audio); built by
   # `cargo build --release` in electron/helper.
   extraResources:
     - from: electron/helper/target/release/pinniped-helper.exe
       to: pinniped-helper.exe
   icon: electron/build/icon.png
-
-# One-click, per-user install (no UAC, installs in seconds, like Discord), which is what lets
-# updates apply silently. electron-updater cannot update MSI packages.
-nsis:
-  oneClick: true
-  perMachine: false
-  runAfterFinish: true
-  deleteAppDataOnUninstall: false
-  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
 
 appImage:
   artifactName: ${productName}-${version}-${arch}.${ext}

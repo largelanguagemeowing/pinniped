@@ -1,0 +1,3 @@
+# The installer must run on a bare machine: link the C runtime statically.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

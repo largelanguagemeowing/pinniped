@@ -25,7 +25,7 @@
     "bump": "node scripts/update-version.js",
     "electron:start": "electron electron/main.cjs",
     "electron:dist": "npm run build && electron-builder --config electron/electron-builder.yml --linux",
-    "electron:dist:win": "npm run build && electron-builder --config electron/electron-builder.yml --win",
+    "electron:dist:win": "npm run build && node scripts/fork/electron/build-windows-installer.mjs",
     "electron:dist:mac": "npm run build && electron-builder --config electron/electron-builder.yml --mac",
     "patch:deps": "patch-package --error-on-fail --error-on-warn",
     "postinstall": "npm run patch:deps",
