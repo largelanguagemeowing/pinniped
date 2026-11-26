@@ -9,9 +9,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useStore } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
-import { IContent, MsgType, RelationType, Room } from 'matrix-js-sdk';
+import { IContent, MatrixError, MsgType, RelationType, Room } from 'matrix-js-sdk';
 import { Transforms, Editor } from 'slate';
 import FocusTrap from 'focus-trap-react';
 import {
@@ -95,6 +95,7 @@ import {
   getReadyItems,
 } from '../../state/room/composerTiles';
 import { prepareUploadFiles } from './prepareUploadFiles';
+import { buildUploadContents, describeLeftBehind, getLeftBehind } from './sendUploads';
 import { useMediaConfig } from '../../hooks/useMediaConfig';
 import {
   UploadBoard,
@@ -102,21 +103,15 @@ import {
   UploadBoardImperativeHandlers,
   UploadBoardSender,
 } from '../../components/upload-board';
-import {
-  Upload,
-  UploadStatus,
-  UploadSuccess,
-  createUploadFamilyObserverAtom,
-} from '../../state/upload';
+import { UploadSuccess, createUploadFamilyObserverAtom } from '../../state/upload';
 import { getImageUrlBlob, loadImageElement } from '../../utils/dom';
-import { fulfilledPromiseSettledResult, randomStr } from '../../utils/common';
+import { randomStr } from '../../utils/common';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
 import {
-  getAudioMsgContent,
-  getFileMsgContent,
   getImageMsgContent,
   getVideoMsgContent,
+  getUploadMsgContent,
   addReplyRelation,
   getUploadMessages,
   sendRoomMessage,
@@ -166,6 +161,7 @@ interface RoomInputProps {
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room }, ref) => {
     const mx = useMatrixClient();
+    const store = useStore();
     const useAuthentication = useMediaAuthentication();
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -309,54 +305,44 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       [setSelectedFiles]
     );
 
-    const handleCancelUpload = (uploads: Upload[]) => {
-      uploads.forEach((upload) => {
-        if (upload.status === UploadStatus.Loading) {
-          mx.cancelUpload(upload.promise);
-        }
-      });
-      handleRemoveTiles(
-        selectedFiles.filter(
-          (tile) =>
-            tile.status === ComposerTileStatus.Ready &&
-            uploads.some((upload) => upload.file === tile.item.file)
-        )
-      );
-    };
-
     const handleSendUpload = async (uploads: UploadSuccess[], caption?: IContent) => {
-      const contentsPromises = uploads.map(async (upload) => {
-        const fileItem = getReadyItems(selectedFiles).find((f) => f.file === upload.file);
-        if (!fileItem) throw new Error('Broken upload');
-
-        if (fileItem.file.type.startsWith('image')) {
-          return getImageMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('video')) {
-          return getVideoMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('audio')) {
-          return getAudioMsgContent(fileItem, upload.mxc);
-        }
-        return getFileMsgContent(fileItem, upload.mxc);
-      });
-      handleCancelUpload(uploads);
-      const fetchedContents = fulfilledPromiseSettledResult(
-        await Promise.allSettled(contentsPromises)
+      // Contents are built while the tiles are still there, so a file that cannot be built stays
+      // visible with its error instead of vanishing from the composer.
+      const { built, failed } = await buildUploadContents(
+        uploads,
+        selectedFiles,
+        getUploadMsgContent.bind(undefined, mx)
       );
+      failed.forEach(({ tile, name, message }) => {
+        if (!tile) return;
+        store.set(roomUploadAtomFamily(tile.item.file), {
+          error: new MatrixError({ error: `Could not prepare ${name} for sending: ${message}` }),
+        });
+      });
+      handleRemoveTiles(built.map(({ tile }) => tile));
       const outgoing = getUploadMessages({
-        files: fetchedContents,
+        files: built.map(({ content }) => content),
         caption,
-        groupId: fetchedContents.length > 1 ? randomStr(16) : undefined,
+        groupId: built.length > 1 ? randomStr(16) : undefined,
         replyDraft,
       });
       const sendResults = await Promise.allSettled(
         outgoing.map((content) => sendRoomMessage(mx, roomId, content))
       );
       setSendError(
-        sendResults.some((result) => result.status === 'rejected')
-          ? SEND_FAILURE_MESSAGE
-          : undefined
+        [
+          describeLeftBehind(
+            getLeftBehind(
+              selectedFiles,
+              built.map(({ tile }) => tile)
+            )
+          ),
+          sendResults.some((result) => result.status === 'rejected')
+            ? SEND_FAILURE_MESSAGE
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join(' ') || undefined
       );
       setReplyDraft(undefined);
     };
