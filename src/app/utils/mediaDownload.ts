@@ -22,12 +22,16 @@ const announcedLength = (res: Response): number | undefined => {
   return Number.isSafeInteger(length) ? length : undefined;
 };
 
+type Chunk = Uint8Array<ArrayBuffer>;
+
+// hands each chunk of the body to `take` as it arrives
 const readChunks = async (
-  body: ReadableStream<Uint8Array<ArrayBuffer>>,
+  body: ReadableStream<Chunk>,
   announced: number | undefined,
   onProgress: DownloadProgressHandler,
-  signal: AbortSignal | undefined
-): Promise<Uint8Array<ArrayBuffer>[]> => {
+  signal: AbortSignal | undefined,
+  take: (chunk: Chunk) => void
+): Promise<void> => {
   const reader = body.getReader();
   // an aborted request fails the read by itself; cancelling also stops a body that is not tied
   // to the signal (one a service worker or a custom protocol made)
@@ -37,7 +41,6 @@ const readChunks = async (
   if (signal?.aborted) cancel();
   else signal?.addEventListener('abort', cancel, { once: true });
 
-  const chunks: Uint8Array<ArrayBuffer>[] = [];
   let total = announced;
   let loaded = 0;
   let reported = 0;
@@ -50,7 +53,7 @@ const readChunks = async (
       const { done, value } = await reader.read();
       signal?.throwIfAborted();
       if (done) break;
-      chunks.push(value);
+      take(value);
       loaded += value.byteLength;
       // the header counted something other than these bytes (a compressed transfer)
       if (total !== undefined && loaded > total) total = undefined;
@@ -64,31 +67,58 @@ const readChunks = async (
       }
     }
     if (total === undefined && reported !== loaded) onProgress({ length: 'unknown', loaded });
-    return chunks;
   } finally {
     signal?.removeEventListener('abort', cancel);
     reader.releaseLock();
   }
 };
 
+/** Chunks are folded into the blob each time this many bytes of them have gathered. */
+export const BLOB_BATCH_BYTES = 8 * 1024 * 1024;
+
 /** The response body as a blob of the response's content type. */
 export const responseBlob = async (res: Response, options: ReadOptions): Promise<Blob> => {
   const { onProgress, signal } = options;
   if (!onProgress || !res.body) return res.blob();
-  const chunks = await readChunks(res.body, announcedLength(res), onProgress, signal);
-  return new Blob(chunks, { type: res.headers.get('content-type') ?? '' });
+
+  // Folded in batches: a blob's bytes are the browser's to store, so the script holds one batch
+  // of a large file instead of all of it twice.
+  const type = res.headers.get('content-type') ?? '';
+  let blob = new Blob([], { type });
+  let batch: Chunk[] = [];
+  let batchBytes = 0;
+  const fold = () => {
+    blob = new Blob([blob, ...batch], { type });
+    batch = [];
+    batchBytes = 0;
+  };
+  await readChunks(res.body, announcedLength(res), onProgress, signal, (chunk) => {
+    batch.push(chunk);
+    batchBytes += chunk.byteLength;
+    if (batchBytes >= BLOB_BATCH_BYTES) fold();
+  });
+  fold();
+  return blob;
 };
 
 /** The response body as one buffer. */
 export const responseBuffer = async (res: Response, options: ReadOptions): Promise<ArrayBuffer> => {
   const { onProgress, signal } = options;
   if (!onProgress || !res.body) return res.arrayBuffer();
-  const chunks = await readChunks(res.body, announcedLength(res), onProgress, signal);
-  const bytes = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.byteLength, 0));
-  let offset = 0;
-  chunks.forEach((chunk) => {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
+
+  // filled in place: exactly the announced length, else doubled as the body outgrows it
+  const announced = announcedLength(res);
+  let bytes = new Uint8Array(announced ?? 0);
+  let loaded = 0;
+  await readChunks(res.body, announced, onProgress, signal, (chunk) => {
+    const needed = loaded + chunk.byteLength;
+    if (needed > bytes.byteLength) {
+      const grown = new Uint8Array(Math.max(needed, bytes.byteLength * 2));
+      grown.set(bytes.subarray(0, loaded));
+      bytes = grown;
+    }
+    bytes.set(chunk, loaded);
+    loaded = needed;
   });
-  return bytes.buffer;
+  return loaded === bytes.byteLength ? bytes.buffer : bytes.slice(0, loaded).buffer;
 };

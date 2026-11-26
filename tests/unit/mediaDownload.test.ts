@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { downloadEncryptedMedia, downloadMedia } from '../../src/app/utils/matrix';
 import {
+  BLOB_BATCH_BYTES,
   DownloadProgress,
   UNKNOWN_LENGTH_STEP,
   responseBlob,
@@ -104,6 +105,54 @@ describe('reading a media response', () => {
 
     expect(new Uint8Array(buffer)).toEqual(new Uint8Array([1, 1, 2, 2, 2]));
     expect(reports.at(-1)).toEqual({ length: 'known', loaded: 5, total: 5 });
+  });
+
+  it('keeps a body of several batches whole and in order', async () => {
+    const { onProgress } = collect();
+    const half = BLOB_BATCH_BYTES / 2;
+    // two and a half batches, each half batch filled with its own value
+    const res = streamed(
+      Array.from({ length: 5 }, (_, index) => bytes(half, index + 1)),
+      { 'content-type': 'video/mp4' }
+    );
+
+    const blob = await responseBlob(res, { onProgress });
+
+    expect(blob.size).toBe(half * 5);
+    expect(blob.type).toBe('video/mp4');
+    const edges = await Promise.all(
+      [0, 1, 2, 3, 4].map(async (index) => {
+        const part = new Uint8Array(
+          await blob.slice(half * index, half * (index + 1)).arrayBuffer()
+        );
+        return [part[0], part[half - 1]];
+      })
+    );
+    expect(edges).toEqual([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+      [4, 4],
+      [5, 5],
+    ]);
+  });
+
+  it('gives a body of any length as one buffer of exactly its bytes', async () => {
+    const { onProgress } = collect();
+    const chunks = () => [bytes(3, 1), bytes(70_000, 2), bytes(5, 3)];
+    const expected = new Uint8Array([...bytes(3, 1), ...bytes(70_000, 2), ...bytes(5, 3)]);
+
+    const unannounced = await responseBuffer(streamed(chunks()), { onProgress });
+    const outgrown = await responseBuffer(streamed(chunks(), { 'content-length': '10' }), {
+      onProgress,
+    });
+    const cutShort = await responseBuffer(streamed(chunks(), { 'content-length': '90000' }), {
+      onProgress,
+    });
+
+    [unannounced, outgrown, cutShort].forEach((buffer) =>
+      expect(new Uint8Array(buffer)).toEqual(expected)
+    );
   });
 
   it('reads the body without a listener too', async () => {
