@@ -23,6 +23,7 @@ import { getStateEvent } from './room';
 import { Membership, StateEvent } from '../../types/matrix/room';
 import { getFallbackSession } from '../state/sessions';
 import { UploadFailure, UploadOtherError, toUploadFailure } from './uploadFailure';
+import { ReadOptions, responseBlob, responseBuffer } from './mediaDownload';
 
 /**
  * Sends an event whose type is only known at runtime (developer tools).
@@ -404,25 +405,30 @@ export const mediaAuthHeaders = (
   return {};
 };
 
-export const downloadMedia = async (src: string): Promise<Blob> => {
+/** A download reports how much has arrived to `onProgress` and stops when `signal` aborts. */
+export type MediaDownloadOptions = ReadOptions;
+
+const requestMedia = async (src: string, signal: AbortSignal | undefined): Promise<Response> => {
   const res = await fetch(src, {
     method: 'GET',
     headers: mediaAuthHeaders(src, getFallbackSession()),
+    signal,
   });
   if (!res.ok) throw new Error(`Media download failed (${res.status})`);
-  const blob = await res.blob();
-  return blob;
+  return res;
 };
+
+export const downloadMedia = async (
+  src: string,
+  options: MediaDownloadOptions = {}
+): Promise<Blob> => responseBlob(await requestMedia(src, options.signal), options);
 
 export const downloadEncryptedMedia = async (
   src: string,
-  decryptContent: (buf: ArrayBuffer) => Promise<Blob>
-): Promise<Blob> => {
-  const encryptedContent = await downloadMedia(src);
-  const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
-
-  return decryptedContent;
-};
+  decryptContent: (buf: ArrayBuffer) => Promise<Blob>,
+  options: MediaDownloadOptions = {}
+): Promise<Blob> =>
+  decryptContent(await responseBuffer(await requestMedia(src, options.signal), options));
 
 export type RateLimitedFailure<T> = { item: T; index: number; error: unknown };
 
