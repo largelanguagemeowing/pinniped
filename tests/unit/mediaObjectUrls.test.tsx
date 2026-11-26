@@ -81,6 +81,7 @@ const mxc = 'mxc://example.org/file';
 const live = new Set<string>();
 let created = 0;
 let renderer: ReactTestRenderer;
+let mounted = false;
 
 beforeEach(() => {
   live.clear();
@@ -88,6 +89,7 @@ beforeEach(() => {
   downloads.count = 0;
   downloads.stalled = false;
   downloads.waiting = [];
+  vi.mocked(FileSaver.saveAs).mockClear();
   vi.stubGlobal('URL', {
     ...URL,
     createObjectURL: () => {
@@ -101,6 +103,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // a test that failed midway must not leave its media held for the next one
+  if (mounted) act(() => renderer.unmount());
+  mounted = false;
   mediaBlobCache.clear();
   resetBackoff();
   vi.unstubAllGlobals();
@@ -108,21 +113,34 @@ afterEach(() => {
 
 const flush = () => act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
 
-// a load ends some turns after it starts; waits for what it leaves behind
-const until = (check: () => void) =>
-  act(async () => {
-    await vi.waitFor(check);
-  });
+// A load ends some turns after it starts. Waits for what it leaves behind, one turn at a time:
+// React applies what a turn changed when its `act` ends, so one long `act` would never see it.
+const until = async (check: () => void) => {
+  const deadline = Date.now() + 5000;
+  for (;;) {
+    try {
+      check();
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+    }
+    await flush();
+  }
+};
 const untilShown = () => until(() => expect(created).toBeGreaterThan(0));
 
 const mount = async (element: React.ReactElement) => {
   await act(async () => {
     renderer = create(element);
   });
+  mounted = true;
   await flush();
 };
 
-const unmount = () => act(() => renderer.unmount());
+const unmount = () => {
+  mounted = false;
+  return act(() => renderer.unmount());
+};
 
 // Loaded media stays in the media cache for the next time it is shown, and its URL with it. Once
 // the component is gone nothing else may have one: the cache uses nothing, and evicting what it
