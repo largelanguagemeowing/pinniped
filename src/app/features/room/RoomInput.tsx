@@ -68,7 +68,6 @@ import { FavoriteGif } from '../../state/gifFavorites';
 import { markGifVideo } from '../../../types/matrix/common';
 import { UseStateProvider } from '../../components/UseStateProvider';
 import {
-  TUploadContent,
   decryptFile,
   downloadEncryptedMedia,
   encryptFile,
@@ -88,7 +87,15 @@ import {
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
 } from '../../state/room/roomInputDrafts';
-import { UploadCardRenderer } from '../../components/upload-card';
+import { ComposerTiles } from '../../components/upload-card';
+import {
+  ComposerTileStatus,
+  ReadyTile,
+  TComposerTile,
+  getReadyItems,
+} from '../../state/room/composerTiles';
+import { prepareUploadFiles } from './prepareUploadFiles';
+import { useMediaConfig } from '../../hooks/useMediaConfig';
 import {
   UploadBoard,
   UploadBoardContent,
@@ -102,8 +109,6 @@ import {
   createUploadFamilyObserverAtom,
 } from '../../state/upload';
 import { getImageUrlBlob, loadImageElement } from '../../utils/dom';
-import { safeFile } from '../../utils/mimeTypes';
-import { stripMetadata } from '../../utils/stripMetadata';
 import { fulfilledPromiseSettledResult, randomStr } from '../../utils/common';
 import { useSetting } from '../../state/hooks/settings';
 import { settingsAtom } from '../../state/settings';
@@ -195,7 +200,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(roomId));
     const uploadFamilyObserverAtom = createUploadFamilyObserverAtom(
       roomUploadAtomFamily,
-      selectedFiles.map((f) => f.file)
+      getReadyItems(selectedFiles).map((f) => f.file)
     );
     const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>(undefined);
 
@@ -235,41 +240,23 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
     }, [editor, emojiShortcodeMap, storeDraft]);
 
+    const tileList = useMemo(
+      () => ({
+        put: (tiles: TComposerTile[]) => setSelectedFiles({ type: 'PUT', item: tiles }),
+        replace: (from: TComposerTile, to: TComposerTile) =>
+          setSelectedFiles({ type: 'REPLACE', item: from, replacement: to }),
+      }),
+      [setSelectedFiles]
+    );
+    const uploadLimit = useMediaConfig()['m.upload.size'] || undefined;
     const handleFiles = useCallback(
-      async (files: File[]) => {
-        const safeFiles = await Promise.all(files.map((f) => stripMetadata(safeFile(f))));
-        const fileItems: TUploadItem[] = [];
-
-        if (room.hasEncryptionStateEvent()) {
-          const encryptFiles = fulfilledPromiseSettledResult(
-            await Promise.allSettled(safeFiles.map((f) => encryptFile(f)))
-          );
-          encryptFiles.forEach((ef) =>
-            fileItems.push({
-              ...ef,
-              metadata: {
-                markedAsSpoiler: false,
-              },
-            })
-          );
-        } else {
-          safeFiles.forEach((f) =>
-            fileItems.push({
-              file: f,
-              originalFile: f,
-              encInfo: undefined,
-              metadata: {
-                markedAsSpoiler: false,
-              },
-            })
-          );
-        }
-        setSelectedFiles({
-          type: 'PUT',
-          item: fileItems,
-        });
-      },
-      [setSelectedFiles, room]
+      (files: File[]) =>
+        prepareUploadFiles(
+          files,
+          { encrypt: room.hasEncryptionStateEvent(), limit: uploadLimit },
+          tileList
+        ),
+      [tileList, room, uploadLimit]
     );
     const pickFile = useFilePicker(handleFiles, true);
     const handlePaste = useFilePasteHandler(handleFiles);
@@ -302,26 +289,24 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const handleFileMetadata = useCallback(
-      (fileItem: TUploadItem, metadata: TUploadMetadata) => {
+      (tile: ReadyTile, metadata: TUploadMetadata) => {
         setSelectedFiles({
           type: 'REPLACE',
-          item: fileItem,
-          replacement: { ...fileItem, metadata },
+          item: tile,
+          replacement: { ...tile, item: { ...tile.item, metadata } },
         });
       },
       [setSelectedFiles]
     );
 
-    const handleRemoveUpload = useCallback(
-      (upload: TUploadContent | TUploadContent[]) => {
-        const uploads = Array.isArray(upload) ? upload : [upload];
-        setSelectedFiles({
-          type: 'DELETE',
-          item: selectedFiles.filter((f) => uploads.find((u) => u === f.file)),
+    const handleRemoveTiles = useCallback(
+      (tiles: TComposerTile[]) => {
+        setSelectedFiles({ type: 'DELETE', item: tiles });
+        tiles.forEach((tile) => {
+          if (tile.status === ComposerTileStatus.Ready) roomUploadAtomFamily.remove(tile.item.file);
         });
-        uploads.forEach((u) => roomUploadAtomFamily.remove(u));
       },
-      [setSelectedFiles, selectedFiles]
+      [setSelectedFiles]
     );
 
     const handleCancelUpload = (uploads: Upload[]) => {
@@ -330,12 +315,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           mx.cancelUpload(upload.promise);
         }
       });
-      handleRemoveUpload(uploads.map((upload) => upload.file));
+      handleRemoveTiles(
+        selectedFiles.filter(
+          (tile) =>
+            tile.status === ComposerTileStatus.Ready &&
+            uploads.some((upload) => upload.file === tile.item.file)
+        )
+      );
     };
 
     const handleSendUpload = async (uploads: UploadSuccess[], caption?: IContent) => {
       const contentsPromises = uploads.map(async (upload) => {
-        const fileItem = selectedFiles.find((f) => f.file === upload.file);
+        const fileItem = getReadyItems(selectedFiles).find((f) => f.file === upload.file);
         if (!fileItem) throw new Error('Broken upload');
 
         if (fileItem.file.type.startsWith('image')) {
@@ -656,17 +647,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             />
             <Scroll size="300" hideTrack visibility="Hover">
               <UploadBoardContent>
-                {Array.from(selectedFiles)
-                  .reverse()
-                  .map((fileItem, index) => (
-                    <UploadCardRenderer
-                      key={index}
-                      isEncrypted={!!fileItem.encInfo}
-                      fileItem={fileItem}
-                      setMetadata={handleFileMetadata}
-                      onRemove={handleRemoveUpload}
-                    />
-                  ))}
+                <ComposerTiles
+                  tiles={selectedFiles}
+                  setMetadata={handleFileMetadata}
+                  onRemove={(tile) => handleRemoveTiles([tile])}
+                />
               </UploadBoardContent>
             </Scroll>
           </UploadBoard>

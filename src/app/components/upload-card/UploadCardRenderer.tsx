@@ -9,15 +9,13 @@ import {
   useStartIdleUpload,
 } from '../../state/upload';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { TUploadContent } from '../../utils/matrix';
-import { bytesToSize, getFileTypeIcon } from '../../utils/common';
+import { getFileTypeIcon } from '../../utils/common';
 import {
   roomUploadAtomFamily,
   TUploadItem,
   TUploadMetadata,
 } from '../../state/room/roomInputDrafts';
 import { useObjectURL } from '../../hooks/useObjectURL';
-import { useMediaConfig } from '../../hooks/useMediaConfig';
 
 type PreviewMediaProps = {
   fileItem: TUploadItem;
@@ -42,7 +40,7 @@ type UploadCardRendererProps = {
   isEncrypted?: boolean;
   fileItem: TUploadItem;
   setMetadata: (fileItem: TUploadItem, metadata: TUploadMetadata) => void;
-  onRemove: (file: TUploadContent) => void;
+  onRemove: () => void;
   onComplete?: (upload: UploadSuccess) => void;
 };
 export function UploadCardRenderer({
@@ -53,16 +51,13 @@ export function UploadCardRenderer({
   onComplete,
 }: UploadCardRendererProps) {
   const mx = useMatrixClient();
-  const mediaConfig = useMediaConfig();
-  const allowSize = mediaConfig['m.upload.size'] || Infinity;
 
   const uploadAtom = roomUploadAtomFamily(fileItem.file);
   const { metadata } = fileItem;
   const { upload, startUpload, cancelUpload } = useBindUploadAtom(mx, uploadAtom, isEncrypted);
   const { file } = upload;
-  const fileSizeExceeded = file.size >= allowSize;
 
-  useStartIdleUpload(upload.status, fileSizeExceeded, startUpload);
+  useStartIdleUpload(upload.status, false, startUpload);
 
   const isMedia =
     fileItem.originalFile.type.startsWith('image') ||
@@ -74,7 +69,7 @@ export function UploadCardRenderer({
 
   const removeUpload = () => {
     cancelUpload();
-    onRemove(file);
+    onRemove();
   };
 
   useEffect(() => {
@@ -148,13 +143,6 @@ export function UploadCardRenderer({
       {upload.status === UploadStatus.Error && (
         <UploadCardError>
           <Text size="T200">{upload.error.message}</Text>
-        </UploadCardError>
-      )}
-      {upload.status === UploadStatus.Idle && fileSizeExceeded && (
-        <UploadCardError>
-          <Text size="T200">
-            Exceeds the limit of <b>{bytesToSize(allowSize)}</b>.
-          </Text>
         </UploadCardError>
       )}
     </Box>
