@@ -3,6 +3,7 @@ import type { CallStatsSample } from '../../../plugins/call/Call';
 import type { CallStatsConnection } from '../../../plugins/call/engine/livekit/callStats';
 import type { EncryptionEvent } from '../../../plugins/call/engine/livekit/encryptionLog';
 import type { CallPlayback } from '../../../state/call';
+import type { PowerSource } from '../../../hooks/usePowerSource';
 import { formatBitrate, formatBytes, StatPoint, valueSeries } from '../../../plugins/call/stats';
 import { APP_VERSION, isDesktop } from '../../../utils/device';
 import {
@@ -27,6 +28,16 @@ type ReportContext = {
   playback: CallPlayback | undefined;
   /** The name of an output device, by ID ('' is the system default). */
   outputName: (sinkId: string) => string;
+  /** What the machine runs on, where the browser tells; a laptop on battery is throttled. */
+  power?: PowerSource;
+};
+
+const millis = (seconds: number): string => `${Math.round(seconds * 1000)} ms`;
+
+const machineLine = ({ power }: ReportContext): string => {
+  const cores = `${navigator.hardwareConcurrency} logical cores`;
+  if (power === undefined) return `- Machine: ${cores}`;
+  return `- Machine: ${cores}, ${power === 'battery' ? 'on battery' : 'on mains power'}`;
 };
 
 /** How the call plays its audio: the audio context's state, its output, and its output failures. */
@@ -40,15 +51,14 @@ const playbackLine = ({ playback, outputName }: ReportContext): string => {
           .slice(-5)
           .map((time) => new Date(time).toISOString().slice(11, 19))
           .join(', ')}; audio context replaced each time)`;
-  const ms = (seconds: number): string => `${Math.round(seconds * 1000)} ms`;
   const underruns = playback.underruns();
   const ran =
     underruns === undefined
-      ? 'underruns unknown (no playout stats)'
-      : `${underruns.events} underruns (${ms(underruns.seconds)} of silence in ${Math.round(underruns.ofSeconds)} s played)`;
+      ? 'underruns unknown (the browser does not count them)'
+      : `${underruns.events} underruns (${millis(underruns.seconds)} of silence in ${Math.round(underruns.ofSeconds)} s played)`;
   return [
     `- Playback: ${playback.state}, on ${outputName(playback.sinkId)}, ${failed}`,
-    `- Playback context: ${playback.sampleRate} Hz, buffer ${ms(playback.baseLatency)}, output delay ${ms(playback.outputLatency)}, ${ran}`,
+    `- Playback context: ${playback.sampleRate} Hz, buffer ${millis(playback.baseLatency)}, output delay ${millis(playback.outputLatency)}, ${ran}`,
   ].join('\n');
 };
 
@@ -85,6 +95,28 @@ const duration = (ms: number): string => {
   return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
 };
 
+/**
+ * What this machine's audio devices lost, either of which is heard as crackling while the
+ * network counters stay clean: microphone audio that never reached us (the others hear it), and
+ * WebRTC's playout running dry (we hear it).
+ */
+const deviceLines = ({ microphone, playout }: CallStatsConnection): string[] => [
+  ...(microphone
+    ? [
+        `- Microphone: ${millis(microphone.droppedSeconds)} dropped by the capture device in ${Math.round(microphone.capturedSeconds)} s, ${
+          microphone.processed
+            ? 'processed in an audio graph (voice gate or mono mix) before it is sent'
+            : 'sent as captured'
+        }`,
+      ]
+    : []),
+  ...(playout
+    ? [
+        `- WebRTC playout: ${playout.underrunEvents} underruns (${millis(playout.underrunSeconds)} of silence in ${Math.round(playout.playedSeconds)} s played)`,
+      ]
+    : []),
+];
+
 const transportSection = (samples: CallStatsSample[], idx: number, c: CallStatsConnection) => {
   const specs: [
     title: string,
@@ -109,6 +141,7 @@ const transportSection = (samples: CallStatsSample[], idx: number, c: CallStatsC
     '',
     `- Protocol: ${c.transport.protocol?.toUpperCase() ?? 'unknown'}`,
     `- Streams: ${c.outbound.length} outbound, ${c.inbound.length} inbound`,
+    ...deviceLines(c),
     '',
     rows.length > 0 ? table(METRIC_HEAD, rows) : '_No transport samples yet._',
   ].join('\n');
@@ -176,6 +209,7 @@ export const buildCallReport = (ctx: ReportContext): string => {
     `- Generated: ${new Date().toISOString()}`,
     `- App: Pinniped ${isDesktop() ? 'Desktop' : 'Web'} ${APP_VERSION}`,
     `- Browser: ${navigator.userAgent}`,
+    machineLine(ctx),
     `- Room: ${ctx.roomName} (${ctx.roomId})`,
     `- End-to-end encrypted: ${ctx.encrypted ? 'yes' : 'no'}`,
     playbackLine(ctx),

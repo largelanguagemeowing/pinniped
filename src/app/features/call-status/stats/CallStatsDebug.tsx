@@ -28,6 +28,7 @@ import { streamsOf, streamTitle } from './streams';
 import { buildCallReport } from './report';
 import { callPlaybackAtom } from '../../../state/call';
 import { copyToClipboard } from '../../../utils/dom';
+import { usePowerSource } from '../../../hooks/usePowerSource';
 
 type Direction = 'outbound' | 'inbound';
 /** `transport`, or one stream as `outbound:<ssrc>` / `inbound:<ssrc>`. */
@@ -56,6 +57,7 @@ type CallStatsDebugProps = {
 export function CallStatsDebug({ call, requestClose }: CallStatsDebugProps) {
   const samples = useBehavior(call.stats$);
   const playback = useAtomValue(callPlaybackAtom);
+  const power = usePowerSource();
   const outputs = useBehavior(call.mediaDevices.audioOutput.available$);
   const outputName = (sinkId: string): string => {
     const label = outputs.get(sinkId);
@@ -86,6 +88,7 @@ export function CallStatsDebug({ call, requestClose }: CallStatsDebugProps) {
         encryptionEvents: call.encryptionLog$.value,
         playback,
         outputName,
+        power,
       })
     );
     setCopied(true);

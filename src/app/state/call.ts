@@ -56,7 +56,8 @@ export type CallPlayback = {
   outputLatency: number;
   /**
    * How often the context ran out of audio to hand the device since it started and for how long
-   * (each is a crackle); undefined where the browser has no `playoutStats`.
+   * (each is a crackle); undefined where the browser has neither `playbackStats` nor the older
+   * `playoutStats`.
    */
   underruns: () => { events: number; seconds: number; ofSeconds: number } | undefined;
 };

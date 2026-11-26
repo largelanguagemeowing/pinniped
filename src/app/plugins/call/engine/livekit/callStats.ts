@@ -76,9 +76,57 @@ export interface CallStatsConnection {
   };
   outbound: CallStatsStream[];
   inbound: CallStatsStream[];
+  /**
+   * WebRTC's own playout to the audio device, which pulls every remote voice before the call's
+   * audio context plays it: how often the device was not fed in time and for how long, of the
+   * time played. Cumulative. Absent where the browser reports no `media-playout`.
+   */
+  playout?: { underrunEvents: number; underrunSeconds: number; playedSeconds: number };
+  /**
+   * Our microphone as captured, when it is published here: audio the device produced that never
+   * reached the page (heard by the others as crackling), of all it produced. Cumulative. Absent
+   * where the browser has no audio track stats.
+   */
+  microphone?: {
+    droppedSeconds: number;
+    capturedSeconds: number;
+    /** It passes through an audio graph (voice gate, mono mix) on its way to the network. */
+    processed: boolean;
+  };
 }
 
 type Stat = Record<string, unknown>;
+
+/** `MediaStreamTrack.stats` of an audio track (Chromium), which TypeScript's DOM types lack. */
+type CapturedTrack = MediaStreamTrack & {
+  stats?: { deliveredFramesDuration?: number; totalFramesDuration?: number }; // ms
+};
+
+function microphoneOf(room: LivekitRoom): CallStatsConnection['microphone'] {
+  const pub = [...room.localParticipant.trackPublications.values()].find(
+    (p) => p.source === Track.Source.Microphone
+  );
+  // LiveKit's `mediaStreamTrack` is the processor's output while one is set; the device's
+  // counters are on the track it captured.
+  const track = pub?.track as
+    | {
+        _mediaStreamTrack?: CapturedTrack;
+        mediaStreamTrack?: CapturedTrack;
+        getProcessor?(): unknown;
+      }
+    | undefined;
+  const stats = (track?._mediaStreamTrack ?? track?.mediaStreamTrack)?.stats;
+  const total = stats?.totalFramesDuration;
+  const delivered = stats?.deliveredFramesDuration;
+  if (track === undefined || typeof total !== 'number' || typeof delivered !== 'number') {
+    return undefined;
+  }
+  return {
+    droppedSeconds: Math.max(0, total - delivered) / 1000,
+    capturedSeconds: total / 1000,
+    processed: track.getProcessor?.() !== undefined,
+  };
+}
 
 interface StreamLabel {
   participant?: string;
@@ -230,8 +278,18 @@ export async function sampleConnection(
   // on the publisher's connection; otherwise on the subscriber's.
   const inbound = [...pubStats, ...subStats].filter((s) => s.type === 'inbound-rtp').map(stream);
 
+  const playoutStat = [...pubStats, ...subStats].find((s) => s.type === 'media-playout');
+  const underrunEvents = num(playoutStat?.synthesizedSamplesEvents);
+  const underrunSeconds = num(playoutStat?.synthesizedSamplesDuration);
+  const playedSeconds = num(playoutStat?.totalSamplesDuration);
+
   const signalRtt = room.engine.client.rtt;
   return {
+    playout:
+      underrunEvents !== undefined && underrunSeconds !== undefined && playedSeconds !== undefined
+        ? { underrunEvents, underrunSeconds, playedSeconds }
+        : undefined,
+    microphone: microphoneOf(room),
     url,
     host: new URL(url).hostname,
     rtt: signalRtt > 0 ? signalRtt : pairRtt !== undefined ? Math.round(pairRtt * 1000) : null,

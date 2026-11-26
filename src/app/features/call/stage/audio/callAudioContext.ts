@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { logger } from 'matrix-js-sdk/lib/logger';
 
-import { callPlaybackAtom } from '../../../../state/call';
+import { type CallPlayback, callPlaybackAtom } from '../../../../state/call';
 
 const log = logger.getChild('[CallAudio]');
 
@@ -25,12 +25,39 @@ export const contextFollowsOutput =
 type SinkContext = AudioContext & {
   sinkId?: string | object;
   setSinkId?(id: string): Promise<void>;
+  /** How the output fared (current Chromium, Electron 45 included). */
+  playbackStats?: {
+    underrunEvents: number;
+    underrunDuration: number; // s
+    totalDuration: number; // s
+  };
+  /** Its origin-trial predecessor, which current Chromium no longer has. */
   playoutStats?: {
     fallbackFramesEvents: number;
     fallbackFramesDuration: number; // ms
     totalFramesDuration: number; // ms
   };
 };
+
+/** How often `ctx` ran out of audio for its device, from whichever counter the browser has. */
+function underrunsOf(ctx: SinkContext): ReturnType<CallPlayback['underruns']> {
+  const stats = ctx.playbackStats;
+  if (stats !== undefined) {
+    return {
+      events: stats.underrunEvents,
+      seconds: stats.underrunDuration,
+      ofSeconds: stats.totalDuration,
+    };
+  }
+  const old = ctx.playoutStats;
+  return old === undefined
+    ? undefined
+    : {
+        events: old.fallbackFramesEvents,
+        seconds: old.fallbackFramesDuration / 1000,
+        ofSeconds: old.totalFramesDuration / 1000,
+      };
+}
 
 /**
  * The audio context the call plays through, on the output device `outputId` ('' is the system
@@ -57,16 +84,7 @@ export function useCallAudioContext(outputId: string): AudioContext | undefined 
         sampleRate: created.sampleRate,
         baseLatency: created.baseLatency,
         outputLatency: created.outputLatency,
-        underruns: () => {
-          const stats = created.playoutStats;
-          return stats === undefined
-            ? undefined
-            : {
-                events: stats.fallbackFramesEvents,
-                seconds: stats.fallbackFramesDuration / 1000,
-                ofSeconds: stats.totalFramesDuration / 1000,
-              };
-        },
+        underruns: () => underrunsOf(created),
       }));
     const onState = (): void => {
       log.info(`audio context ${created.state}`);

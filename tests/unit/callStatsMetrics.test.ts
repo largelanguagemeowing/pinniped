@@ -514,6 +514,44 @@ describe('call report', () => {
     expect(text(playback(() => undefined))).toContain('underruns unknown');
   });
 
+  it("reports what this machine's audio devices lost, per connection", () => {
+    const samples = samplesOf('audio', audioCounters([{}]));
+    const section = (text: string) => text.slice(text.indexOf('## Connection'));
+    expect(section(report(samples))).not.toMatch(/Microphone:|WebRTC playout:/);
+
+    // The counters are cumulative: the report shows the latest sample's.
+    const [latest] = samples[samples.length - 1].connections;
+    latest.microphone = { droppedSeconds: 0.25, capturedSeconds: 61.4, processed: false };
+    latest.playout = { underrunEvents: 4, underrunSeconds: 0.04, playedSeconds: 59.6 };
+    const text = section(report(samples));
+    expect(text).toContain(
+      '- Microphone: 250 ms dropped by the capture device in 61 s, sent as captured'
+    );
+    expect(text).toContain('- WebRTC playout: 4 underruns (40 ms of silence in 60 s played)');
+
+    latest.microphone.processed = true;
+    expect(section(report(samples))).toContain('processed in an audio graph');
+  });
+
+  it('says what the machine runs on, where that is known', () => {
+    const text = (power?: 'battery' | 'mains') =>
+      buildCallReport({
+        samples: [],
+        who: () => 'Alice',
+        roomName: 'Room',
+        roomId: '!room:example.org',
+        encrypted: false,
+        encryptionEvents: [],
+        playback: undefined,
+        outputName: () => 'Default',
+        power,
+      });
+    const cores = `- Machine: ${navigator.hardwareConcurrency} logical cores`;
+    expect(text('battery')).toContain(`${cores}, on battery\n`);
+    expect(text('mains')).toContain(`${cores}, on mains power\n`);
+    expect(text()).toContain(`${cores}\n`);
+  });
+
   it('summarises the freezes of an inbound video stream', () => {
     const text = report(
       samplesOf('video', videoCounters([{ freezes: [0.5] }, {}, { freezes: [0.25, 0.25] }, {}]))

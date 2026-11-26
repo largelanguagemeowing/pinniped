@@ -22,7 +22,19 @@ const { FakeContext } = vi.hoisted(() => {
 
     outputLatency = 0.05;
 
-    playoutStats = {
+    /** Current Chromium's counters (seconds); absent in browsers from before them. */
+    playbackStats:
+      { underrunEvents: number; underrunDuration: number; totalDuration: number } | undefined =
+      undefined;
+
+    /** The origin trial's counters (milliseconds). */
+    playoutStats:
+      | {
+          fallbackFramesEvents: number;
+          fallbackFramesDuration: number;
+          totalFramesDuration: number;
+        }
+      | undefined = {
       fallbackFramesEvents: 3,
       fallbackFramesDuration: 60,
       totalFramesDuration: 9000,
@@ -142,6 +154,21 @@ describe("the call's audio context", () => {
       seconds: 0.06,
       ofSeconds: 9,
     });
+  });
+
+  it("reads the underruns from current Chromium's playbackStats, which replaced playoutStats", async () => {
+    const { store } = mount('');
+    await flush();
+    // Electron 45: playbackStats only.
+    latest().playoutStats = undefined;
+    latest().playbackStats = { underrunEvents: 2, underrunDuration: 0.03, totalDuration: 12 };
+    expect(store.get(callPlaybackAtom)?.underruns()).toEqual({
+      events: 2,
+      seconds: 0.03,
+      ofSeconds: 12,
+    });
+    latest().playbackStats = undefined;
+    expect(store.get(callPlaybackAtom)?.underruns()).toBeUndefined();
   });
 
   it('plays on the system default when no output is chosen', async () => {
