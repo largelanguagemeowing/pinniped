@@ -31,6 +31,7 @@ import { useMediaLoader } from '../../../hooks/useMediaLoader';
 import { useObjectURL } from '../../../hooks/useObjectURL';
 import { ModalWide } from '../../../styles/Modal.css';
 import { AttachmentLoadError } from './AttachmentLoadError';
+import { MediaLoadProgress } from './MediaLoadProgress';
 
 const renderErrorButton = (error: unknown, retry: () => void, text: string) =>
   error instanceof AttachmentTamperedError || error instanceof AttachmentUnreadableError ? (
@@ -145,6 +146,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
           <Text size="B400" truncate>
             Open File
           </Text>
+          <MediaLoadProgress url={media.httpUrl} />
         </Button>
       )}
     </>
@@ -225,6 +227,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
           <Text size="B400" truncate>
             Open PDF
           </Text>
+          <MediaLoadProgress url={media.httpUrl} />
         </Button>
       )}
     </>
@@ -277,6 +280,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
       }
     >
       <Text size="B400" truncate>{`Download (${bytesToSize(info.size ?? 0)})`}</Text>
+      <MediaLoadProgress url={media.httpUrl} />
     </Button>
   );
 }

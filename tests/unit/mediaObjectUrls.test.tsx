@@ -10,7 +10,9 @@ import { ThumbnailContent } from '../../src/app/components/message/content/Thumb
 import { VideoContent } from '../../src/app/components/message/content/VideoContent';
 import { DownloadFile, ReadPdfFile } from '../../src/app/components/message/content/FileContent';
 import { FileDownloadButton } from '../../src/app/components/message/FileHeader';
+import { MediaLoadProgress } from '../../src/app/components/message/content/MediaLoadProgress';
 import { mediaBlobCache } from '../../src/app/utils/mediaBlobCache';
+import type { DownloadProgress } from '../../src/app/utils/mediaDownload';
 import { resetBackoff } from '../../src/app/utils/requestBackoff';
 
 // style modules are built by a bundler plugin; any class name will do here
@@ -26,8 +28,14 @@ vi.mock('../../src/app/hooks/useHoverPlay', () => ({
 }));
 
 const client = vi.hoisted(() => ({ getSafeUserId: () => '@me:example.org' }));
-// how many times media was fetched from the server; a stalled server answers no request
-const downloads = vi.hoisted(() => ({ count: 0, stalled: false }));
+// how many times media was fetched from the server; a stalled server leaves its requests
+// waiting until they are answered by hand
+const downloads = vi.hoisted(() => ({
+  count: 0,
+  stalled: false,
+  waiting: [] as (() => void)[],
+  answer: () => downloads.waiting.splice(0).forEach((answer) => answer()),
+}));
 vi.mock('../../src/app/hooks/useMatrixClient', () => ({ useMatrixClient: () => client }));
 vi.mock('../../src/app/hooks/useMediaAuthentication', () => ({
   useMediaAuthentication: () => true,
@@ -44,9 +52,15 @@ vi.mock('../../src/app/utils/matrix', async (importOriginal) => {
     async (...args: unknown[]): Promise<Blob> => {
       downloads.count += 1;
       if (!downloads.stalled) return new Blob([content]);
-      const { signal } = args.at(-1) as { signal: AbortSignal };
-      return new Promise((_answer, fail) => {
+      // a quarter arrives, then nothing more
+      const { signal, onProgress } = args.at(-1) as {
+        signal: AbortSignal;
+        onProgress: (progress: DownloadProgress) => void;
+      };
+      onProgress({ length: 'known', loaded: 1, total: 4 });
+      return new Promise((answer, fail) => {
         signal.addEventListener('abort', () => fail(signal.reason));
+        downloads.waiting.push(() => answer(new Blob([content])));
       });
     };
   return {
@@ -73,6 +87,7 @@ beforeEach(() => {
   created = 0;
   downloads.count = 0;
   downloads.stalled = false;
+  downloads.waiting = [];
   vi.stubGlobal('URL', {
     ...URL,
     createObjectURL: () => {
@@ -338,6 +353,71 @@ describe('media shown again', () => {
     expect(video().props.src).not.toBe(first);
     expect([...live]).toEqual([video().props.src]);
     expect(downloads.count).toBe(2);
+    await unmount();
+    expectNoneLeft();
+  });
+});
+
+describe('media that is downloading', () => {
+  // whether the component says how far the download is
+  const showsProgress = () =>
+    renderer.root.findAllByType(MediaLoadProgress).some((label) => label.children.length > 0);
+
+  it.each<[string, () => React.ReactElement, boolean]>([
+    [
+      'an encrypted image',
+      () => (
+        <ImageContent
+          body="pic"
+          mimeType="image/png"
+          url={mxc}
+          encInfo={encInfo}
+          renderViewer={() => null}
+          renderImage={(props) => <img alt={props.alt} src={props.src} />}
+        />
+      ),
+      true,
+    ],
+    [
+      'a video',
+      () => (
+        <VideoContent
+          body="clip"
+          mimeType="video/mp4"
+          url={mxc}
+          info={{}}
+          renderVideo={() => null}
+        />
+      ),
+      true,
+    ],
+    ['a file', () => <DownloadFile body="a.bin" mimeType="x/y" url={mxc} info={{}} />, false],
+    [
+      'a PDF',
+      () => (
+        <ReadPdfFile
+          body="doc.pdf"
+          mimeType="application/pdf"
+          url={mxc}
+          renderViewer={() => null}
+        />
+      ),
+      false,
+    ],
+  ])('%s says how far it is, until it has arrived', async (_name, element, auto) => {
+    downloads.stalled = true;
+    await mount(element());
+    if (!auto) {
+      expect(showsProgress()).toBe(false);
+      const buttons = renderer.root.findAll((node) => typeof node.props.onClick === 'function');
+      await act(async () => buttons[0].props.onClick());
+    }
+
+    await until(() => expect(showsProgress()).toBe(true));
+
+    downloads.answer();
+    await until(() => expect(showsProgress()).toBe(false));
+
     await unmount();
     expectNoneLeft();
   });

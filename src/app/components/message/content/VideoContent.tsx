@@ -23,6 +23,7 @@ import {
 import * as css from './style.css';
 import { AsyncStatus, useAsyncLoad } from '../../../hooks/useAsyncCallback';
 import { AttachmentLoadError } from './AttachmentLoadError';
+import { MediaLoadProgress } from './MediaLoadProgress';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '../../../utils/common';
 import { discardMedia } from '../../../utils/cachedMedia';
 import { useMediaLoader } from '../../../hooks/useMediaLoader';
@@ -171,8 +172,14 @@ export const VideoContent = as<'div', VideoContentProps>(
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
           !blurred && (
-            <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
+            <Box
+              className={css.AbsoluteContainer}
+              alignItems="Center"
+              justifyContent="Center"
+              gap="200"
+            >
               <Spinner variant="Secondary" />
+              <MediaLoadProgress url={media.httpUrl} />
             </Box>
           )}
         {(error || srcState.status === AsyncStatus.Error) && (

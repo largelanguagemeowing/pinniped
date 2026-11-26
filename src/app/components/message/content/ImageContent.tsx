@@ -30,6 +30,7 @@ import { discardMedia } from '../../../utils/cachedMedia';
 import { useMediaLoader } from '../../../hooks/useMediaLoader';
 import { useObjectURL } from '../../../hooks/useObjectURL';
 import { AttachmentLoadError } from './AttachmentLoadError';
+import { MediaLoadProgress } from './MediaLoadProgress';
 import { validBlurHash } from '../../../utils/blurHash';
 import { useHoverPlay } from '../../../hooks/useHoverPlay';
 import { clearFailure, isBackedOff, recordFailure } from '../../../utils/requestBackoff';
@@ -281,8 +282,14 @@ export const ImageContent = as<'div', ImageContentProps>(
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
           !blurred && (
-            <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
+            <Box
+              className={css.AbsoluteContainer}
+              alignItems="Center"
+              justifyContent="Center"
+              gap="200"
+            >
               <Spinner variant="Secondary" />
+              <MediaLoadProgress url={media.httpUrl} />
             </Box>
           )}
         {(error || srcState.status === AsyncStatus.Error) && (
