@@ -288,7 +288,7 @@ describe('loadMedia', () => {
       await vi.waitFor(() => expect(fetched).toHaveLength(1));
       controller.abort();
 
-      // within the abort, not some turns later
+      // within the abort instead of some turns later
       expect(fetched[0].signal?.aborted).toBe(true);
       await expect(loading).rejects.toMatchObject({ name: 'AbortError' });
     });

@@ -100,7 +100,7 @@ describe('useObjectURL', () => {
     const first = mount('a', blob);
     const url = seen.get('a');
     unmount(first);
-    // kept by the cache, not revoked with the component
+    // kept by the cache instead of being revoked with the component
     expect(live.has(url ?? '')).toBe(true);
 
     mount('b', blob);
