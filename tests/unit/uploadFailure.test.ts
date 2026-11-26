@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConnectionError, HTTPError, MatrixError } from 'matrix-js-sdk';
 import type { MatrixClient, UploadOpts, UploadResponse } from 'matrix-js-sdk';
 import { uploadContent } from '../../src/app/utils/matrix';
-import { UploadFailure, UploadFailureKind } from '../../src/app/utils/uploadFailure';
+import {
+  UploadFailure,
+  UploadFailureKind,
+  UploadPrepareError,
+} from '../../src/app/utils/uploadFailure';
 
 const file = new File(['x'], 'a.bin');
 
@@ -162,5 +166,13 @@ describe('uploadContent', () => {
     });
 
     expect(onPromise).toHaveBeenCalledWith(pending);
+  });
+
+  it('names the file whose message content could not be built', () => {
+    const failure: UploadFailure = new UploadPrepareError('a.png', new Error('bad image'));
+
+    expect(failure.kind).toBe(UploadFailureKind.Prepare);
+    expect(failure.message).toContain('a.png');
+    expect(failure.message).toContain('bad image');
   });
 });

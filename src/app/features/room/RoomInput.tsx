@@ -12,7 +12,7 @@ import React, {
 } from 'react';
 import { useAtom, useAtomValue, useStore } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
-import { IContent, MatrixError, MsgType, RelationType, Room } from 'matrix-js-sdk';
+import { IContent, MsgType, RelationType, Room } from 'matrix-js-sdk';
 import { Transforms, Editor } from 'slate';
 import FocusTrap from 'focus-trap-react';
 import {
@@ -142,6 +142,7 @@ import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { useComposingCheck } from '../../hooks/useComposingCheck';
 import { PollCreator, PollIcon } from '../../components/poll';
 import { stopPropagation } from '../../utils/keyboard';
+import { UploadPrepareError } from '../../utils/uploadFailure';
 import { storeMsgDraft } from '../../state/room/msgDraftStore';
 
 const gifIconStyles: CSSProperties = {
@@ -329,7 +330,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       failed.forEach(({ tile, name, message }) => {
         if (!tile) return;
         store.set(roomUploadAtomFamily(tile.item.file), {
-          error: new MatrixError({ error: `Could not prepare ${name} for sending: ${message}` }),
+          error: new UploadPrepareError(name, message),
         });
       });
       handleRemoveTiles(built.map(({ tile }) => tile));

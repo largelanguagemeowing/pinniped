@@ -10,6 +10,7 @@ export enum UploadFailureKind {
   Network = 'network',
   Auth = 'auth',
   Aborted = 'aborted',
+  Prepare = 'prepare',
   Other = 'other',
 }
 
@@ -73,6 +74,21 @@ export class UploadAbortedError extends Error {
   }
 }
 
+/** The file was uploaded but its message content could not be built, so nothing was sent. */
+export class UploadPrepareError extends Error {
+  readonly kind = UploadFailureKind.Prepare;
+
+  constructor(fileName: string, cause: unknown) {
+    super(
+      `Could not prepare ${fileName} for sending: ${cause instanceof Error ? cause.message : String(cause)}`,
+      {
+        cause,
+      }
+    );
+    this.name = 'UploadPrepareError';
+  }
+}
+
 /** Anything else; the server's own explanation is shown when it gave one. */
 export class UploadOtherError extends Error {
   readonly kind = UploadFailureKind.Other;
@@ -94,6 +110,7 @@ export type UploadFailure =
   | UploadNetworkError
   | UploadAuthError
   | UploadAbortedError
+  | UploadPrepareError
   | UploadOtherError;
 
 const retryAfterOf = (error: HTTPError): RetryAfter => {

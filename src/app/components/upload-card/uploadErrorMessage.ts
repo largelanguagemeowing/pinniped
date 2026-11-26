@@ -1,7 +1,4 @@
-import { MatrixError } from 'matrix-js-sdk';
+import { UploadFailure } from '../../utils/uploadFailure';
 
-/**
- * What a failed upload says on its tile. The seam for per-cause messages (size limit, rate limit,
- * network, authentication): the tile shows whatever this returns.
- */
-export const getUploadErrorMessage = (error: MatrixError): string => error.message;
+/** What a failed upload says on its tile: the failure's own message, one per cause. */
+export const getUploadErrorMessage = (error: UploadFailure): string => error.message;
