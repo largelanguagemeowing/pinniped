@@ -52,7 +52,7 @@ function FailedTileCard({ tile, onRemove }: FailedTileCardProps) {
   const message = describeTileFailure(tile.failure);
   return (
     <Box className={css.UploadTile} direction="Column" gap="100">
-      <Box className={css.UploadTileFrame}>
+      <Box className={css.UploadTileFrame} data-failed>
         <Icon src={Icons.Warning} size="400" />
         <Box className={css.UploadTileActions}>
           <IconButton
@@ -70,7 +70,7 @@ function FailedTileCard({ tile, onRemove }: FailedTileCardProps) {
         {tile.name}
       </Text>
       <UploadCardError>
-        <Text role="alert" size="T200" title={message}>
+        <Text className={css.UploadTileErrorText} role="alert" size="T200" title={message}>
           {message}
         </Text>
       </UploadCardError>

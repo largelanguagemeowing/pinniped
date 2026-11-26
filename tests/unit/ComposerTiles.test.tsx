@@ -23,6 +23,7 @@ vi.mock('../../src/app/hooks/useMatrixClient', () => ({ useMatrixClient: () => (
 
 type FakeUpload = {
   file: File;
+  progress: (loaded: number) => void;
   succeed: (mxc: string) => void;
   fail: (message: string) => void;
 };
@@ -34,6 +35,7 @@ vi.mock('../../src/app/utils/matrix', async (importOriginal) => ({
     file: File,
     options: {
       onPromise?: (p: Promise<unknown>) => void;
+      onProgress?: (p: { loaded: number; total: number }) => void;
       onSuccess: (mxc: string) => void;
       onError: (e: unknown) => void;
     }
@@ -41,6 +43,7 @@ vi.mock('../../src/app/utils/matrix', async (importOriginal) => ({
     options.onPromise?.(new Promise(() => undefined));
     uploads.started.push({
       file,
+      progress: (loaded) => options.onProgress?.({ loaded, total: file.size }),
       succeed: options.onSuccess,
       fail: (message) => options.onError({ message }),
     });
@@ -64,7 +67,7 @@ vi.mock('../../src/app/state/upload', async (importOriginal) => {
 });
 
 const readyTile = (name: string): TComposerTile => {
-  const file = new File(['x'], name, { type: 'text/plain' });
+  const file = new File(['xxxx'], name, { type: 'text/plain' });
   return {
     id: createTileId(),
     status: ComposerTileStatus.Ready,
@@ -144,6 +147,26 @@ describe('ComposerTiles', () => {
     });
     // only the failed file starts again
     expect(startedNames().sort()).toEqual(['a', 'a', 'b']);
+  });
+
+  it('shows how far an upload is, as a percent of its file', () => {
+    const renderer = mount([readyTile('a')]);
+    act(() => {
+      uploads.started[0].progress(1);
+    });
+    expect(renderer.root.findAll((node) => node.children.includes('25%'))).not.toHaveLength(0);
+  });
+
+  it('marks a failed tile so its controls stay visible without hover', () => {
+    const renderer = mount([readyTile('a'), readyTile('b')]);
+    const failedMarks = () =>
+      renderer.root.findAll((node) => node.type === 'div' && node.props['data-failed'] === true);
+    expect(failedMarks()).toHaveLength(0);
+
+    act(() => {
+      uploads.started[0].fail('connection lost');
+    });
+    expect(failedMarks()).toHaveLength(1);
   });
 
   it('offers no retry for a file that never reached an upload, but still a removal', () => {

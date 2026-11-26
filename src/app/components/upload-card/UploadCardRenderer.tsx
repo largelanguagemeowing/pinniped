@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { Box, Icon, IconButton, Icons, ProgressBar, Text, color } from 'folds';
+import { Box, Icon, IconButton, Icons, Text, color } from 'folds';
 import * as css from './UploadCard.css';
-import { UploadCardError } from './UploadCard';
+import { UploadCardError, UploadCardProgress } from './UploadCard';
+import { getUploadErrorMessage } from './uploadErrorMessage';
 import {
   UploadStatus,
   UploadSuccess,
@@ -80,22 +81,11 @@ export function UploadCardRenderer({
 
   return (
     <Box className={css.UploadTile} direction="Column" gap="100">
-      <Box className={css.UploadTileFrame}>
+      <Box className={css.UploadTileFrame} data-failed={upload.status === UploadStatus.Error}>
         {isMedia ? (
           <PreviewMedia fileItem={fileItem} />
         ) : (
           <Icon src={getFileTypeIcon(Icons, file.type)} size="400" />
-        )}
-        {upload.status === UploadStatus.Loading && (
-          <Box className={css.UploadTileProgress}>
-            <ProgressBar
-              variant="Secondary"
-              size="300"
-              min={0}
-              max={file.size}
-              value={upload.progress.loaded}
-            />
-          </Box>
         )}
         {upload.status === UploadStatus.Success && (
           <Box className={css.UploadTileDone}>
@@ -140,9 +130,19 @@ export function UploadCardRenderer({
       <Text size="T300" truncate title={file.name}>
         {file.name}
       </Text>
+      {upload.status === UploadStatus.Loading && (
+        <UploadCardProgress sentBytes={upload.progress.loaded} totalBytes={file.size} />
+      )}
       {upload.status === UploadStatus.Error && (
         <UploadCardError>
-          <Text size="T200">{upload.error.message}</Text>
+          <Text
+            className={css.UploadTileErrorText}
+            role="alert"
+            size="T200"
+            title={getUploadErrorMessage(upload.error)}
+          >
+            {getUploadErrorMessage(upload.error)}
+          </Text>
         </UploadCardError>
       )}
     </Box>
