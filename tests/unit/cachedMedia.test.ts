@@ -288,8 +288,9 @@ describe('loadMedia', () => {
       await vi.waitFor(() => expect(fetched).toHaveLength(1));
       controller.abort();
 
-      await expect(loading).rejects.toMatchObject({ name: 'AbortError' });
+      // within the abort, not some turns later
       expect(fetched[0].signal?.aborted).toBe(true);
+      await expect(loading).rejects.toMatchObject({ name: 'AbortError' });
     });
 
     it('lets the download finish for another load that still waits', async () => {

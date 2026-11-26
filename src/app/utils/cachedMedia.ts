@@ -81,9 +81,17 @@ const download = async (
   }
 };
 
-const untilAborted = <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> =>
+// settles with the promise, or rejects as soon as the signal aborts after running `onAbort`
+const untilAborted = <T>(
+  promise: Promise<T>,
+  signal: AbortSignal,
+  onAbort: () => void
+): Promise<T> =>
   new Promise<T>((resolve, reject) => {
-    const abort = () => reject(signal.reason);
+    const abort = () => {
+      onAbort();
+      reject(signal.reason);
+    };
     signal.addEventListener('abort', abort, { once: true });
     promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
   });
@@ -106,7 +114,8 @@ export const loadMedia = async (
 
   const pending = mediaBlobCache.request(key, (abort) => download(httpUrl, request, abort));
   try {
-    return await (signal ? untilAborted(pending.blob, signal) : pending.blob);
+    // released within the abort, so a download nothing else waits for stops at once
+    return await (signal ? untilAborted(pending.blob, signal, pending.release) : pending.blob);
   } finally {
     pending.release();
   }
