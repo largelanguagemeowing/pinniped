@@ -22,6 +22,7 @@ import { AccountDataEvent } from '../../types/matrix/accountData';
 import { getStateEvent } from './room';
 import { Membership, StateEvent } from '../../types/matrix/room';
 import { getFallbackSession } from '../state/sessions';
+import { UploadFailure, UploadOtherError, toUploadFailure } from './uploadFailure';
 
 /**
  * Sends an event whose type is only known at runtime (developer tools).
@@ -213,7 +214,7 @@ export type ContentUploadOptions = {
   onPromise?: (promise: Promise<UploadResponse>) => void;
   onProgress?: (progress: UploadProgress) => void;
   onSuccess: (mxc: string) => void;
-  onError: (error: MatrixError) => void;
+  onError: (failure: UploadFailure) => void;
 };
 
 export const uploadContent = async (
@@ -223,25 +224,24 @@ export const uploadContent = async (
 ) => {
   const { name, fileType, hideFilename, onProgress, onPromise, onSuccess, onError } = options;
 
+  // ours, so a cancelled upload can be told from a request that got no answer;
+  // `mx.cancelUpload` aborts the controller the upload was started with
+  const abortController = new AbortController();
   const uploadPromise = mx.uploadContent(file, {
     name,
     type: fileType,
     includeFilename: !hideFilename,
     progressHandler: onProgress,
+    abortController,
   });
   onPromise?.(uploadPromise);
   try {
     const data = await uploadPromise;
     const mxc = data.content_uri;
     if (mxc) onSuccess(mxc);
-    else onError(new MatrixError(data));
+    else onError(new UploadOtherError(new Error('The server returned no content URI')));
   } catch (e) {
-    const err =
-      typeof e === 'object' && e !== null ? (e as { message?: unknown; name?: unknown }) : {};
-    const error = typeof err.message === 'string' ? err.message : undefined;
-    const errcode =
-      typeof err.name === 'string' && typeof err.message === 'string' ? err.message : undefined;
-    onError(new MatrixError({ error, errcode }));
+    onError(toUploadFailure(e, abortController.signal.aborted));
   }
 };
 
