@@ -6,6 +6,7 @@ import { IEventRelation } from 'matrix-js-sdk';
 import { createUploadAtomFamily } from '../upload';
 import { TUploadContent } from '../../utils/matrix';
 import { createListAtom } from '../list';
+import type { TComposerTile } from './composerTiles';
 import { loadMsgDraft, storeMsgDraft } from './msgDraftStore';
 
 export type TUploadMetadata = {
@@ -19,8 +20,9 @@ export type TUploadItem = {
   encInfo: EncryptedAttachmentInfo | undefined;
 };
 
-export type TUploadListAtom = ReturnType<typeof createListAtom<TUploadItem>>;
+export type TUploadListAtom = ReturnType<typeof createListAtom<TComposerTile>>;
 
+/** The composer's tiles of a room: one per picked file, in the order they were picked. */
 export const roomIdToUploadItemsAtomFamily = atomFamily<string, TUploadListAtom>(createListAtom);
 
 export const roomUploadAtomFamily = createUploadAtomFamily();

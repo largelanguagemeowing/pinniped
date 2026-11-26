@@ -60,11 +60,14 @@ export const UploadTileMedia = style({
   display: 'block',
 });
 
-export const UploadTileProgress = style({
-  position: 'absolute',
-  left: config.space.S200,
-  right: config.space.S200,
-  bottom: config.space.S200,
+/** A long error wraps inside the tile and stops at three lines; the full text is in its title. */
+export const UploadTileErrorText = style({
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+  display: '-webkit-box',
+  WebkitLineClamp: 3,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
 });
 
 export const UploadTileDone = style({
@@ -89,6 +92,16 @@ export const UploadTileActions = style({
       opacity: 1,
     },
     [`${UploadTileFrame}:focus-within &`]: {
+      opacity: 1,
+    },
+    // A failed tile needs its Retry and Remove at hand, hovered or not.
+    [`${UploadTileFrame}[data-failed="true"] &`]: {
+      opacity: 1,
+    },
+  },
+  // Touch screens have no hover to reveal the controls.
+  '@media': {
+    '(hover: none)': {
       opacity: 1,
     },
   },

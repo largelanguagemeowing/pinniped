@@ -1,11 +1,13 @@
 import React, { MutableRefObject, useImperativeHandle, useRef } from 'react';
-import { Box, as } from 'folds';
+import { Box, Text, as, config } from 'folds';
 import { useAtomValue } from 'jotai';
 import classNames from 'classnames';
 import { IContent } from 'matrix-js-sdk';
 
 import * as css from './UploadBoard.css';
 import { TUploadFamilyObserverAtom, UploadStatus, UploadSuccess } from '../../state/upload';
+import { UploadCardProgress } from '../upload-card/UploadCard';
+import { UploadTotals } from '../../features/room/uploadProgress';
 
 export const UploadBoard = as<'div'>(({ children, ...props }, ref) => (
   <Box className={css.UploadBoardBase} {...props} ref={ref}>
@@ -19,8 +21,6 @@ export const UploadBoard = as<'div'>(({ children, ...props }, ref) => (
 
 export type UploadBoardImperativeHandlers = {
   handleSend: (caption?: IContent) => Promise<void>;
-  /** Whether a file has not finished uploading; sending now would leave it behind. */
-  isUploading: () => boolean;
 };
 
 type UploadBoardSenderProps = {
@@ -52,13 +52,7 @@ export function UploadBoardSender({
     sendingRef.current = false;
   };
 
-  useImperativeHandle(imperativeHandlerRef, () => ({
-    handleSend,
-    isUploading: () =>
-      uploads.some(
-        (upload) => upload.status === UploadStatus.Idle || upload.status === UploadStatus.Loading
-      ),
-  }));
+  useImperativeHandle(imperativeHandlerRef, () => ({ handleSend }));
 
   return null;
 }
@@ -68,3 +62,23 @@ export const UploadBoardContent = as<'div'>(({ className, children, ...props }, 
     {children}
   </div>
 ));
+
+type UploadBoardProgressProps = {
+  totals: UploadTotals;
+};
+/** One figure for all the files together, shown while any of them is still on its way. */
+export function UploadBoardProgress({ totals }: UploadBoardProgressProps) {
+  if (totals.done === totals.count) return null;
+  return (
+    <Box
+      direction="Column"
+      gap="100"
+      style={{ padding: `${config.space.S200} ${config.space.S200} 0` }}
+    >
+      <Text size="T200" priority="300">
+        {`${totals.done} of ${totals.count} files uploaded`}
+      </Text>
+      <UploadCardProgress sentBytes={totals.loadedBytes} totalBytes={totals.totalBytes} />
+    </Box>
+  );
+}

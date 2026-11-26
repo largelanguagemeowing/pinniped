@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { Box, Icon, IconButton, Icons, ProgressBar, Text, color } from 'folds';
+import { Box, Icon, IconButton, Icons, Text, color } from 'folds';
 import * as css from './UploadCard.css';
-import { UploadCardError } from './UploadCard';
+import { UploadCardError, UploadCardProgress } from './UploadCard';
+import { getUploadErrorMessage } from './uploadErrorMessage';
 import {
   UploadStatus,
   UploadSuccess,
@@ -9,15 +10,13 @@ import {
   useStartIdleUpload,
 } from '../../state/upload';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { TUploadContent } from '../../utils/matrix';
-import { bytesToSize, getFileTypeIcon } from '../../utils/common';
+import { getFileTypeIcon } from '../../utils/common';
 import {
   roomUploadAtomFamily,
   TUploadItem,
   TUploadMetadata,
 } from '../../state/room/roomInputDrafts';
 import { useObjectURL } from '../../hooks/useObjectURL';
-import { useMediaConfig } from '../../hooks/useMediaConfig';
 
 type PreviewMediaProps = {
   fileItem: TUploadItem;
@@ -42,7 +41,7 @@ type UploadCardRendererProps = {
   isEncrypted?: boolean;
   fileItem: TUploadItem;
   setMetadata: (fileItem: TUploadItem, metadata: TUploadMetadata) => void;
-  onRemove: (file: TUploadContent) => void;
+  onRemove: () => void;
   onComplete?: (upload: UploadSuccess) => void;
 };
 export function UploadCardRenderer({
@@ -53,16 +52,13 @@ export function UploadCardRenderer({
   onComplete,
 }: UploadCardRendererProps) {
   const mx = useMatrixClient();
-  const mediaConfig = useMediaConfig();
-  const allowSize = mediaConfig['m.upload.size'] || Infinity;
 
   const uploadAtom = roomUploadAtomFamily(fileItem.file);
   const { metadata } = fileItem;
   const { upload, startUpload, cancelUpload } = useBindUploadAtom(mx, uploadAtom, isEncrypted);
   const { file } = upload;
-  const fileSizeExceeded = file.size >= allowSize;
 
-  useStartIdleUpload(upload.status, fileSizeExceeded, startUpload);
+  useStartIdleUpload(upload.status, false, startUpload);
 
   const isMedia =
     fileItem.originalFile.type.startsWith('image') ||
@@ -74,7 +70,7 @@ export function UploadCardRenderer({
 
   const removeUpload = () => {
     cancelUpload();
-    onRemove(file);
+    onRemove();
   };
 
   useEffect(() => {
@@ -85,22 +81,11 @@ export function UploadCardRenderer({
 
   return (
     <Box className={css.UploadTile} direction="Column" gap="100">
-      <Box className={css.UploadTileFrame}>
+      <Box className={css.UploadTileFrame} data-failed={upload.status === UploadStatus.Error}>
         {isMedia ? (
           <PreviewMedia fileItem={fileItem} />
         ) : (
           <Icon src={getFileTypeIcon(Icons, file.type)} size="400" />
-        )}
-        {upload.status === UploadStatus.Loading && (
-          <Box className={css.UploadTileProgress}>
-            <ProgressBar
-              variant="Secondary"
-              size="300"
-              min={0}
-              max={file.size}
-              value={upload.progress.loaded}
-            />
-          </Box>
         )}
         {upload.status === UploadStatus.Success && (
           <Box className={css.UploadTileDone}>
@@ -145,15 +130,18 @@ export function UploadCardRenderer({
       <Text size="T300" truncate title={file.name}>
         {file.name}
       </Text>
+      {upload.status === UploadStatus.Loading && (
+        <UploadCardProgress sentBytes={upload.progress.loaded} totalBytes={file.size} />
+      )}
       {upload.status === UploadStatus.Error && (
         <UploadCardError>
-          <Text size="T200">{upload.error.message}</Text>
-        </UploadCardError>
-      )}
-      {upload.status === UploadStatus.Idle && fileSizeExceeded && (
-        <UploadCardError>
-          <Text size="T200">
-            Exceeds the limit of <b>{bytesToSize(allowSize)}</b>.
+          <Text
+            className={css.UploadTileErrorText}
+            role="alert"
+            size="T200"
+            title={getUploadErrorMessage(upload.error)}
+          >
+            {getUploadErrorMessage(upload.error)}
           </Text>
         </UploadCardError>
       )}

@@ -183,6 +183,19 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
   return content;
 };
 
+/** The message content of an uploaded file, by what kind of file it is. */
+export const getUploadMsgContent = async (
+  mx: MatrixClient,
+  item: TUploadItem,
+  mxc: string
+): Promise<IContent> => {
+  const { type } = item.file;
+  if (type.startsWith('image')) return getImageMsgContent(mx, item, mxc);
+  if (type.startsWith('video')) return getVideoMsgContent(mx, item, mxc);
+  if (type.startsWith('audio')) return getAudioMsgContent(item, mxc);
+  return getFileMsgContent(item, mxc);
+};
+
 export const addReplyRelation = (content: IContent, replyDraft?: IReplyDraft): IContent => {
   if (!replyDraft) return content;
 

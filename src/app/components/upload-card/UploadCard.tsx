@@ -40,7 +40,7 @@ export function UploadCardProgress({ sentBytes, totalBytes }: UploadCardProgress
   return (
     <Box grow="Yes" direction="Column" gap="200">
       <ProgressBar variant="Secondary" size="300" min={0} max={totalBytes} value={sentBytes} />
-      <Box alignItems="Center" justifyContent="SpaceBetween">
+      <Box alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" gap="100">
         <Badge variant="Secondary" fill="Solid" radii="Pill">
           <Text size="L400">{`${Math.round(percent(0, totalBytes, sentBytes))}%`}</Text>
         </Badge>
