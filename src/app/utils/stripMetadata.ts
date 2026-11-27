@@ -1,5 +1,5 @@
 // Removes privacy-relevant metadata (EXIF GPS, camera, timestamps, XMP, IPTC,
-// comments) from JPEG, PNG, WebP, HEIC and AVIF files without re-encoding the
+// comments) from JPEG, PNG, WebP, GIF, HEIC and AVIF files without re-encoding the
 // pixels. The JPEG and WebP orientation is kept as a minimal EXIF block so photos
 // do not end up rotated; HEIF carries it outside EXIF, in the image's own properties.
 
@@ -14,6 +14,7 @@ import {
   webpChunks,
   webpExif,
 } from './imageContainer';
+import { gifMetadataBlocks, isGif } from './gif';
 import { heifMetadata, isHeif } from './heif';
 import { readTiff, tiffOrientation } from './tiff';
 
@@ -115,6 +116,19 @@ const stripWebp = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
   return out;
 };
 
+const stripGif = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
+  const blocks = gifMetadataBlocks(bytes);
+  if (!blocks || blocks.length === 0) return undefined;
+  const parts: Uint8Array[] = [];
+  let from = 0;
+  blocks.forEach(([start, end]) => {
+    parts.push(bytes.subarray(from, start));
+    from = end;
+  });
+  parts.push(bytes.subarray(from));
+  return concat(parts);
+};
+
 /**
  * Overwrites the Exif and XMP items' data with zeros and retypes them to `free`, so the file keeps
  * its size and every offset in it stays valid; nothing needs to be moved or rewritten.
@@ -154,6 +168,7 @@ export const stripMetadataBytes = (bytes: Uint8Array): Uint8Array<ArrayBuffer> |
     case 'webp':
       return stripWebp(bytes);
     default:
+      if (isGif(bytes)) return stripGif(bytes);
       return isHeif(bytes) ? stripHeif(bytes) : undefined;
   }
 };
