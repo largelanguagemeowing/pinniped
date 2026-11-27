@@ -1,6 +1,7 @@
 // Removes privacy-relevant metadata (EXIF GPS, camera, timestamps, XMP, IPTC,
-// comments) from JPEG and PNG files without re-encoding the pixels. The JPEG
-// orientation is kept as a minimal EXIF block so photos do not end up rotated.
+// comments) from JPEG, PNG, WebP, HEIC and AVIF files without re-encoding the
+// pixels. The JPEG and WebP orientation is kept as a minimal EXIF block so photos
+// do not end up rotated; HEIF carries it outside EXIF, in the image's own properties.
 
 import {
   JPEG_APP1,
@@ -10,8 +11,24 @@ import {
   jpegExif,
   jpegSegments,
   pngChunks,
+  webpChunks,
+  webpExif,
 } from './imageContainer';
+import { heifMetadata, isHeif } from './heif';
 import { readTiff, tiffOrientation } from './tiff';
+
+/** A TIFF structure whose only entry is the orientation. */
+const orientationTiff = (orientation: number): Uint8Array => {
+  const out = new Uint8Array(26);
+  const view = new DataView(out.buffer);
+  out.set([0x4d, 0x4d, 0, 0x2a, 0, 0, 0, 8]); // big-endian TIFF header
+  view.setUint16(8, 1); // one entry
+  view.setUint16(10, 0x0112);
+  view.setUint16(12, 3); // SHORT
+  view.setUint32(14, 1);
+  view.setUint16(18, orientation);
+  return out;
+};
 
 const orientationSegment = (orientation: number): Uint8Array => {
   const out = new Uint8Array(36);
@@ -19,27 +36,24 @@ const orientationSegment = (orientation: number): Uint8Array => {
   view.setUint16(0, 0xffe1);
   view.setUint16(2, 34);
   out.set([0x45, 0x78, 0x69, 0x66, 0, 0], 4); // "Exif\0\0"
-  out.set([0x4d, 0x4d, 0, 0x2a, 0, 0, 0, 8], 10); // big-endian TIFF header
-  view.setUint16(18, 1); // one entry
-  view.setUint16(20, 0x0112);
-  view.setUint16(22, 3); // SHORT
-  view.setUint32(24, 1);
-  view.setUint16(28, orientation);
+  out.set(orientationTiff(orientation), 10);
   return out;
 };
+
+const orientationOf = (tiffs: (Uint8Array | undefined)[]): number | undefined =>
+  tiffs
+    .map((exif) => {
+      const tiff = exif && readTiff(exif);
+      return tiff && tiffOrientation(tiff);
+    })
+    .find((value) => value !== undefined);
 
 const JPEG_METADATA_MARKERS = new Set([JPEG_APP1, JPEG_APP13, JPEG_COM]);
 
 const stripJpeg = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
   const segments = jpegSegments(bytes);
   if (!segments) return undefined;
-  const orientation = segments
-    .map((segment) => {
-      const exif = jpegExif(segment);
-      const tiff = exif && readTiff(exif);
-      return tiff && tiffOrientation(tiff);
-    })
-    .find((value) => value !== undefined);
+  const orientation = orientationOf(segments.map(jpegExif));
   const parts: Uint8Array[] = [bytes.subarray(0, 2)];
   if (orientation && orientation !== 1) parts.push(orientationSegment(orientation));
   // APP1 (EXIF/XMP), APP13 (IPTC/Photoshop) and COM carry metadata.
@@ -61,6 +75,66 @@ const stripPng = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
   return concat(parts);
 };
 
+const WEBP_VP8X_EXIF_FLAG = 0x08;
+const WEBP_VP8X_XMP_FLAG = 0x04;
+
+const stripWebp = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
+  const chunks = webpChunks(bytes);
+  if (!chunks) return undefined;
+  const orientation = orientationOf(
+    chunks.filter((chunk) => chunk.type === 'EXIF').map((chunk) => webpExif(chunk))
+  );
+  const keepOrientation = orientation !== undefined && orientation !== 1;
+  const parts: Uint8Array[] = [bytes.subarray(0, 12)];
+  let orientationWritten = false;
+  chunks.forEach((chunk) => {
+    if (chunk.type === 'XMP ') return;
+    if (chunk.type === 'EXIF') {
+      // a minimal block takes the place of the first EXIF chunk
+      if (keepOrientation && !orientationWritten) {
+        const header = new Uint8Array(8);
+        header.set([0x45, 0x58, 0x49, 0x46]); // "EXIF"
+        new DataView(header.buffer).setUint32(4, 26, true);
+        parts.push(header, orientationTiff(orientation));
+        orientationWritten = true;
+      }
+      return;
+    }
+    if (chunk.type === 'VP8X' && chunk.data.length >= 1) {
+      // the flags say which metadata chunks follow
+      const vp8x = bytes.slice(chunk.start, chunk.end);
+      vp8x[8] &= ~(WEBP_VP8X_EXIF_FLAG | WEBP_VP8X_XMP_FLAG);
+      if (keepOrientation) vp8x[8] |= WEBP_VP8X_EXIF_FLAG;
+      parts.push(vp8x);
+      return;
+    }
+    parts.push(bytes.subarray(chunk.start, chunk.end));
+  });
+  const out = concat(parts);
+  new DataView(out.buffer).setUint32(4, out.length - 8, true); // RIFF size
+  return out;
+};
+
+/**
+ * Overwrites the Exif and XMP items' data with zeros and retypes them to `free`, so the file keeps
+ * its size and every offset in it stays valid; nothing needs to be moved or rewritten.
+ */
+const stripHeif = (bytes: Uint8Array): Uint8Array<ArrayBuffer> | undefined => {
+  const found = heifMetadata(bytes);
+  if (!found || (found.items.length === 0 && found.boxes.length === 0)) return undefined;
+  const out = bytes.slice();
+  found.items.forEach((item) => {
+    out.set([0x66, 0x72, 0x65, 0x65], item.typeAt); // "free"
+    out.fill(0, item.nameStart, item.nameEnd);
+    item.extents.forEach(([start, end]) => out.fill(0, start, end));
+  });
+  found.boxes.forEach(({ start, body, end }) => {
+    out.set([0x66, 0x72, 0x65, 0x65], start + 4); // "free"
+    out.fill(0, body, end);
+  });
+  return out;
+};
+
 const concat = (parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const out = new Uint8Array(new ArrayBuffer(parts.reduce((n, p) => n + p.length, 0)));
   let offset = 0;
@@ -77,12 +151,14 @@ export const stripMetadataBytes = (bytes: Uint8Array): Uint8Array<ArrayBuffer> |
       return stripJpeg(bytes);
     case 'png':
       return stripPng(bytes);
+    case 'webp':
+      return stripWebp(bytes);
     default:
-      return undefined;
+      return isHeif(bytes) ? stripHeif(bytes) : undefined;
   }
 };
 
-/** Returns the file without metadata, or the original when it is not a JPEG/PNG or cannot be parsed. */
+/** Returns the file without metadata, or the original when it is no supported image, has none or cannot be parsed. */
 export const stripMetadata = async (file: File): Promise<File> => {
   try {
     const stripped = stripMetadataBytes(new Uint8Array(await file.arrayBuffer()));
