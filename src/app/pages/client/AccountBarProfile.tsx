@@ -30,6 +30,7 @@ import { settingsModalAtom } from '../../state/settingsModal';
 import { settingsAtom } from '../../state/settings';
 import { useSetting } from '../../state/hooks/settings';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
+import { useSettingsShortcut } from '../../hooks/useSettingsShortcut';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { Presence, useUserPresence } from '../../hooks/useUserPresence';
 import { useUserProfile } from '../../hooks/useUserProfile';
@@ -159,6 +160,7 @@ export function AccountBarProfile() {
   const richPresence = useUserRichPresence(userId);
   const [settings, setSettings] = useAtom(settingsModalAtom);
   const [menuCords, setMenuCords] = useState<RectCords>();
+  useSettingsShortcut();
 
   const displayName = profile.displayName ?? getMxIdLocalPart(userId) ?? userId;
   const status = useOwnStatus(userId);
