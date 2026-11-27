@@ -173,9 +173,20 @@ export const stripMetadataBytes = (bytes: Uint8Array): Uint8Array<ArrayBuffer> |
   }
 };
 
-/** Returns the file without metadata, or the original when it is no supported image, has none or cannot be parsed. */
+// enough for every format's signature, and for the brand list of a HEIF `ftyp` box
+const SIGNATURE_BYTES = 4096;
+
+const isSupportedImage = (head: Uint8Array): boolean =>
+  imageContainer(head) !== 'other' || isGif(head) || isHeif(head);
+
+/**
+ * Returns the file without metadata, or the original when it is no supported image, has none or
+ * cannot be parsed. Only the start of a file that is no supported image is read.
+ */
 export const stripMetadata = async (file: File): Promise<File> => {
   try {
+    const head = new Uint8Array(await file.slice(0, SIGNATURE_BYTES).arrayBuffer());
+    if (!isSupportedImage(head)) return file;
     const stripped = stripMetadataBytes(new Uint8Array(await file.arrayBuffer()));
     if (!stripped) return file;
     return new File([stripped], file.name, { type: file.type, lastModified: file.lastModified });

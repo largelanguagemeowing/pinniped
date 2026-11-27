@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { stripMetadataBytes } from '../../src/app/utils/stripMetadata';
+import { describe, expect, it, vi } from 'vitest';
+import { stripMetadata, stripMetadataBytes } from '../../src/app/utils/stripMetadata';
 
 const u16 = (n: number) => [n >> 8, n & 255];
 const seg = (marker: number, body: number[]) => [0xff, marker, ...u16(body.length + 2), ...body];
@@ -92,5 +92,24 @@ describe('stripMetadataBytes', () => {
 
   it('ignores other formats', () => {
     expect(stripMetadataBytes(new Uint8Array([1, 2, 3]))).toBeUndefined();
+  });
+});
+
+describe('stripMetadata reads', () => {
+  it('only the start of a file that is no supported image', async () => {
+    const video = new File([new Uint8Array(1024 * 1024)], 'clip.mp4', { type: 'video/mp4' });
+    const readAll = vi.spyOn(video, 'arrayBuffer');
+    expect(await stripMetadata(video)).toBe(video);
+    expect(readAll).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['JPEG', [0xff, 0xd8, 0xff, 0xfe, 0, 4, 65, 66, 0xff, 0xda, 0, 4, 1, 2, 9, 9, 0xff, 0xd9]],
+    ['HEIC', [0, 0, 0, 16, ...[...'ftypheic'].map((c) => c.charCodeAt(0)), 0, 0, 0, 0]],
+  ])('the whole file of a %s', async (_, bytes) => {
+    const file = new File([new Uint8Array(bytes)], 'photo', { type: 'image/jpeg' });
+    const readAll = vi.spyOn(file, 'arrayBuffer');
+    await stripMetadata(file);
+    expect(readAll).toHaveBeenCalled();
   });
 });
