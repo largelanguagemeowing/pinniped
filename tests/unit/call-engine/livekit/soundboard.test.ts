@@ -111,6 +111,7 @@ describe('the soundboard', () => {
   beforeEach(() => {
     Context.made = [];
     vi.stubGlobal('AudioContext', Context);
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
     vi.stubGlobal('fetch', async () => ({ arrayBuffer: async () => new ArrayBuffer(8) }));
   });
   afterEach(() => {

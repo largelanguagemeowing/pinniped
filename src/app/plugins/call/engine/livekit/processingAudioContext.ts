@@ -25,13 +25,20 @@ export function processingAudioContext(options: AudioContextOptions = {}): Audio
   return new AudioContext(silent);
 }
 
+/** Where Chromium renders a context without an output from a coarse timer (see below). */
+export const hasCoarseAudioTimer = (): boolean => /Windows/.test(navigator.userAgent);
+
 /**
  * An audio context for graphs whose output is sent to the call (the processed microphone, the
- * soundboard, shared-screen audio). The system's default output device clocks it, so it renders
- * as much audio as time passes; it plays nothing, since nothing is connected to its destination.
- * It holds an output stream for as long as it is open, so make it when the feature is used and
- * close it afterwards.
+ * soundboard, shared-screen audio). On Windows the system's default output device clocks it, so
+ * it renders as much audio as time passes; it plays nothing, since nothing is connected to its
+ * destination. It holds an output stream for as long as it is open, so make it when the feature
+ * is used and close it afterwards.
+ *
+ * Elsewhere the timer that renders a context without an output is precise, so it is a
+ * {@link processingAudioContext}: an output stream on the default device is not wanted there
+ * (a Bluetooth headset's, for one).
  */
 export function sendingAudioContext(options: AudioContextOptions = {}): AudioContext {
-  return new AudioContext(options);
+  return hasCoarseAudioTimer() ? new AudioContext(options) : processingAudioContext(options);
 }

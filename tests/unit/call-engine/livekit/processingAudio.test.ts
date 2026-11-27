@@ -65,7 +65,11 @@ afterEach(() => {
 
 // A context without an output is rendered by a timer, which Chromium lets run slow (on Windows at
 // 64 ticks a second, 0.64 s of audio a second): what such a context sends arrives cut up.
-describe('audio contexts whose output is sent to the call', () => {
+describe('audio contexts whose output is sent to the call, on Windows', () => {
+  beforeEach(() => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
+  });
+
   it('are clocked by an output device, with the options they were given', () => {
     sendingAudioContext({ latencyHint: 'interactive' });
     expect(latest().options).toEqual({ latencyHint: 'interactive' });
@@ -82,6 +86,20 @@ describe('audio contexts whose output is sent to the call', () => {
     await PcmAudioSource.create();
     expect(RecordingContext.made).toHaveLength(1);
     expect(latest().options).toEqual({ sampleRate: 48000, latencyHint: 'interactive' });
+  });
+});
+
+// Elsewhere the timer is precise, and an output stream on the default device (a Bluetooth
+// headset's, for one) is not wanted.
+describe('audio contexts whose output is sent to the call, off Windows', () => {
+  beforeEach(() => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (X11; Linux x86_64)' });
+  });
+
+  it('open no output stream, with the options they were given', () => {
+    sendingAudioContext({ latencyHint: 'interactive' });
+    expect(latest().options).toEqual({ latencyHint: 'interactive', sinkId: { type: 'none' } });
+    expect(opensOutput(latest())).toBe(false);
   });
 });
 

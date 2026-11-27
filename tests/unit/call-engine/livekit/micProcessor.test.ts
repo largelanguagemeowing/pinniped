@@ -259,7 +259,8 @@ describe('the microphone graph', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it('runs in a context of its own that a device clocks, not the one LiveKit hands it', async () => {
+  it('runs in a context of its own that a device clocks on Windows, not the one LiveKit hands it', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
     const { ctx, processor } = await build({ mono: true, gate: of(gateConfig) });
     // a context without an output is rendered by a timer, which can run slow
     expect(ctx.options).toEqual({ latencyHint: 'interactive' });
