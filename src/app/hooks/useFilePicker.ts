@@ -26,3 +26,15 @@ export const useImageFilePicker = (onSelect: (file: File) => void) =>
     ),
     false
   );
+
+/** Picks several images; they arrive without their metadata. */
+export const useImageFilesPicker = (onSelect: (files: File[]) => void) =>
+  useFilePicker(
+    useCallback(
+      async (files: File[]) => {
+        onSelect(await Promise.all(files.map(stripMetadata)));
+      },
+      [onSelect]
+    ),
+    true
+  );

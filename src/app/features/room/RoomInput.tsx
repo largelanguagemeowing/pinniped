@@ -98,6 +98,7 @@ import {
   getReadyItems,
 } from '../../state/room/composerTiles';
 import { prepareUploadFiles } from './prepareUploadFiles';
+import { stripMetadata } from '../../utils/stripMetadata';
 import { describeSendGate, getSendGate } from './sendGate';
 import { getUploadTotals } from './uploadProgress';
 import { buildUploadContents, describeLeftBehind, getLeftBehind } from './sendUploads';
@@ -614,9 +615,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
 
         const defaultType = videoGif ? 'video/mp4' : 'image/gif';
-        const file = new File([blob], filename, {
-          type: blob.type || defaultType,
-        });
+        const file = await stripMetadata(
+          new File([blob], filename, { type: blob.type || defaultType })
+        );
 
         const encData = room.hasEncryptionStateEvent() ? await encryptFile(file) : undefined;
         const uploadFile = encData?.file ?? file;

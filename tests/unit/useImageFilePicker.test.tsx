@@ -1,9 +1,9 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { useImageFilePicker } from '../../src/app/hooks/useFilePicker';
+import { useImageFilePicker, useImageFilesPicker } from '../../src/app/hooks/useFilePicker';
 
-const picked = vi.hoisted(() => ({ file: undefined as File | undefined }));
+const picked = vi.hoisted(() => ({ file: undefined as File | File[] | undefined }));
 vi.mock('../../src/app/utils/dom', () => ({ selectFile: async () => picked.file }));
 
 // SOI, a COM segment holding "secret", a quantisation table, SOS with scan data, EOI
@@ -15,6 +15,10 @@ const jpegWithComment = new Uint8Array([
 let pick!: (accept: string) => Promise<void>;
 function Harness({ onSelect }: { onSelect: (file: File) => void }) {
   pick = useImageFilePicker(onSelect);
+  return null;
+}
+function FilesHarness({ onSelect }: { onSelect: (files: File[]) => void }) {
+  pick = useImageFilesPicker(onSelect);
   return null;
 }
 
@@ -52,4 +56,18 @@ it('hands over nothing when the dialog is dismissed', async () => {
   });
   await act(() => pick('image/*'));
   expect(onSelect).not.toHaveBeenCalled();
+});
+
+it('hands over every picked image without its metadata, keeping the others as they are', async () => {
+  const note = new File(['hello'], 'note.txt', { type: 'text/plain' });
+  picked.file = [new File([jpegWithComment], 'a.jpg', { type: 'image/jpeg' }), note];
+  const onSelect = vi.fn();
+  act(() => {
+    create(<FilesHarness onSelect={onSelect} />);
+  });
+  await act(() => pick('image/*'));
+  const [first, second]: File[] = onSelect.mock.calls[0][0];
+  expect(first.name).toBe('a.jpg');
+  expect(new TextDecoder('latin1').decode(await first.arrayBuffer())).not.toContain('secret');
+  expect(second).toBe(note);
 });

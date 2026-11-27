@@ -18,7 +18,7 @@ import { SettingTile } from '../setting-tile';
 import { UsageSwitcher } from './UsageSwitcher';
 import { ImagePackProfile, ImagePackProfileEdit } from './PackMeta';
 import * as css from './style.css';
-import { useFilePicker } from '../../hooks/useFilePicker';
+import { useImageFilesPicker } from '../../hooks/useFilePicker';
 import { CompactUploadCardRenderer } from '../upload-card';
 import { UploadSuccess } from '../../state/upload';
 import { getImageInfo, TUploadContent } from '../../utils/matrix';
@@ -65,7 +65,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
       [imagePack, savedImages, uploadedImages]
     );
 
-    const pickFiles = useFilePicker(
+    const pickFiles = useImageFilesPicker(
       useCallback(
         (pickedFiles: File[]) => {
           // an upload's shortcode is its file name without the extension
@@ -87,8 +87,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
           setFiles((f) => [...f, ...uniqueFiles]);
         },
         [files, hasImageWithShortcode]
-      ),
-      true
+      )
     );
 
     const handleMetaSave = useCallback(
