@@ -40,7 +40,7 @@ import { settingsAtom } from '../../../state/settings';
 import { useSetting } from '../../../state/hooks/settings';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
-import { useFilePicker } from '../../../hooks/useFilePicker';
+import { useImageFilePicker } from '../../../hooks/useFilePicker';
 import { CompactUploadCardRenderer } from '../../../components/upload-card';
 import { createUploadAtom, UploadSuccess } from '../../../state/upload';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
@@ -128,7 +128,7 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
   const imagePackRooms = useImagePackRooms(room.roomId, roomToParents);
 
   const [iconFile, setIconFile] = useState<File>();
-  const pickFile = useFilePicker(setIconFile, false);
+  const pickFile = useImageFilePicker(setIconFile);
 
   const [tagColor, setTagColor] = useState<string | undefined>(tag?.color);
   const [developerTools] = useSetting(settingsAtom, 'developerTools');

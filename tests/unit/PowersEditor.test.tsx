@@ -16,7 +16,7 @@ vi.mock('../../src/app/hooks/useMediaAuthentication', () => ({
   useMediaAuthentication: () => false,
 }));
 vi.mock('../../src/app/hooks/useImagePackRooms', () => ({ useImagePackRooms: () => [] }));
-vi.mock('../../src/app/hooks/useFilePicker', () => ({ useFilePicker: () => () => undefined }));
+vi.mock('../../src/app/hooks/useFilePicker', () => ({ useImageFilePicker: () => () => undefined }));
 vi.mock('../../src/app/hooks/useMemberPowerTag', () => ({ getPowerTagIconSrc: () => undefined }));
 vi.mock('../../src/app/components/page', () => ({
   Page: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

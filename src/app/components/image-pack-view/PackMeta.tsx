@@ -19,7 +19,7 @@ import { nameInitials } from '../../utils/common';
 import { BreakWord } from '../../styles/Text.css';
 import { LINKIFY_OPTS } from '../../plugins/react-custom-html-parser';
 import { ContainerColor } from '../../styles/ContainerColor.css';
-import { useFilePicker } from '../../hooks/useFilePicker';
+import { useImageFilePicker } from '../../hooks/useFilePicker';
 import { useObjectURL } from '../../hooks/useObjectURL';
 import { createUploadAtom, UploadSuccess } from '../../state/upload';
 import { CompactUploadCardRenderer } from '../upload-card';
@@ -111,7 +111,7 @@ export function ImagePackProfileEdit({ meta, onCancel, onSave }: ImagePackProfil
     return undefined;
   }, [imageFile]);
 
-  const pickFile = useFilePicker(setImageFile, false);
+  const pickFile = useImageFilePicker(setImageFile);
 
   const handleRemoveUpload = useCallback(() => {
     setImageFile(undefined);

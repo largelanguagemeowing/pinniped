@@ -37,7 +37,7 @@ import { StateEvent } from '../../../../types/matrix/room';
 import { CompactUploadCardRenderer } from '../../../components/upload-card';
 import { useObjectURL } from '../../../hooks/useObjectURL';
 import { createUploadAtom, UploadSuccess } from '../../../state/upload';
-import { useFilePicker } from '../../../hooks/useFilePicker';
+import { useImageFilePicker } from '../../../hooks/useFilePicker';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
 import { useAlive } from '../../../hooks/useAlive';
 import { RoomPermissionsAPI } from '../../../hooks/useRoomPermissions';
@@ -79,7 +79,7 @@ export function RoomProfileEdit({
     return undefined;
   }, [imageFile]);
 
-  const pickFile = useFilePicker(setImageFile, false);
+  const pickFile = useImageFilePicker(setImageFile);
 
   const handleRemoveUpload = useCallback(() => {
     setImageFile(undefined);
